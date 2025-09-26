@@ -32,7 +32,7 @@ class MplCanvas(FigureCanvas):
         self.fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
         # 用于记录拖动状态和初始位置
         self.press = None
-
+        
     def on_scroll(self, event):
         """处理鼠标滚轮事件以实现放大和缩小。"""
         if event.xdata is None or event.ydata is None:

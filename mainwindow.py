@@ -1,13 +1,14 @@
 import os
 import pandas as pd
-from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWidget, QDialog
+from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWidget, QDialog,QStackedWidget
 from PyQt5.QtGui import QFont 
 from PyQt5.QtCore import QSize 
 from qwidget import CsvGraphWidget
 from qdialogue import ArimaConfigDialog, pulldata_dialog, FourierConfigDialog
 from utils.pull import fetch_and_save_fund_csv
-from utils.refresh import update_found_folder
+from utils.refresh import update_found_folder, update_to_worker_folder
 from pannel_plan import ControlPanel
+from signal_handler import signal_emitter
 # from calculate import ArimaPredictor
 
 
@@ -18,38 +19,54 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("金融计算系统")
         self.setMinimumSize(QSize(1200, 800)) # 设置一个更大的初始窗口大小
         self._create_menu_bar()
-        self.setCentralWidget(QWidget())
         self.attention_now=None#当前关注的csvgraphwidget，df
         self.attention_path=None#当前关注的csv路径
 
     def _create_menu_bar(self):
         # 创建菜单栏
         menu_bar = self.menuBar()
-        menu_bar.setFont(QFont("微软雅黑", 11))
+        menu_bar.setFont(QFont("微软雅黑", 12))
         file_menu = menu_bar.addMenu("文件")
         calculate_menu = menu_bar.addMenu("计算")
         plan_menu = menu_bar.addMenu("定投计划")
-        setting_menu = menu_bar.addMenu("设置")
-        # 添加菜单项
         load_action = QAction("加载文件", self)
         load_action.triggered.connect(self.show_graph_for_file)
+        load_action.setFont(QFont('微软雅黑', 11))
         pull_action = QAction("拉取数据入库", self)
         pull_action.triggered.connect(self.pull_data_by_rules)
+        pull_action.setFont(QFont('微软雅黑', 11))
+        arima_action = QAction("arima", self)
+        arima_action.triggered.connect(self.use_arima)
+        arima_action.setFont(QFont('微软雅黑', 11))
+        fourier_action = QAction("fourier", self)
+        fourier_action.triggered.connect(self.use_fourier)
+        fourier_action.setFont(QFont('微软雅黑', 11))
+        planpage_action = QAction("计划主页", self)
+        planpage_action.triggered.connect(self.load_plan_pannel)
+        planpage_action.setFont(QFont('微软雅黑', 11))
+        updateworker_action = QAction("更新worker中数据", self)
+        updateworker_action.triggered.connect(self.update_worker_folder)
+        updateworker_action.setFont(QFont('微软雅黑', 11))
+        updatefound_action = QAction("更新found中数据", self)
+        updatefound_action.triggered.connect(self.update_found_folder)
+        updatefound_action.setFont(QFont('微软雅黑', 11))
 
-        pull_black_horse_action = QAction("从库中拉取黑马数据(高级)", self)
-
-       
-        file_menu.addAction(load_action)
-        calculate_menu.addAction("arima", self.use_arima)
-        calculate_menu.addAction("fourier", self.use_fourier)
-        plan_menu.addAction("计划主页", self.load_plan_pannel)
+        plan_menu.addAction(planpage_action)
         plan_menu.addAction(pull_action)
-        plan_menu.addAction("更新库中数据",self.update_found_folder)
-        plan_menu.addAction(pull_black_horse_action)
+        plan_menu.addAction(updatefound_action)
+        plan_menu.addAction(updateworker_action)
+        file_menu.addAction(load_action)
+        calculate_menu.addAction(arima_action)
+        calculate_menu.addAction(fourier_action)
+        
+
 
 
     def update_found_folder(self):
         update_found_folder()
+
+    def update_worker_folder(self):
+        update_to_worker_folder()
 
     def pull_data_by_rules(self):
         """按照规则拉取数据"""
@@ -82,26 +99,19 @@ class MainWindow(QMainWindow):
                 data_dir,
                 "CSV 文件 (*.csv)"
             )
-        
-        # 只有当成功获取到文件路径时才继续执行
         if file_path:
             try:
-                # 把csv读成dataframe，pandas格式
                 try:
                     df = pd.read_csv(file_path, encoding='utf-8')
                 except UnicodeDecodeError:
                     df = pd.read_csv(file_path, encoding='gbk')
-                # 检查必要的列
                 if '净值日期' not in df.columns or '单位净值' not in df.columns:
                     QMessageBox.warning(self, "错误", "CSV文件缺少必要的列,'净值日期' 或 '单位净值'")
                     return
-                # 创建新的图表部件
                 new_graph_widget = CsvGraphWidget(df)
-                # 删除旧的中心部件
                 old_widget = self.centralWidget()
                 if old_widget:
                     old_widget.deleteLater()
-                # 设置新的中心部件
                 self.setCentralWidget(new_graph_widget)
                 self.attention_now = new_graph_widget
                 self.attention_path = file_path
@@ -143,8 +153,8 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.information(self, "信息", "傅里叶变换功能已取消。")
 
-
     def load_plan_pannel(self):
         self.control_panel = ControlPanel()
         self.control_panel.visualize_requested.connect(self.show_graph_for_file)
+        signal_emitter.refresh_ui_signal.connect(self.control_panel.reload_projects)
         self.setCentralWidget(self.control_panel)

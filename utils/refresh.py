@@ -43,6 +43,14 @@ def update_found_folder(folder="found"):
     return updated_files
 
 
+
+def update_to_worker_folder(folder="worker"):
+    """
+    扫描 folder 下所有六位数字 CSV 文件，并更新 CSV。
+    """
+    return update_found_folder(folder="to_worker")
+
+
 # ----------------- 测试用例 -----------------
 if __name__ == "__main__":
     # 当前目录下的 found 文件夹

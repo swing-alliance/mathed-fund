@@ -1,0 +1,1 @@
+This file is used to track fund in json that you placed a flag
