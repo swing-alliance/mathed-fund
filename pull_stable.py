@@ -53,7 +53,6 @@ def main(codes_range=(1, 999999), num_processes=3):
     for i in range(num_processes):
         start_code = codes_range[0] + i * step
         end_code = start_code + step - 1 if i < num_processes - 1 else codes_range[1]
-        
         process = multiprocessing.Process(target=fetch_mixed_fund_codes_process, args=(start_code, end_code))
         processes.append(process)
         process.start()

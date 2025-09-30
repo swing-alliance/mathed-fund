@@ -4,6 +4,12 @@ import pandas as pd
 import akshare as ak
 from datetime import datetime
 
+
+# 拉取单位净值走势
+# df_new = ak.fund_open_fund_info_em(symbol=code, indicator="单位净值走势")
+# fund_info_df = ak.fund_individual_basic_info_xq(symbol=code)
+
+
 def fetch_and_save_fund_csv(codes, folder="found"):
     """
     根据基金代码列表拉取最新净值数据，并保存为 CSV 文件
@@ -35,8 +41,20 @@ def fetch_and_save_fund_csv(codes, folder="found"):
             print(f"[失败] {code} 拉取失败: {e}")
     return saved_files
 
-# ----------------- 测试用例 -----------------
+
+
+
+
+def advanced_fetch_and_save_fund_csv(codes, folder="found", indicator="单位净值走势", start_date=None, end_date=None, save_all=False):
+    os.makedirs(folder, exist_ok=True)
+    saved_files = []    
+
+
+
+
+    
 if __name__ == "__main__":
-    # 例如从 QDialog 获取的 codes
-    codes = ["161725", "001234"]
-    fetch_and_save_fund_csv(codes)
+    fund_info_df = ak.fund_individual_basic_info_xq(symbol="000309")
+    df_new = ak.fund_open_fund_info_em(symbol="000216", indicator="累计净值走势")
+    print(fund_info_df)
+    print(df_new)

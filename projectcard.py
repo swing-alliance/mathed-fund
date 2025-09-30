@@ -122,7 +122,7 @@ def to_unflag(filename):
         signal_emitter.refresh_ui_signal.emit()
 
 class ProjectCard(QFrame):
-    """每个加载的项目卡片"""
+    """根据文件路径加载的项目卡片"""
     visualize_requested = pyqtSignal(str)  # 发送文件路径，调用信号
     def __init__(self, file_path, parent=None):
         super().__init__(parent)
@@ -138,29 +138,18 @@ class ProjectCard(QFrame):
         self.setFrameShadow(QFrame.Plain)
         self.setLineWidth(1)
         layout = QVBoxLayout(self)
-
-        # 创建一个水平布局来放置标题和旗帜
+        # 第一层
         title_row_layout = QHBoxLayout()
-
-        # 标题，第一层
         title_label = QLabel(f"{self.fund_tittle}")
         title_label.setFont(QFont('微软雅黑', 11))
         title_label.setAlignment(Qt.AlignLeft)
-        
-        # 旗帜图标，使用 Unicode 字符
         self.flag_label = QLabel("🏴")
         self.flag_label.setFont(QFont('微软雅黑', 12))
         self.flag_label.setAlignment(Qt.AlignRight)
-
         title_row_layout.addWidget(title_label, 1)
         title_row_layout.addStretch(1)
-        
-        # 【重要】在这里添加旗帜标签
         title_row_layout.addWidget(self.flag_label)
-        
-        # 将这个水平布局添加到主垂直布局中
         layout.addLayout(title_row_layout)
-
         # 第二层
         row_layout = QHBoxLayout()
         file_label = QLabel(f"基金代码:{self.filename}")
@@ -170,7 +159,7 @@ class ProjectCard(QFrame):
         layout.addLayout(row_layout)
 
     def show_fund_info(self):
-        """显示基金信息对话框"""
+        """在线显示基金信息对话框"""
         self.info_dialogue = FundInfoDialog(get_fund_info(self.filename))  # 获取基金信息并显示
         result = self.info_dialogue.exec_()
         if result == QDialog.Accepted:
@@ -252,7 +241,6 @@ class ProjectCard(QFrame):
             info_action.triggered.connect(self.show_fund_info)
             info_action.setFont(QFont('微软雅黑', 11))
             menu.addAction(info_action)
-
             visualize_action = QAction("转到计算", self)
             visualize_action.triggered.connect(self._emit_visualize_request)
             visualize_action.setFont(QFont('微软雅黑', 11))
@@ -268,7 +256,6 @@ class ProjectCard(QFrame):
                 flag_action.triggered.connect(lambda: to_flag(self.filename))
                 flag_action.setFont(QFont('微软雅黑', 11))
                 menu.addAction(flag_action)
-
             discard_action = QAction("丢弃", self)
             discard_action.triggered.connect(self.discard)
             discard_action.setFont(QFont('微软雅黑', 11))
@@ -280,7 +267,6 @@ class ProjectCard(QFrame):
                     border-radius: 5px;
                 }
             """)
-            
             self._right_click = False
         else:
             super().mousePressEvent(event)

@@ -5,7 +5,7 @@ import akshare as ak
 
 def update_found_folder(folder="found"):
     """
-    扫描 folder 下所有六位数字 CSV 文件，
+    扫描 found 下所有六位数字 CSV 文件，
     拉取最新净值数据并更新 CSV。
     """
     if not os.path.exists(folder):
@@ -46,7 +46,7 @@ def update_found_folder(folder="found"):
 
 def update_to_worker_folder(folder="worker"):
     """
-    扫描 folder 下所有六位数字 CSV 文件，并更新 CSV。
+    扫描 to_worker 下所有六位数字 CSV 文件，并更新 CSV。
     """
     return update_found_folder(folder="to_worker")
 

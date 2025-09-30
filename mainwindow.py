@@ -3,14 +3,13 @@ import pandas as pd
 from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWidget, QDialog,QStackedWidget
 from PyQt5.QtGui import QFont 
 from PyQt5.QtCore import QSize 
-from qwidget import CsvGraphWidget
-from qdialogue import ArimaConfigDialog, pulldata_dialog, FourierConfigDialog
+from csvqwidget import CsvGraphWidget
+from qdialogue import  pulldata_dialog
 from utils.pull import fetch_and_save_fund_csv
 from utils.refresh import update_found_folder, update_to_worker_folder
 from pannel_plan import ControlPanel
 from signal_handler import signal_emitter
 # from calculate import ArimaPredictor
-
 
 
 class MainWindow(QMainWindow):
@@ -21,26 +20,28 @@ class MainWindow(QMainWindow):
         self._create_menu_bar()
         self.attention_now=None#当前关注的csvgraphwidget，df
         self.attention_path=None#当前关注的csv路径
+        self.setCentralWidget(ControlPanel())
 
     def _create_menu_bar(self):
-        # 创建菜单栏
         menu_bar = self.menuBar()
         menu_bar.setFont(QFont("微软雅黑", 12))
         file_menu = menu_bar.addMenu("文件")
-        calculate_menu = menu_bar.addMenu("计算")
         plan_menu = menu_bar.addMenu("定投计划")
+        data_menu = menu_bar.addMenu("数据")
+        calculate_menu = menu_bar.addMenu("计算")
+        
         load_action = QAction("加载文件", self)
         load_action.triggered.connect(self.show_graph_for_file)
         load_action.setFont(QFont('微软雅黑', 11))
+
         pull_action = QAction("拉取数据入库", self)
-        pull_action.triggered.connect(self.pull_data_by_rules)
+        pull_action.triggered.connect(self.pull_data)
         pull_action.setFont(QFont('微软雅黑', 11))
-        arima_action = QAction("arima", self)
-        arima_action.triggered.connect(self.use_arima)
-        arima_action.setFont(QFont('微软雅黑', 11))
-        fourier_action = QAction("fourier", self)
-        fourier_action.triggered.connect(self.use_fourier)
-        fourier_action.setFont(QFont('微软雅黑', 11))
+
+        advanced_pull_action = QAction("拉取数据入库(高级)", self)
+        advanced_pull_action.triggered.connect(self.advanced_pull_data)
+        advanced_pull_action.setFont(QFont('微软雅黑', 11))
+
         planpage_action = QAction("计划主页", self)
         planpage_action.triggered.connect(self.load_plan_pannel)
         planpage_action.setFont(QFont('微软雅黑', 11))
@@ -52,13 +53,11 @@ class MainWindow(QMainWindow):
         updatefound_action.setFont(QFont('微软雅黑', 11))
 
         plan_menu.addAction(planpage_action)
-        plan_menu.addAction(pull_action)
-        plan_menu.addAction(updatefound_action)
-        plan_menu.addAction(updateworker_action)
         file_menu.addAction(load_action)
-        calculate_menu.addAction(arima_action)
-        calculate_menu.addAction(fourier_action)
-        
+        data_menu.addAction(pull_action)
+        data_menu.addAction(advanced_pull_action)
+        data_menu.addAction(updateworker_action)
+        data_menu.addAction(updatefound_action)
 
 
 
@@ -68,18 +67,20 @@ class MainWindow(QMainWindow):
     def update_worker_folder(self):
         update_to_worker_folder()
 
-    def pull_data_by_rules(self):
-        """按照规则拉取数据"""
+    def pull_data(self):
+        """拉取数据到found"""
         dialog = pulldata_dialog(self)  # QDialog 输入基金代码
         if dialog.exec_() == QDialog.Accepted:  # 用户点击确定
             codes = dialog.codes  # 获取输入数组
             if codes:
-                # 调用 pull.py 的函数拉取 CSV
                 fetch_and_save_fund_csv(codes)
                 QMessageBox.information(self, "成功", f"已拉取代码: {', '.join(codes)}")
             else:
                 QMessageBox.warning(self, "取消", "未输入任何代码")
 
+    def advanced_pull_data(self):
+        """高级拉取数据到found"""
+        pass
 
     def show_graph_for_file(self, file_path=None):
         """
@@ -118,43 +119,67 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.warning(self, "错误", f"加载或绘制数据失败: {e}")
 
-    def use_arima(self):
-        """
-        处理 ARIMA 预测请求。
-        """
-        if self.attention_now is None:
-            QMessageBox.warning(self, "错误", "请先加载数据。")
-            return
-        # 获取当前显示的图表 Qwidget
-        render_now = self.centralWidget()
-        if not isinstance(render_now, CsvGraphWidget):
-            QMessageBox.warning(self, "错误", "当前窗口不是基金净值图表。")
-            return
-        dialog = ArimaConfigDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            p, d, q = dialog.get_params()
-            render_now.use_arima(p, d, q, periods=30)
-
-        else:
-            QMessageBox.information(self, "信息", "ARIMA功能已取消。")
-
-    def use_fourier(self):
-        if self.attention_now is None:
-            QMessageBox.warning(self, "错误", "请先加载数据。")
-            return
-        render_now = self.centralWidget()
-        if not isinstance(render_now, CsvGraphWidget):
-            QMessageBox.warning(self, "错误", "当前窗口不是基金净值图表。")
-            return
-        dialogue = FourierConfigDialog(self)
-        if dialogue.exec_() == QDialog.Accepted:
-            order, period, custom_period, is_trend, sampling, window, smoothing, expect_days, extrapolation_strategy, is_fit_exact = dialogue.get_params()
-            render_now.use_fourier(order=order, period=period, custom_period=custom_period, is_trend=is_trend, sampling=sampling, window=window, smoothing=smoothing, expect_days=expect_days, extrapolation_strategy=extrapolation_strategy, overfit=is_fit_exact)
-        else:
-            QMessageBox.information(self, "信息", "傅里叶变换功能已取消。")
 
     def load_plan_pannel(self):
+        """加载计划面板,信号连接到控制面板"""
         self.control_panel = ControlPanel()
         self.control_panel.visualize_requested.connect(self.show_graph_for_file)
         signal_emitter.refresh_ui_signal.connect(self.control_panel.reload_projects)
         self.setCentralWidget(self.control_panel)
+
+
+
+
+
+
+
+
+
+
+
+
+
+        # calculate_menu.addAction(arima_action)
+        # calculate_menu.addAction(fourier_action)
+        # arima_action = QAction("arima", self)
+        # arima_action.triggered.connect(self.use_arima)
+        # arima_action.setFont(QFont('微软雅黑', 11))
+        # fourier_action = QAction("fourier", self)
+        # fourier_action.triggered.connect(self.use_fourier)
+        # fourier_action.setFont(QFont('微软雅黑', 11))
+
+    # def use_arima(self):
+    #     """
+    #     处理 ARIMA 预测请求。
+    #     """
+    #     if self.attention_now is None:
+    #         QMessageBox.warning(self, "错误", "请先加载数据。")
+    #         return
+    #     # 获取当前显示的图表 Qwidget
+    #     render_now = self.centralWidget()
+    #     if not isinstance(render_now, CsvGraphWidget):
+    #         QMessageBox.warning(self, "错误", "当前窗口不是基金净值图表。")
+    #         return
+    #     dialog = ArimaConfigDialog(self)
+    #     if dialog.exec_() == QDialog.Accepted:
+    #         p, d, q = dialog.get_params()
+    #         render_now.use_arima(p, d, q, periods=30)
+
+    #     else:
+    #         QMessageBox.information(self, "信息", "ARIMA功能已取消。")
+
+    # def use_fourier(self):
+    #     if self.attention_now is None:
+    #         QMessageBox.warning(self, "错误", "请先加载数据。")
+    #         return
+    #     render_now = self.centralWidget()
+    #     if not isinstance(render_now, CsvGraphWidget):
+    #         QMessageBox.warning(self, "错误", "当前窗口不是基金净值图表。")
+    #         return
+    #     dialogue = FourierConfigDialog(self)
+    #     if dialogue.exec_() == QDialog.Accepted:
+    #         order, period, custom_period, is_trend, sampling, window, smoothing, expect_days, extrapolation_strategy, is_fit_exact = dialogue.get_params()
+    #         render_now.use_fourier(order=order, period=period, custom_period=custom_period, is_trend=is_trend, sampling=sampling, window=window, smoothing=smoothing, expect_days=expect_days, extrapolation_strategy=extrapolation_strategy, overfit=is_fit_exact)
+    #     else:
+    #         QMessageBox.information(self, "信息", "傅里叶变换功能已取消。")
+
