@@ -118,7 +118,7 @@ def fourier_worm_rolling(
     end_date: pd.Timestamp,
     sampling_frequency: str,
     order: int,
-    df: pd.DataFrame =None,
+    df_row: pd.DataFrame =None,
     window_size: Optional[int] = None,
     prediction_steps: int = 10,  # Adjusted to ensure 10 days for trend analysis
     trend_added: bool = True,
@@ -126,46 +126,12 @@ def fourier_worm_rolling(
     global_trend_weight: float = 0.2,
     cycle_length: Optional[float] = 30
 ) -> Tuple[pd.DatetimeIndex, pd.Series, str]:
-    """
-    使用傅里叶分析进行滚动窗口预测，生成周期性起伏的基金净值预测，并返回10天趋势方向。
-
-    Parameters:
-    -----------
-    code : str
-        基金代码。
-    start_date : pd.Timestamp
-        数据开始日期。
-    end_date : pd.Timestamp
-        数据结束日期。
-    sampling_frequency : str
-        重采样频率（如 'D' 表示每日，'W' 表示每周）。
-    order : int
-        傅里叶级数的阶数（正弦和余弦项的数量）。
-    window_size : Optional[int]
-        滚动窗口大小，默认为 None（自动设为数据长度的 1/5）。
-    prediction_steps : int
-        预测的步数，默认为 10。
-    trend_added : bool
-        是否保留趋势，默认为 True。
-    max_daily_volatility : float
-        单日最大波动率（绝对值），默认为 0.02（2%）。
-    global_trend_weight : float
-        全局趋势的权重（0到1），默认为 0.2。
-    cycle_length : Optional[float]
-        傅里叶周期长度（天），默认为 30（月度周期），控制预测起伏。
-
-    Returns:
-    --------
-    Tuple[pd.DatetimeIndex, pd.Series, str]
-        预测日期、对应的预测净值序列和10天趋势方向（"positive" 或 "negative"）。
-        如果失败，返回 (None, None, None)。
-    """
     # 验证 sampling_frequency
     valid_frequencies = ['D', 'W', 'M', 'Q', 'Y']
+    df = None
     if sampling_frequency not in valid_frequencies:
         print(f"无效的重采样频率: {sampling_frequency}。支持的频率: {valid_frequencies}")
         return None, None, None
-
     # 转换为 pd.Timestamp（如果传入字符串）
     try:
         start_date = pd.Timestamp(start_date)
@@ -173,21 +139,21 @@ def fourier_worm_rolling(
     except Exception as e:
         print(f"日期转换失败: {e}")
         return None, None, None
-
     # 获取数据
-    if not df:
+    if df_row is not None:
+        df = df_row.copy()
+
+    if df_row is None:
         try:
             df: pd.DataFrame = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
         except Exception as e:
             print(f"获取基金 {code} 数据失败: {e}")
             return None, None, None
-
     # 数据预处理
     df['净值日期'] = pd.to_datetime(df['净值日期'])
     df.set_index('净值日期', inplace=True)
     df['累计净值'] = pd.to_numeric(df['累计净值'], errors='coerce')
     df.dropna(subset=['累计净值'], inplace=True)
-
     # 重采样并保留最后真实值
     try:
         df = df.loc[start_date:end_date]
@@ -196,27 +162,22 @@ def fourier_worm_rolling(
     except Exception as e:
         print(f"数据重采样或切片失败: {e}")
         return None, None, None
-
     if df.empty:
         print("数据为空，请检查日期范围或数据源。")
         return None, None, None
-
     # 获取时间序列
     series = df['累计净值']
     t = np.arange(len(series))
-
     # 设置默认 window_size
     if window_size is None:
         window_size = max(30, len(series) // 5)
     if window_size <= 0 or window_size > len(series):
         print(f"无效的窗口大小: {window_size}。数据长度为 {len(series)}。")
         return None, None, None
-
     # 设置 cycle_length
     if cycle_length is None:
         cycle_length = window_size
     cycle_length = max(5, min(cycle_length, window_size))  # 限制周期长度
-
     # 计算全局趋势
     if trend_added:
         coeffs_global = np.polyfit(t, series.values, 1)
@@ -226,22 +187,17 @@ def fourier_worm_rolling(
         print(f"全局趋势斜率: {coeffs_global[0]}, 偏移校正: {offset_global}")
     else:
         global_trend_func = lambda t_vals: np.zeros_like(t_vals, dtype=float)
-
     # 设置预测日期，从 end_date 的下一天开始
     future_dates = pd.date_range(start=end_date + pd.Timedelta(days=1), periods=prediction_steps, freq=sampling_frequency)
     forecast_results = []
-
     # 获取最后一天的实际净值
     last_value = series.iloc[-1]
-
     if len(series) < window_size:
         print(f"数据长度 {len(series)} 小于窗口大小 {window_size}，无法进行滚动预测。")
         return None, None, None
-
     print("启用滚动窗口预测...")
     current_series = series.copy()
     current_t = t.copy()
-
     for i in range(prediction_steps):
         current_window = current_series[-window_size:]
         t_window = np.arange(len(current_window))
@@ -267,22 +223,18 @@ def fourier_worm_rolling(
             np.sin(2 * np.pi * k * t_grid / cycle_length),
             np.cos(2 * np.pi * k * t_grid / cycle_length)
         ])
-
         try:
             coef, _, _, _ = np.linalg.lstsq(X, y_detrended, rcond=None)
         except np.linalg.LinAlgError as e:
             print(f"傅里叶拟合失败: {e}")
             return None, None, None
-
         t_future = np.array([len(t_window)])
         X_future = np.hstack([
             np.ones((1, 1)),
             np.sin(2 * np.pi * k * t_future[:, np.newaxis] / cycle_length),
             np.cos(2 * np.pi * k * t_future[:, np.newaxis] / cycle_length)
         ])
-
         y_future = X_future @ coef + trend_predict_func([len(t_window)])
-
         # 控制单日波动率
         if i == 0:
             prev_value = last_value
@@ -293,19 +245,15 @@ def fourier_worm_rolling(
             prev_value * (1 - max_daily_volatility),
             prev_value * (1 + max_daily_volatility)
         )
-
         forecast_results.append(y_future[0])
         current_series = pd.concat([
             current_series,
             pd.Series([y_future[0]], index=[future_dates[i]])
         ])
         current_t = np.append(current_t, t_future[0])
-
     forecast = pd.Series(forecast_results, index=future_dates)
-
     # 分析10天趋势方向
     trend_direction = "positive" if forecast.iloc[-1] > forecast.iloc[0] else "negative"
-
     return trend_direction  #,future_dates, forecast
 
 
@@ -444,7 +392,7 @@ def fourier_worm_normal(
 def get_interpolated_fund_data(code: str) -> Optional[pd.DataFrame]:
     """获取基金的累计净值数据，进行清洗、去重、排序，并按日插值。"""
     try:
-        df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+        df: pd.DataFrame = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
     except Exception as e:
         print(f"获取基金 {code} 数据失败: {e}")
         return None
@@ -518,31 +466,34 @@ def real_data_direction(code: str, date: str, expected_days: int = 10, df: pd.Da
 
 
 def get_correct_rate():
-    """获取基金趋势并打印示例。"""
+    """获取基金趋势并计算正确率。"""
     fund_code = '005698'
+    errordays=[]
     df = get_interpolated_fund_data(fund_code)
+    row_df= ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
     if df is None:
         print("获取基金数据失败，程序终止。")
         return
     df_indexed = df.set_index('净值日期')
     # 示例日期范围
-    dates = pd.date_range(start="2025-02-24", end="2025-08-06", freq='D')
+    dates = pd.date_range(start="2025-06-24", end="2025-09-06", freq='D')
     # 打印标题
     print(f"--- 基金 {fund_code} 10日趋势 (start 至 end) ---")
     time=0
     right=0
     for date in dates:
         date_str = date.strftime('%Y-%m-%d')
-        real_rate = real_data_direction(fund_code, date_str, expected_days=10, df=df_indexed)
-        fourier_rate=fourier_worm_rolling(fund_code, "2024-10-25", date_str, sampling_frequency='D', order=5, window_size=40, prediction_steps=10, trend_added=True)
+        real_rate = real_data_direction(fund_code, date_str, expected_days=20, df=df_indexed)
+        fourier_rate=fourier_worm_rolling(fund_code, "2024-09-24", date_str, sampling_frequency='D', order=5,df_row=row_df, window_size=90, prediction_steps=20, trend_added=True)
         time+=1
         if fourier_rate == real_rate:
+            print("正确")
             right+=1
-        if real_rate is not None:
-            print(f"{date_str}: {real_rate}")
         else:
-            print(f"{date_str}: 数据不足或计算失败")
+            print("错误")
+            errordays.append(date_str)
     print(f"正确率为:{right/time}")
+    print(f"错误日期为：{errordays}")
 
 
 
@@ -553,8 +504,8 @@ if __name__ == "__main__":
     # print(result)
     # risk=get_max_annualized_volatility('000216',60)
     # print(risk)
-    rolling_prediction = fourier_worm_rolling('005698', '2024-10-25', '2025-04-24', sampling_frequency='D', order=5, window_size=40, prediction_steps=10, trend_added=True)
-    print(rolling_prediction)
+    # rolling_prediction = fourier_worm_rolling('005698', '2024-10-25', '2025-04-24', sampling_frequency='D', order=5, window_size=40, prediction_steps=10, trend_added=True)
+    # print(rolling_prediction)
     # correct_rate=real_data_direction('005698', '2025-04-24', 10)
     # print(correct_rate)
     get_correct_rate()
