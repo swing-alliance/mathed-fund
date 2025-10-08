@@ -8,11 +8,11 @@ from qdialogue import  pulldata_dialog
 from utils.pull import fetch_and_save_fund_csv
 from utils.refresh import update_found_folder, update_to_worker_folder
 from pannel_plan import ControlPanel
-from signal_handler import signal_emitter
+
 # from calculate import ArimaPredictor
-balanced_path = os.path.join(os.getcwd(), 'types','balanced')
+balanced_path = os.path.join(os.getcwd(), 'types','Balanced')
 Equity_path = os.path.join(os.getcwd(), 'types','Equity')
-index_path = os.path.join(os.getcwd(), 'types','index')
+index_path = os.path.join(os.getcwd(), 'types','Index')
 Qdii_path = os.path.join(os.getcwd(), 'types','Qdii')
 to_worker_path = os.path.join(os.getcwd(), 'to_worker')
 
@@ -25,7 +25,6 @@ class MainWindow(QMainWindow):
         self.attention_now=None#当前关注的csvgraphwidget，df
         self.attention_path=None#当前关注的csv路径
         self.load_plan_pannel()
-
     def _create_menu_bar(self):
         menu_bar = self.menuBar()
         menu_bar.setFont(QFont("微软雅黑", 12))
@@ -143,13 +142,19 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "错误", "未选择文件或文件路径为空。")
 
 
-    def load_plan_pannel(self,base_path=None):
-        """加载计划面板,信号连接到控制面板"""
+    def load_plan_pannel(self, base_path=None):
+        """加载计划面板, 信号连接到控制面板"""
+        current_control_panel = self.centralWidget()
+        if isinstance(current_control_panel, ControlPanel):
+            # 断开信号连接，先检查信号是否已连接
+            try:
+                current_control_panel.visualize_requested.disconnect(self.show_graph_for_file)
+            except TypeError:
+                pass  
+            current_control_panel.deleteLater()
         self.control_panel = ControlPanel(base_path=base_path)
         self.control_panel.visualize_requested.connect(self.show_graph_for_file)
-        signal_emitter.refresh_ui_signal.connect(self.control_panel.reload_projects)
         self.setCentralWidget(self.control_panel)
-
 
 
 

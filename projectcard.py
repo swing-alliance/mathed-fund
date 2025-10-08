@@ -11,6 +11,7 @@ from qdialogue import FundInfoDialog
 import akshare as ak
 import json
 from signal_handler import signal_emitter
+import pandas as pd 
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
 Track_Json_Path = "track"
@@ -121,12 +122,23 @@ def to_unflag(filename):
             json.dump(flagged_list, f, indent=4)
         signal_emitter.refresh_ui_signal.emit()
 
+
+def get_latest_date(filepath):
+    try:
+        df = pd.read_csv(filepath)
+        latest_date = df['净值日期'].max()
+        return latest_date
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        return None
+
+
 class ProjectCard(QFrame):
     """根据文件路径加载的项目卡片"""
     visualize_requested = pyqtSignal(str)  # 发送文件路径，调用信号
     def __init__(self, file_path, parent=None):
         super().__init__(parent)
         self.file_path = file_path  # 当前基金的文件路径
+        self.latest_date = get_latest_date(self.file_path)
         self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名
         self.fund_tittle: str = get_name_by_mapping(self.filename)  # 获取基金名称
         self._right_click = False
@@ -152,7 +164,7 @@ class ProjectCard(QFrame):
         layout.addLayout(title_row_layout)
         # 第二层
         row_layout = QHBoxLayout()
-        file_label = QLabel(f"基金代码:{self.filename}")
+        file_label = QLabel(f"基金代码:{self.filename}  {self.latest_date} ") 
         file_label.setFont(QFont('微软雅黑', 10))
         file_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         row_layout.addWidget(file_label, 1)
