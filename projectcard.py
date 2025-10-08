@@ -126,7 +126,7 @@ class ProjectCard(QFrame):
     visualize_requested = pyqtSignal(str)  # 发送文件路径，调用信号
     def __init__(self, file_path, parent=None):
         super().__init__(parent)
-        self.file_path = file_path  # 当前to_worker下的文件路径
+        self.file_path = file_path  # 当前基金的文件路径
         self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名
         self.fund_tittle: str = get_name_by_mapping(self.filename)  # 获取基金名称
         self._right_click = False
@@ -241,7 +241,7 @@ class ProjectCard(QFrame):
             info_action.triggered.connect(self.show_fund_info)
             info_action.setFont(QFont('微软雅黑', 11))
             menu.addAction(info_action)
-            visualize_action = QAction("转到计算", self)
+            visualize_action = QAction("转到图", self)
             visualize_action.triggered.connect(self._emit_visualize_request)
             visualize_action.setFont(QFont('微软雅黑', 11))
             menu.addAction(visualize_action)

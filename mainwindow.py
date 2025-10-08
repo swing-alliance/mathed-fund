@@ -10,7 +10,11 @@ from utils.refresh import update_found_folder, update_to_worker_folder
 from pannel_plan import ControlPanel
 from signal_handler import signal_emitter
 # from calculate import ArimaPredictor
-
+balanced_path = os.path.join(os.getcwd(), 'types','balanced')
+Equity_path = os.path.join(os.getcwd(), 'types','Equity')
+index_path = os.path.join(os.getcwd(), 'types','index')
+Qdii_path = os.path.join(os.getcwd(), 'types','Qdii')
+to_worker_path = os.path.join(os.getcwd(), 'to_worker')
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -20,7 +24,7 @@ class MainWindow(QMainWindow):
         self._create_menu_bar()
         self.attention_now=None#当前关注的csvgraphwidget，df
         self.attention_path=None#当前关注的csv路径
-        self.setCentralWidget(ControlPanel())
+        self.load_plan_pannel()
 
     def _create_menu_bar(self):
         menu_bar = self.menuBar()
@@ -43,8 +47,21 @@ class MainWindow(QMainWindow):
         advanced_pull_action.setFont(QFont('微软雅黑', 11))
 
         planpage_action = QAction("计划主页", self)
-        planpage_action.triggered.connect(self.load_plan_pannel)
+        planpage_action.triggered.connect(lambda:self.load_plan_pannel(to_worker_path))
         planpage_action.setFont(QFont('微软雅黑', 11))
+
+        balenced_action = QAction("从混合型开始", self)
+        balenced_action.triggered.connect(lambda:self.load_plan_pannel(balanced_path))
+        balenced_action.setFont(QFont('微软雅黑', 11))
+        equity_action = QAction("从股票型开始", self)
+        equity_action.triggered.connect(lambda:self.load_plan_pannel(Equity_path))
+        equity_action.setFont(QFont('微软雅黑', 11))
+        index_action = QAction("从指数型开始", self)
+        index_action.triggered.connect(lambda:self.load_plan_pannel(index_path))
+        index_action.setFont(QFont('微软雅黑', 11))
+        qdii_action = QAction("从QDII或特殊商品开始", self)
+        qdii_action.triggered.connect(lambda:self.load_plan_pannel(Qdii_path))
+        qdii_action.setFont(QFont('微软雅黑', 11))
         updateworker_action = QAction("更新worker中数据", self)
         updateworker_action.triggered.connect(self.update_worker_folder)
         updateworker_action.setFont(QFont('微软雅黑', 11))
@@ -53,11 +70,16 @@ class MainWindow(QMainWindow):
         updatefound_action.setFont(QFont('微软雅黑', 11))
 
         plan_menu.addAction(planpage_action)
+        plan_menu.addAction(balenced_action)
+        plan_menu.addAction(equity_action)
+        plan_menu.addAction(index_action)
+        plan_menu.addAction(qdii_action)
         file_menu.addAction(load_action)
         data_menu.addAction(pull_action)
         data_menu.addAction(advanced_pull_action)
         data_menu.addAction(updateworker_action)
         data_menu.addAction(updatefound_action)
+
 
 
 
@@ -87,27 +109,26 @@ class MainWindow(QMainWindow):
         根据给定的文件路径绘制图表并设置为中心部件。
         如果没有提供文件路径，则弹出文件选择对话框。
         """
-        # 如果没有传入文件路径，则弹出文件选择对话框
-        if not file_path:
+        this_file_path = file_path
+        if not this_file_path:
             data_dir = os.path.join(os.getcwd(), 'found')
             if not os.path.exists(data_dir):
                 QMessageBox.warning(self, "错误", "未找到'found'文件夹。")
                 return
-            
-            file_path, _ = QFileDialog.getOpenFileName(
+            this_file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 "选择基金数据文件",
                 data_dir,
                 "CSV 文件 (*.csv)"
             )
-        if file_path:
+        if this_file_path:
             try:
                 try:
-                    df = pd.read_csv(file_path, encoding='utf-8')
+                    df = pd.read_csv(this_file_path, encoding='utf-8')
                 except UnicodeDecodeError:
-                    df = pd.read_csv(file_path, encoding='gbk')
-                if '净值日期' not in df.columns or '单位净值' not in df.columns:
-                    QMessageBox.warning(self, "错误", "CSV文件缺少必要的列,'净值日期' 或 '单位净值'")
+                    df = pd.read_csv(this_file_path, encoding='gbk')
+                if '净值日期' not in df.columns :
+                    QMessageBox.warning(self, "错误", "CSV文件缺少必要的列,'净值日期' ")
                     return
                 new_graph_widget = CsvGraphWidget(df)
                 old_widget = self.centralWidget()
@@ -115,14 +136,16 @@ class MainWindow(QMainWindow):
                     old_widget.deleteLater()
                 self.setCentralWidget(new_graph_widget)
                 self.attention_now = new_graph_widget
-                self.attention_path = file_path
+                self.attention_path = this_file_path
             except Exception as e:
                 QMessageBox.warning(self, "错误", f"加载或绘制数据失败: {e}")
+        else:
+            QMessageBox.warning(self, "错误", "未选择文件或文件路径为空。")
 
 
-    def load_plan_pannel(self):
+    def load_plan_pannel(self,base_path=None):
         """加载计划面板,信号连接到控制面板"""
-        self.control_panel = ControlPanel()
+        self.control_panel = ControlPanel(base_path=base_path)
         self.control_panel.visualize_requested.connect(self.show_graph_for_file)
         signal_emitter.refresh_ui_signal.connect(self.control_panel.reload_projects)
         self.setCentralWidget(self.control_panel)
@@ -147,6 +170,28 @@ class MainWindow(QMainWindow):
         # fourier_action = QAction("fourier", self)
         # fourier_action.triggered.connect(self.use_fourier)
         # fourier_action.setFont(QFont('微软雅黑', 11))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # def use_arima(self):
     #     """

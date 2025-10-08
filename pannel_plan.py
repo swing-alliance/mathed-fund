@@ -13,12 +13,16 @@ import shutil
 from projectcard import ProjectCard
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
-
+balanced_path = os.path.join(os.getcwd(), 'types','balanced')
+Equity_path = os.path.join(os.getcwd(), 'types','Equity')
+index_path = os.path.join(os.getcwd(), 'types','index')
+Qdii_path = os.path.join(os.getcwd(), 'types','Qdii')
+to_worker_path = os.path.join(os.getcwd(), 'to_worker')
 
 class ControlPanel(QWidget):
     """控制面板（QWidget），带滚动区域"""
     visualize_requested = pyqtSignal(str)
-    def __init__(self, parent=None):
+    def __init__(self, parent=None,base_path=None):
         super().__init__(parent)
         self.loaded_cards = {}#用于缓存已加载的卡片
         main_layout = QVBoxLayout(self)
@@ -26,7 +30,7 @@ class ControlPanel(QWidget):
         self.add_btn = QPushButton("+")
         self.add_btn.setFont(QFont('微软雅黑', 20))
         self.add_btn.setFixedSize(40, 40)
-        self.add_btn.clicked.connect(self.add_project)
+        self.add_btn.clicked.connect(self.add_project_from_found)
 
         top_bar.addWidget(self.add_btn, alignment=Qt.AlignLeft)
         top_bar.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
@@ -43,9 +47,9 @@ class ControlPanel(QWidget):
         self.scroll_layout.setAlignment(Qt.AlignTop)  # 卡片从上往下排
         self.scroll_area.setWidget(self.scroll_content)
 
-        self.load_projects()
+        self.load_projects_from_path(base_path)
 
-    def add_project(self):
+    def add_project_from_found(self):
         """只允许在 found 文件夹下选择 CSV，并检查 TO_WORKER 文件夹是否已有该文件"""
         os.makedirs(FOUND_PATH, exist_ok=True)
         file_path, _ = QFileDialog.getOpenFileName(
@@ -67,20 +71,76 @@ class ControlPanel(QWidget):
         card.visualize_requested.connect(self.visualize_requested.emit)
         self.scroll_layout.addWidget(card)
 
-    def load_projects(self):
-            """从 TO_WORKER 文件夹加载项目卡片，并将实例缓存起来。"""
-            project_files = os.listdir(TO_WORKER)
-            # 这里不再需要 loaded_files 集合，直接用实例缓存的键即可
-            for file_name in project_files:
-                # 只有当卡片不在缓存中时才创建
-                if file_name not in self.loaded_cards:
-                    file_path = os.path.join(TO_WORKER, file_name)
-                    card = ProjectCard(file_path)
-                    card.visualize_requested.connect(self.visualize_requested.emit)
-                    self.scroll_layout.addWidget(card)
-                    # 将新创建的卡片实例缓存起来
-                    self.loaded_cards[file_name] = card
-                    QApplication.processEvents()
+
+
+    # def load_projects_from_to_worker(self):
+    #         """从 TO_WORKER 文件夹加载项目卡片，并将实例缓存起来。"""
+    #         project_files = os.listdir(TO_WORKER)
+    #         # 这里不再需要 loaded_files 集合，直接用实例缓存的键即可
+    #         for file_name in project_files:
+    #             # 只有当卡片不在缓存中时才创建
+    #             if file_name not in self.loaded_cards:
+    #                 file_path = os.path.join(TO_WORKER, file_name)
+    #                 card = ProjectCard(file_path)
+    #                 card.visualize_requested.connect(self.visualize_requested.emit)
+    #                 self.scroll_layout.addWidget(card)
+    #                 self.loaded_cards[file_name] = card
+    #                 QApplication.processEvents()
+
+    def load_projects_from_path(self,path):
+            """从 types 文件夹加载项目卡片，并将实例缓存起来。"""
+            if path == balanced_path:
+                project_files = os.listdir(balanced_path)
+                for file_name in project_files:
+                    if file_name not in self.loaded_cards:
+                            file_path = os.path.join(balanced_path, file_name)
+                            card = ProjectCard(file_path)
+                            card.visualize_requested.connect(self.visualize_requested.emit)
+                            self.scroll_layout.addWidget(card)
+                            self.loaded_cards[file_name] = card
+                            QApplication.processEvents()
+            if path == Equity_path:
+                project_files = os.listdir(Equity_path)
+                for file_name in project_files:
+                    if file_name not in self.loaded_cards:
+                            file_path = os.path.join(Equity_path, file_name)
+                            card = ProjectCard(file_path)
+                            card.visualize_requested.connect(self.visualize_requested.emit)
+                            self.scroll_layout.addWidget(card)
+                            self.loaded_cards[file_name] = card
+                            QApplication.processEvents()
+            if path == index_path:
+                project_files = os.listdir(index_path)
+                for file_name in project_files:
+                    if file_name not in self.loaded_cards:
+                            file_path = os.path.join(index_path, file_name)
+                            card = ProjectCard(file_path)
+                            card.visualize_requested.connect(self.visualize_requested.emit)
+                            self.scroll_layout.addWidget(card)
+                            self.loaded_cards[file_name] = card
+                            QApplication.processEvents()
+            if path == Qdii_path:
+                project_files = os.listdir(Qdii_path)
+                for file_name in project_files:
+                    if file_name not in self.loaded_cards:
+                            file_path = os.path.join(Qdii_path, file_name)
+                            card = ProjectCard(file_path)
+                            card.visualize_requested.connect(self.visualize_requested.emit)
+                            self.scroll_layout.addWidget(card)
+                            self.loaded_cards[file_name] = card
+                            QApplication.processEvents()
+            if path == to_worker_path:
+                project_files = os.listdir(to_worker_path)
+                for file_name in project_files:
+                    if file_name not in self.loaded_cards:
+                            file_path = os.path.join(to_worker_path, file_name)
+                            card = ProjectCard(file_path)
+                            card.visualize_requested.connect(self.visualize_requested.emit)
+                            self.scroll_layout.addWidget(card)
+                            self.loaded_cards[file_name] = card
+                            QApplication.processEvents()
+       
+
 
     def reload_projects(self):
         """重新加载项目卡片，通过哈希表，采用高效的增量更新方式。"""

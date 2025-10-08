@@ -111,7 +111,6 @@ def get_max_annualized_volatility(code: str, window_size: int) -> tuple[float, p
 
 #最大回撤天数
 
-
 def fourier_worm_rolling(
     code: str,
     start_date: pd.Timestamp,
@@ -195,7 +194,6 @@ def fourier_worm_rolling(
     if len(series) < window_size:
         print(f"数据长度 {len(series)} 小于窗口大小 {window_size}，无法进行滚动预测。")
         return None, None, None
-    print("启用滚动窗口预测...")
     current_series = series.copy()
     current_t = t.copy()
     for i in range(prediction_steps):
@@ -422,19 +420,17 @@ def get_interpolated_fund_data(code: str) -> Optional[pd.DataFrame]:
     return df_interp.reset_index().rename(columns={'index': '净值日期'})
 
 
-def real_data_direction(code: str, date: str, expected_days: int = 10, df: pd.DataFrame = None) -> Optional[str]:
+def real_data_direction(code: str, date: str, expected_steps: int = 10, df: pd.DataFrame = None) -> Optional[str]:
     """根据基金代码和指定日期，判断指定天数后（基于每日插值数据）的净值趋势。"""
     try:
         start_date = pd.Timestamp(date).normalize()
     except Exception as e:
         print(f"日期格式错误: {date} - {e}")
         return None
-
     if df is None:
         df = get_interpolated_fund_data(code)
         if df is None:
             return None
-
     if df.index.name != '净值日期':
         if '净值日期' in df.columns:
             df_working = df.set_index('净值日期').sort_index()
@@ -442,21 +438,16 @@ def real_data_direction(code: str, date: str, expected_days: int = 10, df: pd.Da
             return None
     else:
         df_working = df.sort_index()
-
-    end_date = start_date + pd.Timedelta(days=expected_days)
-
+    end_date = start_date + pd.Timedelta(days=expected_steps)
     if start_date not in df_working.index:
         return None
-        
     if end_date not in df_working.index or end_date > df_working.index[-1]:
         return None
-    
     try:
         start_value = df_working.loc[start_date, '累计净值']
         end_value = df_working.loc[end_date, '累计净值']
     except KeyError:
          return None
-
     if end_value > start_value:
         return "positive"
     elif end_value < start_value:
@@ -465,35 +456,7 @@ def real_data_direction(code: str, date: str, expected_days: int = 10, df: pd.Da
         return "neutral"
 
 
-def get_correct_rate():
-    """获取基金趋势并计算正确率。"""
-    fund_code = '005698'
-    errordays=[]
-    df = get_interpolated_fund_data(fund_code)
-    row_df= ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
-    if df is None:
-        print("获取基金数据失败，程序终止。")
-        return
-    df_indexed = df.set_index('净值日期')
-    # 示例日期范围
-    dates = pd.date_range(start="2025-06-24", end="2025-09-06", freq='D')
-    # 打印标题
-    print(f"--- 基金 {fund_code} 10日趋势 (start 至 end) ---")
-    time=0
-    right=0
-    for date in dates:
-        date_str = date.strftime('%Y-%m-%d')
-        real_rate = real_data_direction(fund_code, date_str, expected_days=20, df=df_indexed)
-        fourier_rate=fourier_worm_rolling(fund_code, "2024-09-24", date_str, sampling_frequency='D', order=5,df_row=row_df, window_size=90, prediction_steps=20, trend_added=True)
-        time+=1
-        if fourier_rate == real_rate:
-            print("正确")
-            right+=1
-        else:
-            print("错误")
-            errordays.append(date_str)
-    print(f"正确率为:{right/time}")
-    print(f"错误日期为：{errordays}")
+
 
 
 
@@ -508,9 +471,9 @@ if __name__ == "__main__":
     # print(rolling_prediction)
     # correct_rate=real_data_direction('005698', '2025-04-24', 10)
     # print(correct_rate)
-    get_correct_rate()
     # print(get_interpolated_fund_data('005698'))
     # prediction=fourier_worm_normal('005698', '2024-08-01', '2025-08-28', sampling_frequency='D', order=3, cycle_length=None, prediction_steps=10, trend_added=True,cycle_length=80)
     # print(prediction)
     # max_volatility = get_max_annualized_volatility('000216', 60)
     # print(max_volatility)
+    pass

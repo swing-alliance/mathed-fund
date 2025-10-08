@@ -193,27 +193,35 @@ class CsvGraphWidget(QWidget):
         """内部方法，仅用于绘制数据。"""
         try:
             self.canvas.axes.clear()
-            self.canvas.axes.plot(
-                self.current_df['净值日期'], 
-                self.current_df['单位净值'], 
-                linestyle='-', linewidth=1, 
-                marker='o', markersize=2, 
-                markerfacecolor='red', markeredgecolor='red',
-                label='单位净值'
-            )
-            # 设置图表的基本属性
+            if '单位净值' in self.current_df.columns:
+                self.canvas.axes.plot(
+                    self.current_df['净值日期'], 
+                    self.current_df['单位净值'], 
+                    linestyle='-', linewidth=1, 
+                    marker='o', markersize=2, 
+                    markerfacecolor='red', markeredgecolor='red',
+                    label='单位净值'
+                )
+            if '累计净值' in self.current_df.columns:
+                self.canvas.axes.plot(
+                    self.current_df['净值日期'], 
+                    self.current_df['累计净值'], 
+                    linestyle='-', linewidth=1, 
+                    marker='o', markersize=2, 
+                    markerfacecolor='blue', markeredgecolor='blue',
+                    label='累计净值'
+                )
             self.canvas.axes.set_title('基金净值走势图')
             self.canvas.axes.set_xlabel('净值日期')
-            self.canvas.axes.set_ylabel('单位净值')
+            self.canvas.axes.set_ylabel('净值')
             self.canvas.axes.grid(True, linestyle='-', alpha=0.7, zorder=10)
             self.canvas.axes.legend()
-            
+
             self.canvas.axes.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
             self.canvas.axes.xaxis.set_major_locator(mdates.AutoDateLocator())
             self.canvas.figure.autofmt_xdate()
             self.canvas.figure.tight_layout()
             self.canvas.draw()
-            
         except KeyError as e:
             print(f"DataFrame缺少必要的列: {e}")
         except Exception as e:
