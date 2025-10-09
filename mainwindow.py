@@ -8,6 +8,7 @@ from qdialogue import  pulldata_dialog
 from utils.pull import fetch_and_save_fund_csv
 from utils.refresh import update_found_folder, update_to_worker_folder
 from pannel_plan import ControlPanel
+from sys_center import SysCentral
 
 # from calculate import ArimaPredictor
 balanced_path = os.path.join(os.getcwd(), 'types','Balanced')
@@ -22,9 +23,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("金融计算系统")
         self.setMinimumSize(QSize(1200, 800)) # 设置一个更大的初始窗口大小
         self._create_menu_bar()
-        self.attention_now=None#当前关注的csvgraphwidget，df
+        self.attention_now=None#当前关注的csvgraphwidget，df,窗口
         self.attention_path=None#当前关注的csv路径
-        self.load_plan_pannel()
+        self.load_sys_central()
+        
     def _create_menu_bar(self):
         menu_bar = self.menuBar()
         menu_bar.setFont(QFont("微软雅黑", 12))
@@ -46,7 +48,7 @@ class MainWindow(QMainWindow):
         advanced_pull_action.setFont(QFont('微软雅黑', 11))
 
         planpage_action = QAction("计划主页", self)
-        planpage_action.triggered.connect(lambda:self.load_plan_pannel(to_worker_path))
+        planpage_action.triggered.connect(lambda:self.load_sys_central())
         planpage_action.setFont(QFont('微软雅黑', 11))
 
         balenced_action = QAction("从混合型开始", self)
@@ -156,7 +158,9 @@ class MainWindow(QMainWindow):
         self.control_panel.visualize_requested.connect(self.show_graph_for_file)
         self.setCentralWidget(self.control_panel)
 
-
+    def load_sys_central(self):
+        self.attention_now = SysCentral(parent_window=self)
+        self.setCentralWidget(self.attention_now)
 
 
 

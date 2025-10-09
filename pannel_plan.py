@@ -3,7 +3,7 @@ import shutil
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QFileDialog, QLabel, QFrame, QMessageBox,
-    QSpacerItem, QSizePolicy, QScrollArea,QLineEdit, QComboBox,QDialog,QApplication,QMenu,QAction
+    QSpacerItem, QSizePolicy, QScrollArea,QLineEdit, QComboBox,QDialog,QApplication,QMenu,QAction,QProgressDialog
 )
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
@@ -27,14 +27,18 @@ class ControlPanel(QWidget):
     def __init__(self, parent=None,base_path=None):
         super().__init__(parent)
         self.loaded_cards = {}#用于缓存已加载的卡片
+        self.base_path = base_path 
         main_layout = QVBoxLayout(self)
+
         top_bar = QHBoxLayout()
         self.add_btn = QPushButton("+")
         self.add_btn.setFont(QFont('微软雅黑', 20))
         self.add_btn.setFixedSize(40, 40)
         self.add_btn.clicked.connect(self.add_project_from_found)
-        self.base_path = base_path
+        self.index_label=self.what_label_now()
         top_bar.addWidget(self.add_btn, alignment=Qt.AlignLeft)
+        top_bar.addStretch(1)  
+        top_bar.addWidget(self.index_label, alignment=Qt.AlignRight)
         top_bar.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
         main_layout.addLayout(top_bar)
 
@@ -76,75 +80,59 @@ class ControlPanel(QWidget):
 
 
 
-    def load_projects_from_path(self,path):
-            """从 types 文件夹加载项目卡片，并将实例缓存起来。"""
-            if path == balanced_path:
-                project_files = os.listdir(balanced_path)
-                for file_name in project_files:
-                    if file_name not in self.loaded_cards:
-                            file_path = os.path.join(balanced_path, file_name)
-                            card = ProjectCard(file_path)
-                            card.visualize_requested.connect(self.visualize_requested.emit)
-                            self.scroll_layout.addWidget(card)
-                            self.loaded_cards[file_name] = card
-                            QApplication.processEvents()
-            if path == Equity_path:
-                project_files = os.listdir(Equity_path)
-                for file_name in project_files:
-                    if file_name not in self.loaded_cards:
-                            file_path = os.path.join(Equity_path, file_name)
-                            card = ProjectCard(file_path)
-                            card.visualize_requested.connect(self.visualize_requested.emit)
-                            self.scroll_layout.addWidget(card)
-                            self.loaded_cards[file_name] = card
-                            QApplication.processEvents()
-            if path == index_path:
-                project_files = os.listdir(index_path)
-                for file_name in project_files:
-                    if file_name not in self.loaded_cards:
-                            file_path = os.path.join(index_path, file_name)
-                            card = ProjectCard(file_path)
-                            card.visualize_requested.connect(self.visualize_requested.emit)
-                            self.scroll_layout.addWidget(card)
-                            self.loaded_cards[file_name] = card
-                            QApplication.processEvents()
-            if path == Qdii_path:
-                project_files = os.listdir(Qdii_path)
-                for file_name in project_files:
-                    if file_name not in self.loaded_cards:
-                            file_path = os.path.join(Qdii_path, file_name)
-                            card = ProjectCard(file_path)
-                            card.visualize_requested.connect(self.visualize_requested.emit)
-                            self.scroll_layout.addWidget(card)
-                            self.loaded_cards[file_name] = card
-                            QApplication.processEvents()
-            if path == to_worker_path:
-                project_files = os.listdir(to_worker_path)
-                for file_name in project_files:
-                    if file_name not in self.loaded_cards:
-                            file_path = os.path.join(to_worker_path, file_name)
-                            card = ProjectCard(file_path)
-                            card.visualize_requested.connect(self.visualize_requested.emit)
-                            self.scroll_layout.addWidget(card)
-                            self.loaded_cards[file_name] = card
-                            QApplication.processEvents()
+    def load_projects_from_path(self, path):
+        """从 types 文件夹加载项目卡片，并将实例缓存起来。"""
+        def load_files_from_path(directory_path):
+            """加载指定路径下的文件并更新进度框"""
+            project_files = os.listdir(directory_path)
+            if not project_files:
+                print(f"路径 {directory_path} 中没有文件！")
+                return
+            
+            progress_dialog = QProgressDialog("正在加载文件...", "取消", 0, len(project_files), self)
+            progress_dialog.setWindowModality(Qt.WindowModal)  # 设置为模态对话框，防止其他操作
+            progress_dialog.setCancelButton(None)  # 禁用取消按钮
+            progress_dialog.setFont(QFont('微软雅黑', 10))
+            progress_dialog.resize(600, 50)
+            progress_dialog.show()  # 显示进度框
+            for index, file_name in enumerate(project_files):
+                if file_name not in self.loaded_cards:
+                    file_path = os.path.join(directory_path, file_name)
+                    card = ProjectCard(file_path)
+                    card.visualize_requested.connect(self.visualize_requested.emit)
+                    self.scroll_layout.addWidget(card)
+                    self.loaded_cards[file_name] = card
+                    progress_dialog.setValue(index + 1)
+                    QApplication.processEvents()
+                    if progress_dialog.wasCanceled():
+                        break
+        if path == balanced_path:
+            load_files_from_path(balanced_path)
+        elif path == Equity_path:
+            load_files_from_path(Equity_path)
+        elif path == index_path:
+            load_files_from_path(index_path)
+        elif path == Qdii_path:
+            load_files_from_path(Qdii_path)
+        elif path == to_worker_path:
+            load_files_from_path(to_worker_path)
        
-    # def reload_projects(self):
-    #     """重新加载项目卡片，通过哈希表，采用高效的增量更新方式。"""
-    #     current_files = set(os.listdir(self.base_path))
-    #     removed_files = set(self.loaded_cards.keys()) - current_files
-    #     for file_name in removed_files:
-    #         card_to_remove = self.loaded_cards.pop(file_name)
-    #         self.scroll_layout.removeWidget(card_to_remove)
-    #         card_to_remove.deleteLater()
-    #     new_files = current_files - set(self.loaded_cards.keys())
-    #     for file_name in new_files:
-    #         file_path = os.path.join(self.base_path, file_name)
-    #         card = ProjectCard(file_path)
-    #         card.visualize_requested.connect(self.visualize_requested.emit)
-    #         self.scroll_layout.addWidget(card)
-    #         self.loaded_cards[file_name] = card
-    #     QApplication.processEvents()
+
+    def what_label_now(self):
+        """用于显示当前所关注的项目类"""
+        qlabel = QLabel()
+        qlabel.setFont(QFont('微软雅黑', 12))
+        if self.base_path == balanced_path:
+            qlabel.setText("平衡型")
+        elif self.base_path == to_worker_path:
+            qlabel.setText("待处理")
+        elif self.base_path == Equity_path:
+            qlabel.setText("股票型")
+        elif self.base_path == index_path:
+            qlabel.setText("指数型")
+        elif self.base_path == Qdii_path:
+            qlabel.setText("QDII或另类")
+        return qlabel
 
 
 
