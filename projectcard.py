@@ -18,12 +18,20 @@ Track_Json_Path = "track"
 
 
 mapping = {}
+mapping_latestdate = {}
 mapping_path = os.path.join('mapping', 'mapping.csv')
+mapping_latestdate_path = os.path.join('mapping', 'mapping_latestdate.csv')
 if os.path.exists(mapping_path):
     with open(mapping_path, 'r', encoding='utf-8') as f:
         for line in f:
             code, full_name = line.strip().split(',')
             mapping[code] = full_name
+
+if os.path.exists(mapping_latestdate_path ):
+    with open(mapping_latestdate_path , 'r', encoding='utf-8') as f:
+        for line in f:
+            path, latestdate = line.strip().split(',')
+            mapping_latestdate[path] = latestdate
             
 def save_new_mapping(code, full_name):
     """将新的映射保存到文件中"""
@@ -123,22 +131,37 @@ def to_unflag(filename):
         signal_emitter.refresh_ui_signal.emit()
 
 
-def get_latest_date(filepath):
-    try:
-        df = pd.read_csv(filepath)
-        latest_date = df['净值日期'].max()
-        return latest_date
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        return None
+
+def get_latest_date_by_mapping(filepath):
+    if filepath in mapping_latestdate:
+        return mapping_latestdate[filepath]
+    else:
+        try:
+            df = pd.read_csv(filepath)
+            df['净值日期'] = pd.to_datetime(df['净值日期'])
+            latest_date = df['净值日期'].max()
+            latest_date = latest_date.strftime('%Y-%m-%d')
+            try:
+                mapping_df = pd.read_csv(mapping_latestdate_path)
+            except FileNotFoundError:
+                # 如果文件不存在，则创建一个新的 DataFrame
+                mapping_df = pd.DataFrame(columns=['path', 'date'])
+            new_entry = pd.DataFrame({'path': [filepath], 'latest_date': [latest_date]})
+            mapping_df = pd.concat([mapping_df, new_entry], ignore_index=True)
+            mapping_df.to_csv(mapping_latestdate_path, index=False)
+            return latest_date
+        except Exception as e:
+            print(f"无法读取文件 {filepath}: {e}")
+
 
 
 class ProjectCard(QFrame):
     """根据文件路径加载的项目卡片"""
     visualize_requested = pyqtSignal(str)  # 发送文件路径，调用信号
-    def __init__(self, file_path, parent=None):
+    def __init__(self, file_path,parent=None):
         super().__init__(parent)
         self.file_path = file_path  # 当前基金的文件路径
-        self.latest_date = get_latest_date(self.file_path)
+        self.latest_date = get_latest_date_by_mapping(self.file_path)
         self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名
         self.fund_tittle: str = get_name_by_mapping(self.filename)  # 获取基金名称
         self._right_click = False

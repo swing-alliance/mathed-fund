@@ -28,6 +28,7 @@ class ControlPanel(QWidget):
         super().__init__(parent)
         self.loaded_cards = {}#用于缓存已加载的卡片
         self.base_path = base_path 
+        self.file_nums = len(os.listdir(base_path))
         main_layout = QVBoxLayout(self)
 
         top_bar = QHBoxLayout()
@@ -40,6 +41,7 @@ class ControlPanel(QWidget):
         top_bar.addStretch(1)  
         top_bar.addWidget(self.index_label, alignment=Qt.AlignRight)
         top_bar.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        
         main_layout.addLayout(top_bar)
 
         # 滚动区域
@@ -85,6 +87,7 @@ class ControlPanel(QWidget):
         def load_files_from_path(directory_path):
             """加载指定路径下的文件并更新进度框"""
             project_files = os.listdir(directory_path)
+            self.file_nums = len(project_files)
             if not project_files:
                 print(f"路径 {directory_path} 中没有文件！")
                 return
@@ -114,8 +117,7 @@ class ControlPanel(QWidget):
             load_files_from_path(index_path)
         elif path == Qdii_path:
             load_files_from_path(Qdii_path)
-        elif path == to_worker_path:
-            load_files_from_path(to_worker_path)
+
        
 
     def what_label_now(self):
@@ -123,15 +125,13 @@ class ControlPanel(QWidget):
         qlabel = QLabel()
         qlabel.setFont(QFont('微软雅黑', 12))
         if self.base_path == balanced_path:
-            qlabel.setText("平衡型")
-        elif self.base_path == to_worker_path:
-            qlabel.setText("待处理")
+            qlabel.setText(f"混合型{self.file_nums}个")
         elif self.base_path == Equity_path:
-            qlabel.setText("股票型")
+            qlabel.setText(f"股票型{self.file_nums}个")
         elif self.base_path == index_path:
-            qlabel.setText("指数型")
+            qlabel.setText(f"指数型{self.file_nums}个")
         elif self.base_path == Qdii_path:
-            qlabel.setText("QDII或另类")
+            qlabel.setText(f"QDII或另类{self.file_nums}个")
         return qlabel
 
 

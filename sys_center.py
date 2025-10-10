@@ -101,8 +101,8 @@ class SysCentral(QWidget):
         inner_scroll_h_layout = QHBoxLayout()
         
         # 初始化按钮
-        self.stock_button = QPushButton("从股票型开始")
         self.mix_button = QPushButton("从混合型开始")
+        self.stock_button = QPushButton("从股票型开始")
         self.index_button = QPushButton("从指数型开始")
         self.alternative_button = QPushButton("从Qdii或另类开始")
         
@@ -120,8 +120,8 @@ class SysCentral(QWidget):
         
         # 将按钮添加到水平布局
         inner_scroll_h_layout.addStretch(1) 
-        inner_scroll_h_layout.addWidget(self.stock_button)
         inner_scroll_h_layout.addWidget(self.mix_button)
+        inner_scroll_h_layout.addWidget(self.stock_button)
         inner_scroll_h_layout.addWidget(self.index_button) 
         inner_scroll_h_layout.addWidget(self.alternative_button)
         inner_scroll_h_layout.addStretch(1) 
