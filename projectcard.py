@@ -203,28 +203,31 @@ class ProjectCard(QFrame):
             print("对话框被拒绝或关闭。")
 
     def discard(self):
-        """丢弃操作：删除 TO_WORKER 文件夹中的文件并刷新卡片"""
-        target_path = os.path.join(TO_WORKER, os.path.basename(self.file_path))
-        if os.path.exists(target_path):
-            msg_box = QMessageBox(self)
-            msg_box.setWindowTitle("确认操作")
-            msg_box.setIcon(QMessageBox.Warning)  # 设置警告图标
-            msg_box.setText(f"确定要丢弃文件 '{self.filename}' 吗？")
-            msg_box.setInformativeText("后续只能手动恢复")
-            # 设置自定义的中文按钮
-            ok_button = msg_box.addButton("确定", QMessageBox.AcceptRole)
-            cancel_button = msg_box.addButton("取消", QMessageBox.RejectRole)
-            msg_box.setDefaultButton(cancel_button)  # 设置“取消”为默认按钮
-            reply = msg_box.exec_()
-            if msg_box.clickedButton() == ok_button:
-                try:
-                    os.remove(target_path)
-                    print(f"文件 '{self.filename}' 已成功删除")
-                    self.deleteLater()
-                except Exception as e:
-                    QMessageBox.warning(self, "错误", f"删除文件失败: {e}")
-        else:
-            QMessageBox.warning(self, "警告", f"文件 '{self.filename}' 在 TO_WORKER 文件夹中不存在，无法丢弃。")
+        """丢弃操作：路径下的文件并刷新卡片"""
+        target_path = self.file_path
+        print(f"丢弃文件：{target_path}")
+        if not target_path or not os.path.exists(target_path):
+            QMessageBox.warning(self, "警告", f"文件 '{self.filename}' 不存在，无法丢弃。")
+            return
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("确认操作")
+        msg_box.setIcon(QMessageBox.Warning)  # 设置警告图标
+        msg_box.setText(f"确定要丢弃文件 '{self.filename}' 吗？")
+        msg_box.setInformativeText("后续只能手动恢复")
+        ok_button = msg_box.addButton("确定", QMessageBox.AcceptRole)
+        cancel_button = msg_box.addButton("取消", QMessageBox.RejectRole)
+        msg_box.setDefaultButton(cancel_button)  # 设置“取消”为默认按钮
+        font = QFont("微软雅黑", 12)
+        msg_box.setFont(font)
+        msg_box.exec_()
+        if msg_box.clickedButton() == ok_button:
+            try:
+                os.remove(target_path)
+                print(f"文件 '{self.filename}' 已成功删除")
+                self.deleteLater()  # 删除后再清理对象
+            except Exception as e:
+                QMessageBox.warning(self, "错误", f"删除文件失败: {e}")
+
 
     def _emit_visualize_request(self):
         """当按钮点击时，发出 visualize_requested 信号，并传递文件路径"""

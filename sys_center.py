@@ -6,10 +6,10 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QSize
 import os
 
-balanced_path = os.path.join(os.getcwd(), 'types','Balanced')
-Equity_path = os.path.join(os.getcwd(), 'types','Equity')
-index_path = os.path.join(os.getcwd(), 'types','Index')
-Qdii_path = os.path.join(os.getcwd(), 'types','Qdii')
+balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
+Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
+index_path = os.path.join(os.getcwd(), 'my_types','Index')
+Qdii_path = os.path.join(os.getcwd(), 'my_types','Qdii')
 to_worker_path = os.path.join(os.getcwd(), 'to_worker')
 
 # --- 1. QScrollArea (保持不变) ---
@@ -49,8 +49,6 @@ class SysCentral(QWidget):
         super().__init__(parent)
 
         self.parent_window = parent_window  # 存储父窗口引用
-        
-        # 定义 index_path 属性
         self.index_path = "/path/to/index/data" 
 
         self.setMinimumSize(600, 400)

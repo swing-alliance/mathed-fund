@@ -14,11 +14,11 @@ from projectcard import ProjectCard
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
 
-balanced_path = os.path.join(os.getcwd(), 'types','Balanced')
-Equity_path = os.path.join(os.getcwd(), 'types','Equity')
-index_path = os.path.join(os.getcwd(), 'types','Index')
-Qdii_path = os.path.join(os.getcwd(), 'types','Qdii')
-to_worker_path = os.path.join(os.getcwd(), 'to_worker')
+balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
+Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
+index_path = os.path.join(os.getcwd(), 'my_types','Index')
+Qdii_path = os.path.join(os.getcwd(), 'my_types','Qdii')
+
 
 
 class ControlPanel(QWidget):
@@ -91,7 +91,6 @@ class ControlPanel(QWidget):
             if not project_files:
                 print(f"路径 {directory_path} 中没有文件！")
                 return
-            
             progress_dialog = QProgressDialog("正在加载文件...", "取消", 0, len(project_files), self)
             progress_dialog.setWindowModality(Qt.WindowModal)  # 设置为模态对话框，防止其他操作
             progress_dialog.setCancelButton(None)  # 禁用取消按钮

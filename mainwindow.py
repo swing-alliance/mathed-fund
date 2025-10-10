@@ -6,16 +6,18 @@ from PyQt5.QtCore import QSize
 from csvqwidget import CsvGraphWidget
 from qdialogue import  pulldata_dialog
 from utils.pull import fetch_and_save_fund_csv
-from utils.refresh import update_found_folder, update_to_worker_folder
+from my_types.nice_utils import update_files
 from pannel_plan import ControlPanel
 from sys_center import SysCentral
 
 # from calculate import ArimaPredictor
-balanced_path = os.path.join(os.getcwd(), 'types','Balanced')
-Equity_path = os.path.join(os.getcwd(), 'types','Equity')
-index_path = os.path.join(os.getcwd(), 'types','Index')
-Qdii_path = os.path.join(os.getcwd(), 'types','Qdii')
+balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
+Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
+index_path = os.path.join(os.getcwd(), 'my_types','Index')
+Qdii_path = os.path.join(os.getcwd(), 'my_types','Qdii')
+cache_path = os.path.join(os.getcwd(), 'mapping','mapping_latestdate.csv')
 to_worker_path = os.path.join(os.getcwd(), 'to_worker')
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -49,26 +51,35 @@ class MainWindow(QMainWindow):
 
         planpage_action = QAction("计划主页", self)
         planpage_action.triggered.connect(lambda:self.load_sys_central())
-        planpage_action.setFont(QFont('微软雅黑', 11))
+        
 
         balenced_action = QAction("从混合型开始", self)
         balenced_action.triggered.connect(lambda:self.load_plan_pannel(balanced_path))
-        balenced_action.setFont(QFont('微软雅黑', 11))
         equity_action = QAction("从股票型开始", self)
         equity_action.triggered.connect(lambda:self.load_plan_pannel(Equity_path))
-        equity_action.setFont(QFont('微软雅黑', 11))
         index_action = QAction("从指数型开始", self)
         index_action.triggered.connect(lambda:self.load_plan_pannel(index_path))
-        index_action.setFont(QFont('微软雅黑', 11))
         qdii_action = QAction("从QDII或特殊商品开始", self)
         qdii_action.triggered.connect(lambda:self.load_plan_pannel(Qdii_path))
+        
+        updateBalanced_action = QAction("更新Balanced数据", self)
+        updateBalanced_action.triggered.connect(lambda: update_files(balanced_path, cache_path))
+        updateEquity_action = QAction("更新Equity数据", self)
+        updateEquity_action.triggered.connect(lambda: update_files(Equity_path, cache_path))
+        updateindex_action = QAction("更新Index数据", self)
+        updateindex_action.triggered.connect(lambda: update_files(index_path, cache_path))
+        updateQdii_action = QAction("更新Qdii或另类数据", self)
+        updateQdii_action.triggered.connect(lambda: update_files(Qdii_path, cache_path))
+
+        updateQdii_action.setFont(QFont('微软雅黑', 11))
+        index_action.setFont(QFont('微软雅黑', 11))
         qdii_action.setFont(QFont('微软雅黑', 11))
-        updateworker_action = QAction("更新worker中数据", self)
-        updateworker_action.triggered.connect(self.update_worker_folder)
-        updateworker_action.setFont(QFont('微软雅黑', 11))
-        updatefound_action = QAction("更新found中数据", self)
-        updatefound_action.triggered.connect(self.update_found_folder)
-        updatefound_action.setFont(QFont('微软雅黑', 11))
+        balenced_action.setFont(QFont('微软雅黑', 11))
+        equity_action.setFont(QFont('微软雅黑', 11))
+        updateBalanced_action.setFont(QFont('微软雅黑', 11))
+        updateEquity_action.setFont(QFont('微软雅黑', 11))
+        updateindex_action.setFont(QFont('微软雅黑', 11))
+        planpage_action.setFont(QFont('微软雅黑', 11))
 
         plan_menu.addAction(planpage_action)
         plan_menu.addAction(balenced_action)
@@ -78,17 +89,13 @@ class MainWindow(QMainWindow):
         file_menu.addAction(load_action)
         data_menu.addAction(pull_action)
         data_menu.addAction(advanced_pull_action)
-        data_menu.addAction(updateworker_action)
-        data_menu.addAction(updatefound_action)
+        data_menu.addAction(updateBalanced_action)
+        data_menu.addAction(updateEquity_action)
+        data_menu.addAction(updateindex_action)
+        data_menu.addAction(updateQdii_action)
+        
+        
 
-
-
-
-    def update_found_folder(self):
-        update_found_folder()
-
-    def update_worker_folder(self):
-        update_to_worker_folder()
 
     def pull_data(self):
         """拉取数据到found"""
