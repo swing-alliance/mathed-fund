@@ -20,13 +20,14 @@ def readcsv(path):
 #年化比率
 
 #滑动窗口年化比率
-def year_rate_sliding(code, window_size_days=540, step_size_days=30):
-    """滑动窗口年化，反应大方向的趋势，具有延后性，不够敏感"""
-    try:
-        df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
-    except Exception as e:
-        print(f"获取基金 {code} 数据失败: {e}")
-        return None, None
+def year_rate_sliding(code,df, base_date=None,window_size_days=30, step_size_days=7):
+    """滑动窗口年化，反应大方向的趋势，具有延后性，不够敏感,base_date以前的数据不计算年化收益率"""
+    if df.empty:
+        try:
+            df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+        except Exception as e:
+            print(f"获取基金 {code} 数据失败: {e}")
+            return None, None
     df['净值日期'] = pd.to_datetime(df['净值日期'])
     df = df.sort_values("净值日期").reset_index(drop=True)
     if len(df) < window_size_days:
@@ -43,6 +44,9 @@ def year_rate_sliding(code, window_size_days=540, step_size_days=30):
         if window_start_date < df['净值日期'].iloc[0]:
             print(f"基金{code}的{window_start_date}到{window_end_date}数据不足，或是计算完了。")
             break
+        if base_date and window_start_date < pd.to_datetime(base_date):
+            print(f'设置了base_date为{base_date},到base_date结束计算')
+            break
         df_window = df[(df['净值日期'] >= window_start_date) & (df['净值日期'] <= window_end_date)]#重置窗口
         if len(df_window) < 2:
             return None, None
@@ -57,8 +61,9 @@ def year_rate_sliding(code, window_size_days=540, step_size_days=30):
         annualized_return = (end_value / start_value) ** (1 / years) - 1
         annualized_returns.append(annualized_return)
         window_dates.append(window_end_date)
+        print(f"基金{code}的{window_start_date}到{window_end_date}年化收益率约为{annualized_return}")
         end_date = end_date - pd.Timedelta(days=step_size_days)
-    return annualized_returns, window_dates
+    # return annualized_returns, window_dates
 
 
 #夏普比率(暂时不实现)

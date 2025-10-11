@@ -83,41 +83,51 @@ class ControlPanel(QWidget):
 
 
     def load_projects_from_path(self, path):
-        """从 types 文件夹加载项目卡片，并将实例缓存起来。"""
-        def load_files_from_path(directory_path):
-            """加载指定路径下的文件并更新进度框"""
-            project_files = os.listdir(directory_path)
-            self.file_nums = len(project_files)
-            if not project_files:
-                print(f"路径 {directory_path} 中没有文件！")
-                return
-            progress_dialog = QProgressDialog("正在加载文件...", "取消", 0, len(project_files), self)
-            progress_dialog.setWindowModality(Qt.WindowModal)  # 设置为模态对话框，防止其他操作
-            progress_dialog.setCancelButton(None)  # 禁用取消按钮
-            progress_dialog.setFont(QFont('微软雅黑', 10))
-            progress_dialog.resize(600, 50)
-            progress_dialog.show()  # 显示进度框
-            for index, file_name in enumerate(project_files):
-                if file_name not in self.loaded_cards:
-                    file_path = os.path.join(directory_path, file_name)
-                    card = ProjectCard(file_path)
-                    card.visualize_requested.connect(self.visualize_requested.emit)
-                    self.scroll_layout.addWidget(card)
-                    self.loaded_cards[file_name] = card
-                    progress_dialog.setValue(index + 1)
-                    QApplication.processEvents()
+            """从 types 文件夹加载项目卡片，并将实例缓存起来。"""
+            UPDATE_FREQUENCY = 2000
+            def load_files_from_path(directory_path):
+                """加载指定路径下的文件并更新进度框"""
+                if not os.path.isdir(directory_path):
+                    print(f"路径 {directory_path} 不存在或不是目录！")
+                    return
+                project_files = os.listdir(directory_path)
+                self.file_nums = len(project_files)
+                if not project_files:
+                    print(f"路径 {directory_path} 中没有文件！")
+                    return
+                progress_dialog = QProgressDialog("正在加载文件...", "取消", 0, len(project_files), self)
+                progress_dialog.setWindowModality(Qt.WindowModal)  # 设置为模态对话框，防止其他操作
+                progress_dialog.setCancelButton(None)  # 禁用取消按钮
+                progress_dialog.setFont(QFont('微软雅黑', 10))
+                progress_dialog.resize(600, 50)
+                progress_dialog.show()  
+                QApplication.processEvents() 
+                for index, file_name in enumerate(project_files):
+                    if file_name not in self.loaded_cards:
+                        file_path = os.path.join(directory_path, file_name)
+                        try:
+                            card = ProjectCard(file_path)
+                            card.visualize_requested.connect(self.visualize_requested.emit)
+                            self.scroll_layout.addWidget(card)
+                            self.loaded_cards[file_name] = card
+                        except Exception as e:
+                            print(f"创建 ProjectCard 失败 ({file_name}): {e}")
+                    if (index + 1) % UPDATE_FREQUENCY == 0 or (index + 1) == self.file_nums:
+                        progress_dialog.setValue(index + 1)
+                        QApplication.processEvents()
                     if progress_dialog.wasCanceled():
                         break
-        if path == balanced_path:
-            load_files_from_path(balanced_path)
-        elif path == Equity_path:
-            load_files_from_path(Equity_path)
-        elif path == index_path:
-            load_files_from_path(index_path)
-        elif path == Qdii_path:
-            load_files_from_path(Qdii_path)
-
-       
+                progress_dialog.setValue(self.file_nums)
+                QApplication.processEvents()
+                progress_dialog.close()
+            if path == balanced_path:
+                load_files_from_path(balanced_path)
+            elif path == Equity_path:
+                load_files_from_path(Equity_path)
+            elif path == index_path:
+                load_files_from_path(index_path)
+            elif path == Qdii_path:
+                load_files_from_path(Qdii_path)
 
     def what_label_now(self):
         """用于显示当前所关注的项目类"""
@@ -132,6 +142,45 @@ class ControlPanel(QWidget):
         elif self.base_path == Qdii_path:
             qlabel.setText(f"QDII或另类{self.file_nums}个")
         return qlabel
+
+
+
+    # def load_projects_from_path(self, path):
+    #         def load_files_from_path(directory_path):
+    #             """加载指定路径下的文件（无进度框）"""
+                
+    #             # 路径检查（添加更稳健的检查）
+    #             if not os.path.isdir(directory_path):
+    #                 print(f"路径 {directory_path} 不存在或不是目录！")
+    #                 return
+
+    #             project_files = os.listdir(directory_path)
+    #             self.file_nums = len(project_files)
+                
+    #             if not project_files:
+    #                 print(f"路径 {directory_path} 中没有文件！")
+    #                 return
+    #             for index, file_name in enumerate(project_files):
+    #                 if file_name not in self.loaded_cards:
+    #                     file_path = os.path.join(directory_path, file_name)
+    #                     try:
+    #                         card = ProjectCard(file_path)
+    #                         card.visualize_requested.connect(self.visualize_requested.emit)
+    #                         self.scroll_layout.addWidget(card)
+    #                         self.loaded_cards[file_name] = card
+    #                     except Exception as e:
+    #                         print(f"创建 ProjectCard 失败 ({file_name}): {e}")
+    #                         continue
+    #         if path == balanced_path:
+    #             load_files_from_path(balanced_path)
+    #         elif path == Equity_path:
+    #             load_files_from_path(Equity_path)
+    #         elif path == index_path:
+    #             load_files_from_path(index_path)
+    #         elif path == Qdii_path:
+    #             load_files_from_path(Qdii_path)
+
+
 
 
 

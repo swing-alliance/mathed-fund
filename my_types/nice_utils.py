@@ -72,7 +72,7 @@ def update_files(path, cache_path):
         try:
             cached_date = cache_df.loc[cache_df['path'] == file_path, 'latest_date'].item()
             if cached_date==today.strftime('%Y-%m-%d'):
-                print(f'{single} 已经是最新，跳过更新 ({count}/{total_len})。')
+                print(f'{single} 缓存中已经是最新，跳过更新 ({count}/{total_len})。')
                 count += 1
                 continue
             else:
@@ -80,12 +80,17 @@ def update_files(path, cache_path):
                 data["净值日期"] = pd.to_datetime(data['净值日期'])
                 latest_date = data['净值日期'].max()
                 latest_date_str = latest_date.strftime('%Y-%m-%d')
-                output_path = os.path.join(path, single)
-                data.to_csv(output_path, index=False)
-                cache_df.loc[cache_df['path'] == file_path, 'latest_date'] = latest_date_str
-                cache_df.to_csv(cache_path, index=False)
-                print(f'{single} 更新成功 ({count}/{total_len})，更新日期为 {latest_date_str}。缓存已同步写入。')
-                count += 1
+                if latest_date_str != today and latest_date_str == cached_date:#就算最新日期不是今天，但是已经是缓存中的最新日期，也不更新
+                    print(f'{single} 今天还没最新且缓存中已经是最新，跳过写入缓存 ({count}/{total_len})。')
+                    count += 1
+                    continue
+                else:
+                    output_path = os.path.join(path, single)
+                    data.to_csv(output_path, index=False)
+                    cache_df.loc[cache_df['path'] == file_path, 'latest_date'] = latest_date_str
+                    cache_df.to_csv(cache_path, index=False)
+                    print(f'{single} 更新成功 ({count}/{total_len})，更新日期为 {latest_date_str}。缓存已同步写入。')
+                    count += 1
         except Exception as e:
             print(f"更新失败 {fund_code}: {e}")
     print('所有文件更新处理完成！')

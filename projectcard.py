@@ -12,6 +12,8 @@ import akshare as ak
 import json
 from signal_handler import signal_emitter
 import pandas as pd 
+from calculate_data import year_rate_sliding
+import csv
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
 Track_Json_Path = "track"
@@ -91,15 +93,12 @@ def to_flag(filename):
     """
     json_path = os.path.join(Track_Json_Path, 'flagged.json')
     flagged_list = []
-    # 尝试安全地读取现有文件内容
     if os.path.exists(json_path) and os.path.getsize(json_path) > 0:
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 flagged_list = json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
-            # 如果文件内容无效，则以空列表开始
             flagged_list = []
-    # 如果代码不在列表中，则添加它并保存
     if filename not in flagged_list:
         flagged_list.append(filename)
         with open(json_path, 'w', encoding='utf-8') as f:
@@ -123,7 +122,6 @@ def to_unflag(filename):
     except (json.JSONDecodeError, FileNotFoundError):
         # 如果文件内容无效，则无需操作
         return
-    # 如果代码在列表中，则移除它并保存
     if filename in flagged_list:
         flagged_list.remove(filename)
         with open(json_path, 'w', encoding='utf-8') as f:
@@ -229,6 +227,9 @@ class ProjectCard(QFrame):
                 QMessageBox.warning(self, "错误", f"删除文件失败: {e}")
 
 
+
+
+
     def _emit_visualize_request(self):
         """当按钮点击时，发出 visualize_requested 信号，并传递文件路径"""
         self.visualize_requested.emit(self.file_path)
@@ -275,15 +276,17 @@ class ProjectCard(QFrame):
                     background-color: #dce4f0;
                 }
             """)
+
             info_action = QAction("转到详细信息", self)
             info_action.triggered.connect(self.show_fund_info)
-            info_action.setFont(QFont('微软雅黑', 11))
             menu.addAction(info_action)
             visualize_action = QAction("转到图", self)
             visualize_action.triggered.connect(self._emit_visualize_request)
-            visualize_action.setFont(QFont('微软雅黑', 11))
             menu.addAction(visualize_action)
-            current_is_flagged = isflagged(self.filename)
+            caculate_year_rate_sliding_action = QAction("计算滑动年化收益", self)
+            caculate_year_rate_sliding_action.triggered.connect(self.caculate_year_rate_sliding)
+            menu.addAction(caculate_year_rate_sliding_action)
+            current_is_flagged = isflagged(self.filename)#每一次右键触发检查
             if current_is_flagged:
                 unflag_action = QAction("取消标记", self)
                 unflag_action.triggered.connect(lambda: to_unflag(self.filename))#匿名函数
@@ -297,6 +300,9 @@ class ProjectCard(QFrame):
             discard_action = QAction("丢弃", self)
             discard_action.triggered.connect(self.discard)
             discard_action.setFont(QFont('微软雅黑', 11))
+            info_action.setFont(QFont('微软雅黑', 11))
+            visualize_action.setFont(QFont('微软雅黑', 11))
+            caculate_year_rate_sliding_action.setFont(QFont('微软雅黑', 11))
             menu.addAction(discard_action)
             menu.exec_(event.globalPos())
             self.setStyleSheet("""
@@ -319,7 +325,11 @@ class ProjectCard(QFrame):
         else:
             self.flag_label.hide()
 
-
+    def caculate_year_rate_sliding(self):
+        """计算年化收益率的滑动窗口"""
+        df=pd.read_csv(self.file_path)
+        year_rate_sliding(self.filename,df,base_date='2024-10-10',window_size_days=30,step_size_days=7)
+        
 
 
 
