@@ -328,7 +328,7 @@ class ProjectCard(QFrame):
     def caculate_year_rate_sliding(self):
         """计算年化收益率的滑动窗口"""
         df=pd.read_csv(self.file_path)
-        year_rate_sliding(self.filename,df,base_date='2024-10-10',window_size_days=30,step_size_days=7)
+        year_rate_sliding(self.filename,df,base_date='2024-10-10',window_size_days=365,step_size_days=7)
         
 
 
