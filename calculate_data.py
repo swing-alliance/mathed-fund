@@ -3,13 +3,21 @@ import os
 import pandas as pd
 import numpy as np
 import akshare as ak
-from datetime import datetime, timedelta
+import sys
 import statsmodels.api as sm
 from numpy.polynomial.polynomial import Polynomial
 from typing import Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,date
 from typing import Optional, Tuple, List, Union
+from typing import Union, Dict, Callable
+from sklearn.linear_model import LinearRegression
+import math
+import matplotlib.pyplot as plt
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 path=os.path.join(os.getcwd(),'found')
+
+
 
 def readcsv(path):
     df = pd.read_csv(path)
@@ -115,45 +123,65 @@ def get_max_annualized_volatility(code: str,df:pd.DataFrame,base_date: datetime,
 
 #最大回撤天数
 
-
-def find_optimal_cycle_length(code: str, start_date: pd.Timestamp, end_date: pd.Timestamp) -> float:
+def find_top_n_cycles(
+    code: str, 
+    start_date: Union[str, pd.Timestamp], 
+    end_date: Union[str, pd.Timestamp], 
+    n_cycles: int = 1,  # 希望返回的最佳周期数量
+    min_cycle: float = 2.0  # 最小周期长度（天），用于过滤高频噪声
+) -> List[float]:
     """
-    自动找到时间序列的最佳周期长度，通过 FFT 检测频率的主峰。
+    自动找到时间序列的 N 个最佳周期长度，通过 FFT 检测频率的主峰。
     
     参数:
     - code: 基金代码（str）。
-    - start_date: 起始日期（pd.Timestamp）。
-    - end_date: 结束日期（pd.Timestamp）。
+    - start_date: 起始日期（str 或 pd.Timestamp）。
+    - end_date: 结束日期（str 或 pd.Timestamp）。
+    - n_cycles: 希望返回的最佳周期数量。
+    - min_cycle: 最小周期长度，用于过滤高频噪声。
     
     返回:
-    - 最佳周期长度（float）。
+    - 最佳周期长度列表（List[float]）。
     """
-    # 获取基金的净值数据
     try:
+        # 获取基金数据
         df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
     except Exception as e:
         print(f"获取基金 {code} 数据失败: {e}")
-        return None
+        return []
+
     df['净值日期'] = pd.to_datetime(df['净值日期'])
     df.set_index('净值日期', inplace=True)
     df['累计净值'] = pd.to_numeric(df['累计净值'], errors='coerce')
     df.dropna(subset=['累计净值'], inplace=True)
-    df = df.loc[start_date:end_date]
-    if df.empty:
-        print(f"指定日期范围内没有数据: {start_date} - {end_date}")
-        return None
-    series = df['累计净值']
-    fft_result = np.fft.fft(series)
-    fft_freq = np.fft.fftfreq(len(series), d=1)  # d=1 表示时间间隔为 1 天
-    fft_magnitude = np.abs(fft_result)  # 获取幅度
-    positive_freq_idx = fft_freq > 0
-    fft_freq = fft_freq[positive_freq_idx]
-    fft_magnitude = fft_magnitude[positive_freq_idx]
-    peak_freq = fft_freq[np.argmax(fft_magnitude)]
-    optimal_cycle_length = 1 / peak_freq
-    print(f"自动检测到最佳周期长度: {optimal_cycle_length}")
+    start = pd.to_datetime(start_date)
+    end = pd.to_datetime(end_date)
+    df = df.loc[start:end]
     
-    return optimal_cycle_length
+    if df.empty:
+        print(f"指定日期范围内没有数据: {start} - {end}")
+        return []
+    series = df['累计净值'].values
+    N_data = len(series)
+    fft_result = np.fft.fft(series)
+    fft_freq = np.fft.fftfreq(N_data, d=1)  # d=1 表示时间间隔为 1 天
+    fft_magnitude = np.abs(fft_result)
+    positive_freq_idx = fft_freq > 0.0001  # 过滤掉直流分量
+    filtered_freq = fft_freq[positive_freq_idx]
+    filtered_magnitude = fft_magnitude[positive_freq_idx]
+    cycle_lengths = 1 / filtered_freq
+    valid_idx = cycle_lengths >= min_cycle
+    cycle_lengths = cycle_lengths[valid_idx]
+    valid_magnitude = filtered_magnitude[valid_idx]
+
+    if len(valid_magnitude) == 0:
+        print("没有找到满足最小周期限制的有效周期。")
+        return []
+    top_n_indices = np.argsort(valid_magnitude)[::-1][:n_cycles]
+    optimal_cycles = cycle_lengths[top_n_indices]
+    print(f"基金代码 {code}，自动检测到 {n_cycles} 个最佳周期长度 (天): {optimal_cycles}")
+    return np.round(optimal_cycles, 2).tolist()
+
 
 
 
@@ -369,20 +397,90 @@ def get_df(code):
     return df
 
 
+def fit_cycles_and_get_weights(
+    code: str, 
+    start_date: Union[str, pd.Timestamp], 
+    end_date: Union[str, pd.Timestamp], 
+    n_cycles: int = 2,  
+    min_cycle: float = 5.0, # 最小周期稍微放大，减少高频噪声干扰
+    fit_intercept: bool = True # 是否包含截距项（基线）
+) -> dict:
+    """
+    基于 FFT 检测到的最佳周期，通过线性回归拟合每个周期的 sin/cos 权重。
+
+    参数:
+    - code: 基金代码（str）。
+    - start_date: 起始日期（str 或 pd.Timestamp）。
+    - end_date: 结束日期（str 或 pd.Timestamp）。
+    - n_cycles: 希望拟合的主要周期数量。
+    - min_cycle: 最小周期长度，用于过滤高频噪声。
+    - fit_intercept: 线性回归是否包含截距项（常数项）。
+
+    返回:
+    - 包含周期、sin 权重、cos 权重的字典。
+    """
+    try:
+        df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+    except Exception as e:
+        print(f"获取基金 {code} 数据失败: {e}")
+        return {}
+    df['净值日期'] = pd.to_datetime(df['净值日期'])
+    df.set_index('净值日期', inplace=True)
+    df['累计净值'] = pd.to_numeric(df['累计净值'], errors='coerce')
+    df.dropna(subset=['累计净值'], inplace=True)
+    start = pd.to_datetime(start_date)
+    end = pd.to_datetime(end_date)
+    df = df.loc[start:end]
+    if df.empty:
+        print(f"指定日期范围内没有数据: {start} - {end}")
+        return {}
+    top_cycles = find_top_n_cycles(code, start_date, end_date, n_cycles=n_cycles, min_cycle=min_cycle)
+    if not top_cycles:
+        print("未检测到有效周期，无法拟合。")
+        return {}
+    y = df['累计净值'].values
+    t = np.arange(len(y)) 
+    X_features = []
+    results = {'cycle': [], 'sin_weight': [], 'cos_weight': []}
+    for cycle in top_cycles:
+        omega = 2 * np.pi / cycle
+        sin_term = np.sin(omega * t)
+        X_features.append(sin_term)
+        cos_term = np.cos(omega * t)
+        X_features.append(cos_term)
+        results['cycle'].extend([cycle, cycle]) # 记录两次，分别对应 sin/cos
+    X = np.column_stack(X_features)
+    model = LinearRegression(fit_intercept=fit_intercept)
+    model.fit(X, y)
+    weights = model.coef_
+    final_weights = {}
+    if fit_intercept:
+        final_weights['intercept'] = model.intercept_
+    for i, cycle in enumerate(top_cycles):
+        sin_weight = weights[2 * i]
+        cos_weight = weights[2 * i + 1]
+        final_weights[f'{cycle:.2f}_days'] = {
+            'sin_weight': np.round(sin_weight, 5),
+            'cos_weight': np.round(cos_weight, 5)
+        }
+    print(f"基金 {code}，基于 {n_cycles} 个周期项的拟合权重结果:")
+    return final_weights
+
+
+
 
 def fourier_worm_rolling_classic(
     df_series: pd.DataFrame,
     start_date: Optional[Union[str, pd.Timestamp]] = None,
     end_date: Optional[Union[str, pd.Timestamp]] = None,
     sampling_frequency: str = 'D',
-    cycles: Union[float, List[float]] = 287, # 傅里叶分析的周期长度，可以是一个列表或单个值
-    window_size: int = 120, # 拟合周期项的窗口大小
+    cycles: Union[float, List[float]] = 287,  # 傅里叶分析的周期长度，可以是一个列表或单个值
+    window_size: int = 120,  # 拟合周期项的窗口大小
     prediction_steps: int = 10,
-    add_trend: bool = True # 是否添加线性趋势项
+    add_trend: bool = True  # 是否添加线性趋势项
 ) -> Tuple[pd.DatetimeIndex, pd.Series, str]:
     """
     基于傅里叶级数的经典滚动预测函数。
-    
     参数:
         df_series (pd.DataFrame): 包含 '净值日期' 和 '累计净值' 的时间序列数据框。
         start_date, end_date: 数据筛选的开始和结束日期。
@@ -391,7 +489,6 @@ def fourier_worm_rolling_classic(
         window_size (int): 每次拟合时使用的历史数据窗口大小。
         prediction_steps (int): 预测未来的步数。
         add_trend (bool): 是否在拟合中添加线性趋势。
-
     返回:
         Tuple[pd.DatetimeIndex, pd.Series, str]: 预测日期、预测值序列、预测方向 ("positive" 或 "negative")。
     """
@@ -410,51 +507,56 @@ def fourier_worm_rolling_classic(
         df = df.loc[start:end]
     df = df.resample(sampling_frequency).last().ffill()
     df.dropna(subset=['Value'], inplace=True)
+
+    # 动态调整窗口大小，确保数据点足够
+    if len(df) < window_size:
+        print(f"有效数据点过少 ({len(df)})，自动调整窗口大小。")
+        window_size = len(df)  # 动态调整窗口大小为数据点数量
+
     if df.empty or len(df) < window_size:
         print(f"有效数据点过少 ({len(df)})，请确保数据长度大于窗口大小 ({window_size})。")
         return None, None, None
+    
     series = df['Value']
     if not isinstance(cycles, list):
         cycles_list = [cycles]
     else:
         cycles_list = cycles
     current_series = series.copy()
-    start_pred_date = series.index[-1] + pd.Timedelta(seconds=1) 
+    start_pred_date = series.index[-1] + pd.Timedelta(seconds=1)
     future_dates = pd.date_range(start=start_pred_date, periods=prediction_steps, freq=sampling_frequency)
     forecast_results = []
+    
     for i in range(prediction_steps):
-        
-        # 截取当前窗口数据
         window_data = current_series[-window_size:]
         n = len(window_data)
         t_window = np.arange(n)
         if add_trend:
             coeffs_trend = np.polyfit(t_window, window_data.values, 1)
-            # 趋势函数
             trend_func = lambda t_vals: np.polyval(coeffs_trend, t_vals)
-            # 去趋势：得到残差 (残差 = 原始值 - 趋势值)
             y_detrended = window_data.values - trend_func(t_window)
-        else:
+        elif add_trend == False:
             y_detrended = window_data.values
             trend_func = lambda t_vals: np.zeros_like(t_vals, dtype=float)
-        X_fourier = np.ones((n, 1)) # 常数项
-        
+
+        X_fourier = np.ones((n, 1))  # 常数项
         for cycle_len in cycles_list:
-            # 确保周期长度合理
-            cycle_len = max(1.0, float(cycle_len)) 
+            cycle_len = max(1.0, float(cycle_len))
             X_fourier = np.hstack([
                 X_fourier,
                 np.sin(2 * np.pi * t_window[:, np.newaxis] / cycle_len),
                 np.cos(2 * np.pi * t_window[:, np.newaxis] / cycle_len)
             ])
+
         try:
             coef, _, _, _ = np.linalg.lstsq(X_fourier, y_detrended, rcond=None)
         except np.linalg.LinAlgError as e:
             print(f"傅里叶拟合失败: {e}")
             return None, None, None
+        
         t_predict_local = np.array([n])
         trend_predict_value = trend_func(t_predict_local)[0]
-        X_predict_fourier = np.ones((1, 1)) 
+        X_predict_fourier = np.ones((1, 1))
         for cycle_len in cycles_list:
             cycle_len = max(1.0, float(cycle_len))
             X_predict_fourier = np.hstack([
@@ -470,12 +572,10 @@ def fourier_worm_rolling_classic(
             current_series,
             pd.Series([y_future], index=[future_dates[i]])
         ])
+    
     forecast = pd.Series(forecast_results, index=future_dates)
     trend_direction = "positive" if forecast.iloc[-1] > forecast.iloc[0] else "negative"
-    
-    return trend_direction
-# future_dates, forecast, 
-
+    return forecast
 
 
 
@@ -686,6 +786,108 @@ def get_df_by_path(path):
     df = pd.read_csv(path)
     return df
 
+
+def fourier_summary(weights, t):
+    intercept = weights['intercept']
+    result = intercept  # 截距项
+    for period, weight_dict in weights.items():
+        if period == 'intercept':  # 跳过截距项
+            continue
+        period_days = float(period.split('.')[0])  # 获取周期的天数，例如243.00_days -> 243.00
+        sin_weight = weight_dict['sin_weight']
+        cos_weight = weight_dict['cos_weight']
+        result += sin_weight * np.sin(2 * np.pi * t / period_days) + cos_weight * np.cos(2 * np.pi * t / period_days)
+    return result
+
+class PlotWidget(QWidget):
+    def __init__(self, data, parent=None):
+        super().__init__(parent)
+        self.data = data
+        self.initUI()
+    def initUI(self):
+        layout = QVBoxLayout(self)
+        figure, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(self.data['时间'], self.data['净值'], label='净值')
+        ax.set_xlabel('时间')
+        ax.set_ylabel('净值')
+        ax.set_title('时间与净值变化图')
+        ax.legend()
+        canvas = FigureCanvas(figure)
+        layout.addWidget(canvas)
+        label = QLabel("基金净值走势图", self)
+        layout.addWidget(label)
+        self.setLayout(layout)
+
+
+
+def is_low_and_go_up(code, df=None, window_days=120):
+    """
+    判断当前基金在 window_days 内所处位置，并推测是否有上涨趋势。
+    参数:
+        code: 基金代码
+        df: 获取的基金数据，包含 '净值日期' 和 '累计净值' 的 DataFrame，默认从 akshare 获取
+        window_days: 用来计算位置的窗口大小
+    返回:
+        str: 'Low'（低位），'Medium'（中位），'High'（高位），'Up'（上涨趋势）
+    """
+    if df is None:
+        df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+    
+    # 设置日期列为索引
+    df = df.set_index('净值日期')
+    df = df[-window_days:]
+    
+    # 如果数据长度不足，返回提示
+    if len(df) < window_days:
+        return "Data insufficient"
+    
+    # 使用时间序列数据进行线性回归
+    df['Time'] = np.arange(len(df))  # 以时间戳为自变量（从 0 开始递增）
+    X = df['Time'].values.reshape(-1, 1)  # 自变量：时间
+    y = df['累计净值'].values  # 因变量：基金净值
+    
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    # 预测的回归线
+    df['Fitted'] = model.predict(X)
+    
+    # 计算每个数据点与回归线的距离
+    df['Distance'] = np.abs(df['累计净值'] - df['Fitted'])
+    
+    # 计算标准差（波动性）
+    std_dev = df['累计净值'].std()
+    
+    # 设定低位、中位和高位的更动态的边界
+    low_threshold = df['Fitted'].iloc[-1] - std_dev * 0.5  # 回归线下方半个标准差
+    high_threshold = df['Fitted'].iloc[-1] + std_dev * 0.5  # 回归线上方半个标准差
+    
+    current_value = df['累计净值'].iloc[-1]  # 当前基金净值
+    fitted_value = df['Fitted'].iloc[-1]  # 当前回归线值
+    
+    # 判断当前位置
+    if current_value <= low_threshold:
+        position = 'Low'
+    elif current_value >= high_threshold:
+        position = 'High'
+    else:
+        position = 'Medium'
+    
+    # 判断趋势：回归线的斜率决定了趋势
+    trend = "Up" if model.coef_[0] > 0 else "Down"
+    
+    # 如果当前在低位且趋势向上，认为是“低位且有上涨趋势”
+    if position == 'Low' and trend == 'Up':
+        return "Low and Up"
+    
+    return position
+
+
+
+
+
+
+
 if __name__ == "__main__":
     # result =year_rate_sliding('000309')
     # print(result)
@@ -693,16 +895,45 @@ if __name__ == "__main__":
     # print(risk)
     # rolling_prediction = fourier_worm_rolling('005698', '2025-4-10', '2025-10-1', sampling_frequency='D', order=5, window_size=40, prediction_steps=10, trend_added=True)
     # print(rolling_prediction)
-    best_cycle=find_optimal_cycle_length('000216', '2024-08-01', '2025-9-29')
-    print(best_cycle)
-    optput=fourier_worm_rolling_classic(get_df('000216'), '2024-08-01', '2025-9-29', sampling_frequency='D', cycles=284, window_size=120, prediction_steps=10, add_trend=True)
-    print(optput)
+    # best_cycle=find_top_n_cycles(code='000216', start_date='2024-9-29', end_date='2025-9-28')
+    # print(best_cycle)
+    # cycles=find_top_n_cycles(code='000216', start_date='2024-4-01', end_date='2025-10-10', n_cycles=1, min_cycle=5.0)
+    # optput=fourier_worm_rolling_classic(get_df('000216'), '2024-04-01', '2025-10-10', sampling_frequency='D', cycles=cycles, window_size=5, prediction_steps=10, add_trend=False)
+    # print(optput)
     # correct_rate=real_data_direction('005698', '2025-04-24', 10)
     # print(correct_rate)
     # print(get_interpolated_fund_data('005698'))
     # prediction=fourier_worm_normal('005698', '2024-08-01', '2025-08-28', sampling_frequency='D', order=3, cycle_length=None, prediction_steps=10, trend_added=True,cycle_length=80)
     # print(prediction)
+    # weights=fit_cycles_and_get_weights(code='016496', start_date='2024-9-29', end_date='2025-9-28', n_cycles=3, min_cycle=5.0, fit_intercept=True)
+    # print(weights)
+    # start_date = date(2024, 9, 29)
+    # print(start_date)
+    # dates=[]
+    # values=[]
+    # for t in range(0,360):
+    #     delta = pd.Timedelta(days=t)
+    #     newdate=start_date+delta
+    #     dates.append(newdate)
+    #     result=fourier_summary(weights=weights, t=t)
+    #     values.append(result)
+    #     print(f'{result}日期:{newdate}')
+    # app = QApplication(sys.argv)
+    # df=ak.fund_open_fund_info_em(symbol="000216", indicator="累计净值走势")
+    # data = pd.DataFrame({
+    #     '时间': dates,
+    #     '净值': values
+    # })
+    # window = PlotWidget(data)
+    # window.setWindowTitle('净值走势图')
+    # window.resize(800, 600)
+    # window.show()
+
+    # sys.exit(app.exec_())
+
     # max_volatility = get_max_annualized_volatility('000216', 60)
     # print(max_volatility)
+    position=is_low_and_go_up(code='501005',df=None,window_days=100)
+    print(position)
 
     
