@@ -4,11 +4,12 @@ from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWid
 from PyQt5.QtGui import QFont 
 from PyQt5.QtCore import QSize 
 from csvqwidget import CsvGraphWidget
-from qdialogue import  pulldata_dialog
+from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog
 from utils.pull import fetch_and_save_fund_csv
 from my_types.nice_utils import update_files
 from pannel_plan import ControlPanel
 from sys_center import SysCentral
+import shutil
 
 # from calculate import ArimaPredictor
 balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
@@ -16,6 +17,7 @@ Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
 Qdii_path = os.path.join(os.getcwd(), 'my_types','Qdii')
 cache_path = os.path.join(os.getcwd(), 'mapping','mapping_latestdate.csv')
+groups__path = os.path.join(os.getcwd(), 'groups')
 to_worker_path = os.path.join(os.getcwd(), 'to_worker')
 
 
@@ -39,15 +41,19 @@ class MainWindow(QMainWindow):
         
         load_action = QAction("加载文件", self)
         load_action.triggered.connect(self.show_graph_for_file)
-        load_action.setFont(QFont('微软雅黑', 11))
+        add_group_action = QAction("添加分组", self)
+        add_group_action.triggered.connect(self.add_group)
+        load_group_action = QAction("加载分组", self)
+        del_group_action = QAction("删除分组", self)
+        del_group_action.triggered.connect(lambda:self.del_group(groups__path))
 
         pull_action = QAction("拉取数据入库", self)
         pull_action.triggered.connect(self.pull_data)
-        pull_action.setFont(QFont('微软雅黑', 11))
+        
 
         advanced_pull_action = QAction("拉取数据入库(高级)", self)
         advanced_pull_action.triggered.connect(self.advanced_pull_data)
-        advanced_pull_action.setFont(QFont('微软雅黑', 11))
+        
 
         planpage_action = QAction("计划主页", self)
         planpage_action.triggered.connect(lambda:self.load_sys_central())
@@ -71,6 +77,14 @@ class MainWindow(QMainWindow):
         updateQdii_action = QAction("更新Qdii或另类数据", self)
         updateQdii_action.triggered.connect(lambda: update_files(Qdii_path, cache_path))
 
+
+
+        load_group_action.setFont(QFont('微软雅黑', 11))
+        add_group_action.setFont(QFont('微软雅黑', 11))
+        del_group_action.setFont(QFont('微软雅黑', 11))
+        advanced_pull_action.setFont(QFont('微软雅黑', 11))
+        pull_action.setFont(QFont('微软雅黑', 11))
+        load_action.setFont(QFont('微软雅黑', 11))
         updateQdii_action.setFont(QFont('微软雅黑', 11))
         index_action.setFont(QFont('微软雅黑', 11))
         qdii_action.setFont(QFont('微软雅黑', 11))
@@ -87,6 +101,9 @@ class MainWindow(QMainWindow):
         plan_menu.addAction(index_action)
         plan_menu.addAction(qdii_action)
         file_menu.addAction(load_action)
+        file_menu.addAction(load_group_action)
+        file_menu.addAction(add_group_action)
+        file_menu.addAction(del_group_action)
         data_menu.addAction(pull_action)
         data_menu.addAction(advanced_pull_action)
         data_menu.addAction(updateBalanced_action)
@@ -170,13 +187,86 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.attention_now)
 
 
+    def add_group(self):
+        """添加分组"""
+        dialog = GroupConfigDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            group_name = dialog.get_group_name()
+            description_text = dialog.get_description_text()
+            if group_name:
+                try:
+                    this_group_path = os.path.join(groups__path, group_name)
+                    os.makedirs(this_group_path, exist_ok=True)
+                    description_file_path = os.path.join(this_group_path, f"{group_name}.txt")
+                    with open(description_file_path, 'w', encoding='utf-8') as f:
+                        f.write(description_text or '无描述')
+                    QMessageBox.information(self, "成功", f"已添加分组: {group_name}\n描述: {description_text or '无'}")
+                except Exception as e:
+                    QMessageBox.warning(self, "错误", f"保存分组失败: {e}")
+                    return
+            else:
+                QMessageBox.warning(self, "取消", "未输入分组名称")
+
+    def del_group(self, path=None):
+            """删除分组"""
+            # 检查当前目录下是否有 groups 文件夹
+            Font=QFont("微软雅黑", 10)
+            self.setFont(Font)
+            if "groups" not in os.listdir(os.getcwd()):
+                QMessageBox.warning(self, "错误", "当前目录下没有 groups 文件夹。")
+                return
+            else:
+                try:
+                    self.isdoc = self.is_doc_exists(path)
+                    if self.isdoc is False:
+                        return
+                    List_group_dialog_instance = List_group_dialog(groups__path=path,title="选择要删除的分组",parent=self)
+                    if List_group_dialog_instance.exec_() == QDialog.Accepted:
+                        self.to_selected_group_path = List_group_dialog_instance.get_selected_group_path()
+                        print(f"用户选择的分组路径: {self.to_selected_group_path}")
+                        if self.to_selected_group_path:
+                            if os.path.isdir(self.to_selected_group_path):
+                                try:
+                                    shutil.rmtree(self.to_selected_group_path)
+                                    QMessageBox.information(self, "信息", "已删除分组。")
+                                except Exception as e:
+                                    QMessageBox.warning(self, "错误", f"删除分组失败: {e}")
+                            else:
+                                QMessageBox.warning(self, "错误", "选择的路径不是一个有效的文件夹。")
+                        else:
+                            QMessageBox.information(self, "信息", "未选择任何分组或分组不存在。")
+                    elif List_group_dialog_instance.result() == QDialog.Rejected:
+                        return
+                except Exception as e:
+                    QMessageBox.warning(self, "错误", f"删除分组失败: {e}")
+                    return 
 
 
+    def list_groups(self, path=None):
+        """列出所有分组"""
+        List_group_dialog_instance = List_group_dialog(groups__path=path)
+        if List_group_dialog_instance.exec_() == QDialog.Accepted:
+            selected_group_path = List_group_dialog_instance.on_item_double_clicked()
+            if selected_group_path:
+                self.del_group(selected_group_path)
+            else:
+                QMessageBox.information(self, "信息", "未选择任何分组。")
+        
 
-
-
-
-
+    def is_doc_exists(self,path=None):
+        """检查路径下是否存在文件夹"""
+        Font=QFont("微软雅黑", 10)
+        self.setFont(Font)
+        try:
+            for item in os.listdir(path):
+                item_path = os.path.join(path, item)
+                if os.path.isdir(item_path):
+                    return True
+            QMessageBox.information(self, "系统", f"当前分组为空，请先添加分组。")
+            return False
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"检查文件夹失败: {e}")    
+            return False
 
         # calculate_menu.addAction(arima_action)
         # calculate_menu.addAction(fourier_action)

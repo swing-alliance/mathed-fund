@@ -1,13 +1,14 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QDialogButtonBox, QLineEdit, QLabel, QMessageBox, QPushButton, 
                              QHBoxLayout, QSpinBox,QApplication, QDoubleSpinBox, QCheckBox, QComboBox,QHeaderView,QTableWidget,QTableWidgetItem
-                             ,QScrollArea,QGroupBox,QFormLayout)
+                             ,QScrollArea,QGroupBox,QFormLayout,QListWidget,QListWidgetItem,QDesktopWidget)
 from PyQt5.QtCore import Qt
 import re
 import sys
 import pandas as pd
 import akshare as ak
 from PyQt5.QtGui import QFont 
-
+import os
+import shutil
 
 
 class pulldata_dialog(QDialog):
@@ -274,6 +275,113 @@ class FundInfoDialog(QDialog):
 
 
 
+class GroupConfigDialog(QDialog):
+    """对话框输入组名，描述，用于创建分组"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("添加分组")
+        Font=QFont("微软雅黑", 10)
+        self.setFont(Font)
+        self.resize(300, 150)
+        self.group_name = ""  # 保存最终返回的组名
+        self.description_text = ""  # 保存最终返回的描述
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("请输入分组名称："))
+        self.title_input_edit = QLineEdit()
+        layout.addWidget(self.title_input_edit)
+        layout.addWidget(QLabel("分组描述(选填)："))
+        self.description_input_edit = QLineEdit()
+        layout.addWidget(self.description_input_edit)
+        btn_layout = QHBoxLayout()
+        self.btn_ok = QPushButton("确定")
+        self.btn_cancel = QPushButton("取消")
+        btn_layout.addWidget(self.btn_ok)
+        btn_layout.addWidget(self.btn_cancel)
+        layout.addLayout(btn_layout)
+        self.setLayout(layout)
+        self.btn_ok.clicked.connect(self.on_ok)
+        self.btn_cancel.clicked.connect(self.reject)
+    def on_ok(self):
+        title_text = self.title_input_edit.text().strip()
+        description_text = self.description_input_edit.text().strip()
+        if not title_text:
+            QMessageBox.warning(self, "错误", "请输入分组名称")
+            return
+        self.group_name = title_text
+        if description_text:
+            self.description_text = description_text
+        self.accept()
+
+    def get_group_name(self):
+        return self.group_name
+    def get_description_text(self):
+        return self.description_text
+
+
+
+class List_group_dialog(QDialog):
+    def __init__(self, groups__path=None, title=None,parent=None):
+        super().__init__(parent)
+        Font = QFont("微软雅黑", 10)
+        self.setFont(Font)
+        self.setWindowTitle(title if title else "选择分组")
+        layout = QVBoxLayout(self)
+        self.groups_path = groups__path
+        self.list_widget = QListWidget(self)
+        layout.addWidget(self.list_widget)
+        self.list_groups()
+        self.list_widget.itemDoubleClicked.connect(self.on_item_double_clicked)
+        self.center()  # 窗口居中
+
+
+
+    def list_groups(self):
+        """列出所有分组（文件夹）"""
+        try:
+            groups = os.listdir(self.groups_path)
+            self.list_widget.clear()
+            self.found_group = False
+            for group in groups:
+                group_path = os.path.join(self.groups_path, group)
+                if os.path.isdir(group_path): 
+                    item = QListWidgetItem(group)
+                    self.list_widget.addItem(item)
+                    self.found_group = True
+            if  self.found_group is False:
+                QMessageBox.information(self, "信息", "没有找到任何分组。")
+                self.reject()  # 没有分组则关闭对话框
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"无法列出分组: {e}")
+
+    def on_item_double_clicked(self, item):
+        """双击列表项时关闭对话框并获取文件夹路径"""
+        group_name = item.text()  # 获取双击项的文本
+        group_path = os.path.join(self.groups_path, group_name)
+        print(f"选中的文件夹路径: {group_path}")
+        last_confirm = QMessageBox.question(self, "确认选择", f"确定选择分组 '{group_name}' 吗？", QMessageBox.Yes | QMessageBox.No)
+        if last_confirm == QMessageBox.Yes:
+            self.accept()  # 关闭对话框，允许进一步处理
+        else:
+            return
+
+    def get_selected_group_path(self):
+        """返回用户选择的分组路径"""
+        selected_items = self.list_widget.selectedItems()
+        if selected_items:
+            group_name = selected_items[0].text()
+            return os.path.join(self.groups_path, group_name)
+        return None
+
+    
+    def center(self):
+        """将窗口居中"""
+        screen = QDesktopWidget().screenGeometry()  # 获取屏幕尺寸
+        size = self.geometry()  # 获取窗口尺寸
+        # 计算窗口位置，使其居中
+        x = (screen.width() - size.width()) // 2
+        y = (screen.height() - size.height()) // 2
+        self.move(x, y)  # 移动窗口到计算出的中心位置
+        self.resize(400, 300)  # 保持原有大小
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
