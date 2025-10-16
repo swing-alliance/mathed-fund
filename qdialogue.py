@@ -320,7 +320,7 @@ class GroupConfigDialog(QDialog):
 
 
 class List_group_dialog(QDialog):
-    def __init__(self, groups__path=None, title=None,parent=None):
+    def __init__(self, groups__path=None, title=None,parent=None):#title
         super().__init__(parent)
         Font = QFont("微软雅黑", 10)
         self.setFont(Font)
@@ -330,7 +330,12 @@ class List_group_dialog(QDialog):
         self.list_widget = QListWidget(self)
         layout.addWidget(self.list_widget)
         self.list_groups()
-        self.list_widget.itemDoubleClicked.connect(self.on_item_double_clicked)
+        if title=="选择要删除的分组":
+            self.list_widget.itemDoubleClicked.connect(self.on_item_double_clicked_del)
+        if title=="添加到分组":
+            self.list_widget.itemDoubleClicked.connect(self.on_item_double_clicked_add)
+        if title=="选择要加载的分组":
+            self.list_widget.itemDoubleClicked.connect(self.on_item_double_clicked_load)
         self.center()  # 窗口居中
 
 
@@ -353,16 +358,23 @@ class List_group_dialog(QDialog):
         except Exception as e:
             QMessageBox.warning(self, "错误", f"无法列出分组: {e}")
 
-    def on_item_double_clicked(self, item):
+    def on_item_double_clicked_del(self, item):
         """双击列表项时关闭对话框并获取文件夹路径"""
         group_name = item.text()  # 获取双击项的文本
         group_path = os.path.join(self.groups_path, group_name)
         print(f"选中的文件夹路径: {group_path}")
-        last_confirm = QMessageBox.question(self, "确认选择", f"确定选择分组 '{group_name}' 吗？", QMessageBox.Yes | QMessageBox.No)
+        last_confirm = QMessageBox.warning(self, "删除确认", f"确定删除选择的分组 '{group_name}' 吗？删除后只能手动恢复", QMessageBox.Yes | QMessageBox.No)
         if last_confirm == QMessageBox.Yes:
             self.accept()  # 关闭对话框，允许进一步处理
         else:
             return
+        
+
+    def on_item_double_clicked_add(self, item):
+        self.accept()  # 关闭对话框
+
+    def on_item_double_clicked_load(self, item):
+        self.accept()  # 关闭对话框
 
     def get_selected_group_path(self):
         """返回用户选择的分组路径"""
@@ -370,6 +382,7 @@ class List_group_dialog(QDialog):
         if selected_items:
             group_name = selected_items[0].text()
             return os.path.join(self.groups_path, group_name)
+        
         return None
 
     

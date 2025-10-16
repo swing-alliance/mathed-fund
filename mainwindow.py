@@ -17,7 +17,7 @@ Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
 Qdii_path = os.path.join(os.getcwd(), 'my_types','Qdii')
 cache_path = os.path.join(os.getcwd(), 'mapping','mapping_latestdate.csv')
-groups__path = os.path.join(os.getcwd(), 'groups')
+groups_path = os.path.join(os.getcwd(), 'groups')
 to_worker_path = os.path.join(os.getcwd(), 'to_worker')
 
 
@@ -35,17 +35,18 @@ class MainWindow(QMainWindow):
         menu_bar = self.menuBar()
         menu_bar.setFont(QFont("微软雅黑", 12))
         file_menu = menu_bar.addMenu("文件")
-        plan_menu = menu_bar.addMenu("定投计划")
+        plan_menu = menu_bar.addMenu("计划")
         data_menu = menu_bar.addMenu("数据")
         calculate_menu = menu_bar.addMenu("计算")
         
         load_action = QAction("加载文件", self)
         load_action.triggered.connect(self.show_graph_for_file)
         add_group_action = QAction("添加分组", self)
-        add_group_action.triggered.connect(self.add_group)
+        add_group_action.triggered.connect(lambda:self.add_group())
         load_group_action = QAction("加载分组", self)
+        load_group_action.triggered.connect(lambda:self.load_group(groups_path))
         del_group_action = QAction("删除分组", self)
-        del_group_action.triggered.connect(lambda:self.del_group(groups__path))
+        del_group_action.triggered.connect(lambda:self.del_group(groups_path))
 
         pull_action = QAction("拉取数据入库", self)
         pull_action.triggered.connect(self.pull_data)
@@ -195,7 +196,7 @@ class MainWindow(QMainWindow):
             description_text = dialog.get_description_text()
             if group_name:
                 try:
-                    this_group_path = os.path.join(groups__path, group_name)
+                    this_group_path = os.path.join(groups_path, group_name)
                     os.makedirs(this_group_path, exist_ok=True)
                     description_file_path = os.path.join(this_group_path, f"{group_name}.txt")
                     with open(description_file_path, 'w', encoding='utf-8') as f:
@@ -252,6 +253,22 @@ class MainWindow(QMainWindow):
             else:
                 QMessageBox.information(self, "信息", "未选择任何分组。")
         
+
+
+    def load_group(self, path=None):
+        """加载分组"""
+        try:
+            List_group_dialog_instance = List_group_dialog(groups__path=path,title="选择要加载的分组",parent=self)
+            if List_group_dialog_instance.exec_() == QDialog.Accepted:
+                selected_group_path = List_group_dialog_instance.get_selected_group_path()
+                if selected_group_path:
+                    self.load_plan_pannel(base_path=selected_group_path)
+                else:
+                    QMessageBox.information(self, "信息", "未选择任何分组。")
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"加载分组失败: {e}")
+
+    
 
     def is_doc_exists(self,path=None):
         """检查路径下是否存在文件夹"""

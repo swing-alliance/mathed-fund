@@ -2,12 +2,12 @@ import os
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
      QLabel, QFrame, QMessageBox,
-    QDialog,QMenu,QAction
+    QDialog,QMenu,QAction,QMessageBox
 )
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont 
-from qdialogue import FundInfoDialog
+from qdialogue import FundInfoDialog,List_group_dialog
 import akshare as ak
 import json
 from signal_handler import signal_emitter
@@ -23,6 +23,8 @@ mapping = {}
 mapping_latestdate = {}
 mapping_path = os.path.join('mapping', 'mapping.csv')
 mapping_latestdate_path = os.path.join('mapping', 'mapping_latestdate.csv')
+groups_path = os.path.join(os.getcwd(), 'groups')
+
 if os.path.exists(mapping_path):
     with open(mapping_path, 'r', encoding='utf-8') as f:
         for line in f:
@@ -279,13 +281,13 @@ class ProjectCard(QFrame):
 
             info_action = QAction("转到详细信息", self)
             info_action.triggered.connect(self.show_fund_info)
-            menu.addAction(info_action)
+            
             visualize_action = QAction("转到图", self)
             visualize_action.triggered.connect(self._emit_visualize_request)
-            menu.addAction(visualize_action)
+            
             caculate_year_rate_sliding_action = QAction("计算滑动年化收益", self)
             caculate_year_rate_sliding_action.triggered.connect(self.caculate_year_rate_sliding)
-            menu.addAction(caculate_year_rate_sliding_action)
+            
             current_is_flagged = isflagged(self.filename)#每一次右键触发检查
             if current_is_flagged:
                 unflag_action = QAction("取消标记", self)
@@ -299,10 +301,19 @@ class ProjectCard(QFrame):
                 menu.addAction(flag_action)
             discard_action = QAction("丢弃", self)
             discard_action.triggered.connect(self.discard)
+            add_to_group_action = QAction("加入已有分组", self)
+            add_to_group_action.triggered.connect(lambda: self.add_to_group())
+            
+            add_to_group_action.setFont(QFont('微软雅黑', 11))
             discard_action.setFont(QFont('微软雅黑', 11))
             info_action.setFont(QFont('微软雅黑', 11))
             visualize_action.setFont(QFont('微软雅黑', 11))
             caculate_year_rate_sliding_action.setFont(QFont('微软雅黑', 11))
+
+            menu.addAction(info_action)
+            menu.addAction(visualize_action)
+            menu.addAction(caculate_year_rate_sliding_action)
+            menu.addAction(add_to_group_action)
             menu.addAction(discard_action)
             menu.exec_(event.globalPos())
             self.setStyleSheet("""
@@ -319,7 +330,6 @@ class ProjectCard(QFrame):
         """
         根据json文件状态动态显示或隐藏旗帜。
         """
-        # 实时读取json文件的状态
         if isflagged(self.filename):
             self.flag_label.show()
         else:
@@ -331,5 +341,69 @@ class ProjectCard(QFrame):
         year_rate_sliding(self.filename,df,base_date='2024-10-10',window_size_days=365,step_size_days=7)
         
 
+    def add_to_group(self):
+        """添加到分组的对话框"""
+        self.list_group_dialog = List_group_dialog(groups_path,"添加到分组")
+        try:
+            if self.list_group_dialog.exec_() == QDialog.Accepted:
+                this_group_path = os.path.basename(self.list_group_dialog.get_selected_group_path())
+                group_name = os.path.basename(this_group_path)
+                self.massage_box = MessageBoxYesOrNo(self, title="确认加入分组", message=f"确认加入到 {group_name} 吗？")
+                self.group_cache_path = None
+                if self.massage_box.exec_():
+                    try:
+                        for root,_, files in os.walk(groups_path):
+                            for file in files:
+                                if file == 'group_cache.csv':
+                                    self.group_cache_path = os.path.join(root, file)
+                                    print(f"找到 group_cache.csv 文件: {self.group_cache_path}")
+                                    break
+                        if not self.group_cache_path:
+                            with open(os.path.join(groups_path, 'group_cache.csv'), 'w', newline='', encoding='utf-8') as f:
+                                writer = csv.writer(f)
+                                writer.writerow(['code', 'path', 'group_name','last_updated'])
+                            self.group_cache_path = os.path.join(groups_path, 'group_cache.csv')
+                        df=pd.read_csv(self.group_cache_path,header=0, index_col=False)
+                        print(self.filename)
+                        new_row = {'path': self.file_path, 'group_name': group_name}
+                        if self.file_path in df['path'].values:
+                            df.loc[df['path'] == self.file_path, ['group_name']] = [group_name]
+                            df.to_csv(self.group_cache_path, index=False)
+                            print(f"更新了基金 {self.filename} 的分组信息")
+                        else:
+                            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                            df.to_csv(self.group_cache_path, index=False)
+                            print(f"添加了基金 {self.filename} 到分组 {group_name}")
+                        return
+                    except Exception as e:
+                        print(f"查找 group_cache.csv 失败: {e}")
+                        return
+            else:
+                print("对话框被拒绝或关闭。")
+        except Exception as e:
+            print(f"打开分组对话框失败: {e}")
+        finally:
+            self.list_group_dialog.deleteLater()
 
 
+
+
+class MessageBoxYesOrNo(QMessageBox):
+    def __init__(self, parent=None, title="提示", message="确定吗？"):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setText(message)
+
+        # 设置中文按钮
+        self.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        self.button(QMessageBox.Yes).setText("确认")
+        self.button(QMessageBox.No).setText("取消")
+        self.setFont(QFont("微软雅黑", 10))
+
+    def exec_(self):
+        response = super().exec_()
+        if response == QMessageBox.Yes:
+            return True  # 用户点击了“确认”
+        elif response == QMessageBox.No:
+            return False  # 用户点击了“取消”
+        return None  # 如果出现其他情况

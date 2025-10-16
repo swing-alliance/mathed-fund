@@ -19,6 +19,8 @@ Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
 Qdii_path = os.path.join(os.getcwd(), 'my_types','Qdii')
 
+groups_path = os.path.join(os.getcwd(), 'groups')
+
 
 
 class ControlPanel(QWidget):
@@ -55,7 +57,7 @@ class ControlPanel(QWidget):
         self.scroll_layout.setAlignment(Qt.AlignTop)  # 卡片从上往下排
         self.scroll_area.setWidget(self.scroll_content)
 
-        self.load_projects_from_path(base_path)
+        self.load_projects_from_path(path=self.base_path)
 
     def add_project_from_found(self):
         """只允许在 found 文件夹下选择 CSV，并检查 TO_WORKER 文件夹是否已有该文件"""
@@ -120,6 +122,41 @@ class ControlPanel(QWidget):
                 progress_dialog.setValue(self.file_nums)
                 QApplication.processEvents()
                 progress_dialog.close()
+
+            def load_projects_from_groups( this_group_path=None):
+                csv_path = os.path.join(groups_path, 'group_cache.csv')
+                df=pd.read_csv(csv_path)
+                this_group_name=os.path.basename(this_group_path)
+                selected_paths_series = df.loc[df['group_name'] == this_group_name, 'path']
+                selected_paths = selected_paths_series.tolist()
+                if not selected_paths:
+                    print(f"分组 {this_group_name} 中没有项目！")
+                    return
+                self.file_nums = len(selected_paths)
+                progress_dialog = QProgressDialog("正在加载文件...", "取消", 0, len(selected_paths), self)
+                progress_dialog.setWindowModality(Qt.WindowModal)  # 设置为模态对话框，防止其他操作
+                progress_dialog.setCancelButton(None)  # 禁用取消按钮
+                progress_dialog.setFont(QFont('微软雅黑', 10))
+                progress_dialog.resize(600, 50)
+                progress_dialog.show()  
+                QApplication.processEvents() 
+                for index, file_path in enumerate(selected_paths):
+                    if file_path not in self.loaded_cards:
+                        try:
+                            card = ProjectCard(file_path)
+                            card.visualize_requested.connect(self.visualize_requested.emit)
+                            self.scroll_layout.addWidget(card)
+                            self.loaded_cards[file_path] = card
+                        except Exception as e:
+                            print(f"创建 ProjectCard 失败 ({file_path}): {e}")
+                    if (index + 1) % 200 == 0 or (index + 1) == self.file_nums:
+                        progress_dialog.setValue(index + 1)
+                        QApplication.processEvents()
+                    if progress_dialog.wasCanceled():
+                        break
+                progress_dialog.setValue(self.file_nums)
+                QApplication.processEvents()
+                progress_dialog.close()
             if path == balanced_path:
                 load_files_from_path(balanced_path)
             elif path == Equity_path:
@@ -128,7 +165,12 @@ class ControlPanel(QWidget):
                 load_files_from_path(index_path)
             elif path == Qdii_path:
                 load_files_from_path(Qdii_path)
+            else:
+                load_projects_from_groups(this_group_path=self.base_path)
 
+
+
+            
     def what_label_now(self):
         """用于显示当前所关注的项目类"""
         qlabel = QLabel()
@@ -141,6 +183,8 @@ class ControlPanel(QWidget):
             qlabel.setText(f"指数型{self.file_nums}个")
         elif self.base_path == Qdii_path:
             qlabel.setText(f"QDII或另类{self.file_nums}个")
+        elif self.base_path == groups_path:
+            qlabel.setText(f"组合策略{self.file_nums}个")
         return qlabel
 
 
@@ -186,10 +230,5 @@ class ControlPanel(QWidget):
 
 
 if __name__ == "__main__":
-    import sys
-    from PyQt5.QtWidgets import QApplication
-    app = QApplication(sys.argv)
-    control_panel = ControlPanel()
-    control_panel.show()
-    sys.exit(app.exec_())
+    pass
 
