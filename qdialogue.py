@@ -320,7 +320,8 @@ class GroupConfigDialog(QDialog):
 
 
 class List_group_dialog(QDialog):
-    def __init__(self, groups__path=None, title=None,parent=None):#title
+    """列出所有分组（文件夹）的对话框，双击选择某个分组"""
+    def __init__(self, groups__path=None, title=None,parent=None,this_code=None):#title,this_code用于标记选中的基金代码
         super().__init__(parent)
         Font = QFont("微软雅黑", 10)
         self.setFont(Font)
@@ -329,6 +330,7 @@ class List_group_dialog(QDialog):
         self.groups_path = groups__path
         self.list_widget = QListWidget(self)
         layout.addWidget(self.list_widget)
+        self.this_code = this_code
         self.list_groups()
         if title=="选择要删除的分组":
             self.list_widget.itemDoubleClicked.connect(self.on_item_double_clicked_del)
@@ -371,7 +373,19 @@ class List_group_dialog(QDialog):
         
 
     def on_item_double_clicked_add(self, item):
-        self.accept()  # 关闭对话框
+        try:
+            if self.this_code:
+                exam_code=str(self.this_code).zfill(6)
+                df=pd.read_csv(os.path.join(self.groups_path, "group_cache.csv"))
+                matching_row = df[df['path'].str.contains(exam_code)]
+            if not matching_row.empty:
+                groupname = matching_row['group_name'].iloc[0]#获取对应的分组名称
+                if item.text() == groupname:
+                    QMessageBox.information(self, "信息", f"该基金代码已存在于分组 '{groupname}' 中。")
+                    return None
+            self.accept()  # 关闭对话框
+        except Exception as e:
+            print(f"双击事件出错: {e}")
 
     def on_item_double_clicked_load(self, item):
         self.accept()  # 关闭对话框
@@ -382,7 +396,6 @@ class List_group_dialog(QDialog):
         if selected_items:
             group_name = selected_items[0].text()
             return os.path.join(self.groups_path, group_name)
-        
         return None
 
     

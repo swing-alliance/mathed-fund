@@ -108,7 +108,7 @@ class ControlPanel(QWidget):
                     if file_name not in self.loaded_cards:
                         file_path = os.path.join(directory_path, file_name)
                         try:
-                            card = ProjectCard(file_path)
+                            card = ProjectCard(file_path,parent=self)
                             card.visualize_requested.connect(self.visualize_requested.emit)
                             self.scroll_layout.addWidget(card)
                             self.loaded_cards[file_name] = card
@@ -143,7 +143,7 @@ class ControlPanel(QWidget):
                 for index, file_path in enumerate(selected_paths):
                     if file_path not in self.loaded_cards:
                         try:
-                            card = ProjectCard(file_path)
+                            card = ProjectCard(file_path,parent=self)
                             card.visualize_requested.connect(self.visualize_requested.emit)
                             self.scroll_layout.addWidget(card)
                             self.loaded_cards[file_path] = card
@@ -183,8 +183,13 @@ class ControlPanel(QWidget):
             qlabel.setText(f"指数型{self.file_nums}个")
         elif self.base_path == Qdii_path:
             qlabel.setText(f"QDII或另类{self.file_nums}个")
-        elif self.base_path == groups_path:
-            qlabel.setText(f"组合策略{self.file_nums}个")
+        elif "groups" in self.base_path:
+            df=pd.read_csv(os.path.join(groups_path, 'group_cache.csv'))
+            group_name=os.path.basename(self.base_path)
+            matching_row = df[df['group_name'] == group_name]
+            self.group_file_nums = len(matching_row)
+            qlabel.setText(f"当前组策略:{os.path.basename(self.base_path)}   {self.group_file_nums}个记录")
+            self.add_btn.hide()
         return qlabel
 
 
@@ -225,7 +230,9 @@ class ControlPanel(QWidget):
     #             load_files_from_path(Qdii_path)
 
 
-
+    def refresh_self(self):
+        print("试图刷新自己")
+        self.load_projects_from_path(self.base_path)
 
 
 

@@ -161,6 +161,7 @@ class ProjectCard(QFrame):
     def __init__(self, file_path,parent=None):
         super().__init__(parent)
         self.file_path = file_path  # 当前基金的文件路径
+        self.parent_widget = parent
         self.latest_date = get_latest_date_by_mapping(self.file_path)
         self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名
         self.fund_tittle: str = get_name_by_mapping(self.filename)  # 获取基金名称
@@ -301,7 +302,7 @@ class ProjectCard(QFrame):
                 menu.addAction(flag_action)
             discard_action = QAction("丢弃", self)
             discard_action.triggered.connect(self.discard)
-            add_to_group_action = QAction("加入已有分组", self)
+            add_to_group_action = QAction("加入或转到已有分组", self)
             add_to_group_action.triggered.connect(lambda: self.add_to_group())
             
             add_to_group_action.setFont(QFont('微软雅黑', 11))
@@ -343,10 +344,10 @@ class ProjectCard(QFrame):
 
     def add_to_group(self):
         """添加到分组的对话框"""
-        self.list_group_dialog = List_group_dialog(groups_path,"添加到分组")
+        self.list_group_dialog = List_group_dialog(groups_path,"添加到分组",parent=None,this_code=self.filename)
         try:
             if self.list_group_dialog.exec_() == QDialog.Accepted:
-                this_group_path = os.path.basename(self.list_group_dialog.get_selected_group_path())
+                this_group_path = self.list_group_dialog.get_selected_group_path()
                 group_name = os.path.basename(this_group_path)
                 self.massage_box = MessageBoxYesOrNo(self, title="确认加入分组", message=f"确认加入到 {group_name} 吗？")
                 self.group_cache_path = None
@@ -364,7 +365,6 @@ class ProjectCard(QFrame):
                                 writer.writerow(['code', 'path', 'group_name','last_updated'])
                             self.group_cache_path = os.path.join(groups_path, 'group_cache.csv')
                         df=pd.read_csv(self.group_cache_path,header=0, index_col=False)
-                        print(self.filename)
                         new_row = {'path': self.file_path, 'group_name': group_name}
                         if self.file_path in df['path'].values:
                             df.loc[df['path'] == self.file_path, ['group_name']] = [group_name]
@@ -374,6 +374,13 @@ class ProjectCard(QFrame):
                             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                             df.to_csv(self.group_cache_path, index=False)
                             print(f"添加了基金 {self.filename} 到分组 {group_name}")
+                        try:
+                            self.list_group_dialog.deleteLater()
+                            base_path=self.parent_widget.base_path
+                            if "groups" in base_path:
+                                self.deleteLater()
+                        except Exception as e:
+                            QMessageBox.warning(self, "错误", f"添加到分组对话框清理失败: {e}")
                         return
                     except Exception as e:
                         print(f"查找 group_cache.csv 失败: {e}")
@@ -382,8 +389,10 @@ class ProjectCard(QFrame):
                 print("对话框被拒绝或关闭。")
         except Exception as e:
             print(f"打开分组对话框失败: {e}")
-        finally:
-            self.list_group_dialog.deleteLater()
+
+           
+
+
 
 
 
