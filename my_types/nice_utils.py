@@ -50,39 +50,43 @@ def where_to_go(code):
 
 
 
-def update_files(path, cache_path):
+def update_files(path, cache_path, progress_callback=None):
     """
-    输入文件夹路径和缓存文件路径，更新所有文件,支持断点续传。
-    优化：每更新一个文件，立即刷新缓存。
+    更新所有文件, 支持断点续传。每个文件更新后调用 progress_callback 更新进度。
     """
     today = date.today()
     all_files = os.listdir(path)
     csv_files = [file for file in all_files if file.endswith('.csv')]
     total_len = len(csv_files)
-    today = date.today()
+    count = 1
+
     try:
         cache_df = pd.read_csv(cache_path)
     except FileNotFoundError:
         print(f"错误：未找到缓存文件 {cache_path}")
         return
-    count = 1
+
     for single in csv_files:
         file_path = os.path.join(path, single)
         fund_code = single.split('.')[0]
         try:
             cached_date = cache_df.loc[cache_df['path'] == file_path, 'latest_date'].item()
-            if cached_date==today.strftime('%Y-%m-%d'):
+            if cached_date == today.strftime('%Y-%m-%d'):
                 print(f'{single} 缓存中已经是最新，跳过更新 ({count}/{total_len})。')
                 count += 1
+                if progress_callback:
+                    progress_callback(count, total_len)
                 continue
             else:
                 data = ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
                 data["净值日期"] = pd.to_datetime(data['净值日期'])
                 latest_date = data['净值日期'].max()
                 latest_date_str = latest_date.strftime('%Y-%m-%d')
-                if latest_date_str != today and latest_date_str == cached_date:#就算最新日期不是今天，但是已经是缓存中的最新日期，也不更新
+                if latest_date_str != today and latest_date_str == cached_date:
                     print(f'{single} 今天还没最新且缓存中已经是最新，跳过写入缓存 ({count}/{total_len})。')
                     count += 1
+                    if progress_callback:
+                        progress_callback(count, total_len)
                     continue
                 else:
                     output_path = os.path.join(path, single)
@@ -91,6 +95,8 @@ def update_files(path, cache_path):
                     cache_df.to_csv(cache_path, index=False)
                     print(f'{single} 更新成功 ({count}/{total_len})，更新日期为 {latest_date_str}。缓存已同步写入。')
                     count += 1
+                    if progress_callback:
+                        progress_callback(count, total_len)
         except Exception as e:
             print(f"更新失败 {fund_code}: {e}")
     print('所有文件更新处理完成！')

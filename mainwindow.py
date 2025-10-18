@@ -1,8 +1,8 @@
 import os
 import pandas as pd
-from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWidget, QDialog,QStackedWidget
+from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWidget, QDialog,QStackedWidget, QProgressDialog
 from PyQt5.QtGui import QFont 
-from PyQt5.QtCore import QSize 
+from PyQt5.QtCore import QSize,QThread, pyqtSignal
 from csvqwidget import CsvGraphWidget
 from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog
 from utils.pull import fetch_and_save_fund_csv
@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
         
         load_action = QAction("加载文件", self)
         load_action.triggered.connect(self.show_graph_for_file)
-        add_group_action = QAction("添加分组", self)
+        add_group_action = QAction("创建分组", self)
         add_group_action.triggered.connect(lambda:self.add_group())
         load_group_action = QAction("加载分组", self)
         load_group_action.triggered.connect(lambda:self.load_group(groups_path))
@@ -70,13 +70,13 @@ class MainWindow(QMainWindow):
         qdii_action.triggered.connect(lambda:self.load_plan_pannel(Qdii_path))
         
         updateBalanced_action = QAction("更新Balanced数据", self)
-        updateBalanced_action.triggered.connect(lambda: update_files(balanced_path, cache_path))
+        updateBalanced_action.triggered.connect(lambda: self.start_file_update(balanced_path, cache_path))
         updateEquity_action = QAction("更新Equity数据", self)
-        updateEquity_action.triggered.connect(lambda: update_files(Equity_path, cache_path))
+        updateEquity_action.triggered.connect(lambda: self.start_file_update(Equity_path, cache_path))
         updateindex_action = QAction("更新Index数据", self)
-        updateindex_action.triggered.connect(lambda: update_files(index_path, cache_path))
+        updateindex_action.triggered.connect(lambda: self.start_file_update(index_path, cache_path))
         updateQdii_action = QAction("更新Qdii或另类数据", self)
-        updateQdii_action.triggered.connect(lambda: update_files(Qdii_path, cache_path))
+        updateQdii_action.triggered.connect(lambda: self.start_file_update(Qdii_path, cache_path))
 
 
 
@@ -194,6 +194,9 @@ class MainWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             group_name = dialog.get_group_name()
             description_text = dialog.get_description_text()
+            if "(系统)" in group_name or "系统" in group_name:
+                QMessageBox.warning(self, "错误", "分组名称不能包含 '(系统)' 字符。")
+                return
             if group_name:
                 try:
                     this_group_path = os.path.join(groups_path, group_name)
@@ -225,6 +228,9 @@ class MainWindow(QMainWindow):
                     if List_group_dialog_instance.exec_() == QDialog.Accepted:
                         self.to_selected_group_path = List_group_dialog_instance.get_selected_group_path()
                         print(f"用户选择的分组路径: {self.to_selected_group_path}")
+                        if "(系统)" in self.to_selected_group_path:
+                            QMessageBox.information(self, "信息", "系统分组不能删除。")
+                            return
                         if self.to_selected_group_path:
                             if os.path.isdir(self.to_selected_group_path):
                                 try:
@@ -296,9 +302,61 @@ class MainWindow(QMainWindow):
 
 
 
+    def start_file_update(self,file_path,cache_path=cache_path):
+            """启动文件更新线程"""
+            Font=QFont("微软雅黑", 10)
+            self.setFont(Font)
+            self.worker = FileUpdateWorker(update_files, file_path, cache_path)
+            self.worker.progress.connect(self.update_progress)
+            self.worker.finished.connect(self.on_finished)
+            self.worker.error.connect(self.on_error)
 
+            self.progress_dialog = QProgressDialog(f"执行中，{os.path.basename(file_path)}更新中...共{len(os.listdir(file_path))}个文件", "取消", 0, 100, self)
+            self.progress_dialog.setWindowTitle("文件更新")
+            self.progress_dialog.setModal(True)  # 确保弹窗阻塞界面
+            self.progress_dialog.setValue(0)
+            self.progress_dialog.setFont(QFont('微软雅黑', 10))
+            self.progress_dialog.setFixedSize(600, 100)
+            self.progress_dialog.canceled.connect(self.on_cancel_button_clicked)
+            
+            # 启动后台线程进行文件更新
+            self.worker.start()
 
+    def update_progress(self, current, total):
+        """更新进度条"""
+        progress = int((current / total) * 100)  # 计算百分比
+        self.progress_dialog.setValue(progress)  # 更新进度对话框的进度
 
+    def on_finished(self):
+        """完成后的处理"""
+        self.progress_dialog.setValue(100)  # 设置进度条为 100%
+        QMessageBox.information(self, "完成", "文件更新完成,请刷新界面查看最新数据。")
+
+    def on_error(self, error_message):
+        """错误处理"""
+        self.progress_dialog.setValue(100)  # 假设更新失败也设置为 100%，用户看到更新结束
+        QMessageBox.critical(self, "错误", f"发生错误: {error_message}")
+    def on_cancel_button_clicked(self):
+        self.worker.terminate()
+
+class FileUpdateWorker(QThread):
+    progress = pyqtSignal(int, int)  # 用于传递进度的信号 (当前文件, 总文件数)
+    finished = pyqtSignal()  # 用于表示任务完成的信号
+    error = pyqtSignal(str)  # 用于传递错误信息的信号
+    def __init__(self, update_func, file_path, cache_path):
+        super().__init__()
+        self.update_func = update_func
+        self.file_path = file_path
+        self.cache_path = cache_path
+    def run(self):
+        try:
+            self.update_func(self.file_path, self.cache_path, self.report_progress)
+            self.finished.emit()  # 任务完成信号
+        except Exception as e:
+            self.error.emit(str(e))  # 发生错误时发出错误信号
+    def report_progress(self, current, total):
+        """更新进度条"""
+        self.progress.emit(current, total)
 
 
 

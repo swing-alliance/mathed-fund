@@ -364,7 +364,6 @@ class List_group_dialog(QDialog):
         """双击列表项时关闭对话框并获取文件夹路径"""
         group_name = item.text()  # 获取双击项的文本
         group_path = os.path.join(self.groups_path, group_name)
-        print(f"选中的文件夹路径: {group_path}")
         last_confirm = QMessageBox.warning(self, "删除确认", f"确定删除选择的分组 '{group_name}' 吗？删除后只能手动恢复", QMessageBox.Yes | QMessageBox.No)
         if last_confirm == QMessageBox.Yes:
             self.accept()  # 关闭对话框，允许进一步处理
