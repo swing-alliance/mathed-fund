@@ -3,7 +3,6 @@ import os
 import pandas as pd
 import numpy as np
 import akshare as ak
-import sys
 import statsmodels.api as sm
 from numpy.polynomial.polynomial import Polynomial
 from typing import Optional, Tuple
@@ -15,7 +14,7 @@ import math
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-path=os.path.join(os.getcwd(),'found')
+
 
 
 
@@ -75,9 +74,39 @@ def year_rate_sliding(code,df, base_date=None,window_size_days=30, step_size_day
             window_dates.append(window_end_date)
             print(f"基金{code}的{window_start_date}到{window_end_date}年化收益率约为{annualized_return}")
             end_date = end_date - pd.Timedelta(days=step_size_days)
-        # return annualized_returns, window_dates
+        return annualized_returns[0], window_dates[0]
 
 
+def linear_regression_sliding_window(code: str, df: pd.DataFrame, window_size: int = 30):
+    """线性回归窗口，反应大方向的趋势"""
+    if code and not df.empty:
+        try:
+            df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+        except Exception as e:
+            print(f"获取基金 {code} 数据失败: {e}")
+            return []
+    elif df is not None and not df.empty:
+        df = df.copy()
+    try:
+        df['净值日期'] = pd.to_datetime(df['净值日期'],errors='coerce')
+        df = df.dropna(subset=['净值日期'])
+        df = df.sort_values("净值日期").reset_index(drop=True)
+        df=df.tail(window_size)
+        if len(df) < window_size:
+            print(f"基金 {code} 的数据不足，无法进行线性回归计算。")
+            return []
+        df['天数'] = (df['净值日期'] - df['净值日期'].min()).dt.days
+        X = df['天数'].values.reshape(-1, 1)
+        y = df['累计净值'].values
+        model = LinearRegression()
+        model.fit(X, y)
+        slope = model.coef_[0]
+        intercept = model.intercept_
+        proximate_yearly_return_index = slope * 252  # 252个交易日年化收益率
+        func_str = f"y = {slope:.4f} * X + {intercept:.4f}"
+        return func_str, proximate_yearly_return_index,slope
+    except Exception as e:
+        print(f"数据预处理失败: {e}")
 #夏普比率
 # def sharp_ratio(code,df):
 #     return np.mean(annualized_returns) / np.std(annualized_returns)
@@ -889,8 +918,8 @@ def is_low_and_go_up(code, df=None, window_days=120):
 
 
 if __name__ == "__main__":
-    # result =year_rate_sliding('000309')
-    # print(result)
+    result =year_rate_sliding('000309')
+    print(result)
     # risk=get_max_annualized_volatility('000216',get_df_by_path(r'A:\projects\money2\my_types\Qdii\000216.csv'),'2023-4-1',60)
     # print(risk)
     # rolling_prediction = fourier_worm_rolling('005698', '2025-4-10', '2025-10-1', sampling_frequency='D', order=5, window_size=40, prediction_steps=10, trend_added=True)
@@ -933,7 +962,7 @@ if __name__ == "__main__":
 
     # max_volatility = get_max_annualized_volatility('000216', 60)
     # print(max_volatility)
-    position=is_low_and_go_up(code='501005',df=None,window_days=100)
-    print(position)
+    # position=is_low_and_go_up(code='501005',df=None,window_days=100)
+    # print(position)
 
     

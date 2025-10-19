@@ -1,8 +1,11 @@
 """最终决策层,拿到一支数据后，计算其未来的走向并做正确率计算，给出决策"""
-from calculate_data import get_interpolated_fund_data, fourier_worm_rolling, real_data_direction,fourier_worm_rolling_classic,get_df,find_top_n_cycles
+from calculate_data import (get_interpolated_fund_data, fourier_worm_rolling, 
+                            real_data_direction,fourier_worm_rolling_classic,
+                            linear_regression_sliding_window,get_df,find_top_n_cycles, year_rate_sliding)
 import pandas as pd
 import akshare as ak
 from sklearn.linear_model import LinearRegression
+from datetime import date
 
 def get_correct_rate(fund_code:str = '005698',obeserve_start_date:str='2025-06-24',observe_end_date:str='2025-09-06',expected_steps=20):
     """获取基金趋势并计算正确率,基于真实数据的校验回测。"""
@@ -54,11 +57,58 @@ def fourier_predict(code, end_date, window_size, prediction_steps=10, add_trend=
     return predict_result
 
 
+class decison_maker:
+    """决策类，封装各种决策方法"""
+    def __init__(self, fund_code,path,df):
+        self.fund_code=fund_code
+        self.today=date.today().strftime('%Y-%m-%d')
+        self.ayear_ago_date=pd.to_datetime(self.today)-pd.Timedelta(days=365)
+        self.ayear_ago_date=self.ayear_ago_date.strftime('%Y-%m-%d')
+        self.df=df.copy() if df is not None else pd.DataFrame()
+        if self.fund_code and self.df.empty:
+            self.df=ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
+        if path and self.df.empty and not fund_code:
+            self.df=pd.read_csv(path)
+        print()
+    def caculate_year_rate_sliding(self):
+        result=year_rate_sliding(self.fund_code,self.df,base_date=self.ayear_ago_date,window_size_days=20,step_size_days=2)
+        print(result)
+    
 
-
+    def instant_bounce(self,window_size=None):
+        """多模态针对下降趋势的基金，在近几个交易日检查是否有回调，触底反弹的情况"""
+        func_str,yearly_return_index,slope=linear_regression_sliding_window(code=self.fund_code,df=self.df,window_size=window_size)
+        if slope<0:
+            try:
+                worker_date=self.df['净值日期'].max()
+                last_day_data = self.df[self.df['净值日期'] == worker_date]
+                yesterday_date = worker_date - pd.Timedelta(days=1)
+                yesterday_data = self.df[self.df['净值日期'] == yesterday_date]
+                if not last_day_data.empty and not yesterday_data.empty:
+                    latest_day_value = last_day_data['累计净值'].values[0]
+                    yesterday_value = yesterday_data['累计净值'].values[0]
+                    if latest_day_value > yesterday_value*1.001:  # 假设反弹阈值为0.1%
+                        print(f"基金 {self.fund_code} 在 {worker_date.strftime('%Y-%m-%d')} 出现触底反弹，建议关注。")
+                        return True
+                    else:
+                        print(f"基金 {self.fund_code} 在 {worker_date.strftime('%Y-%m-%d')} 未出现触底反弹。")
+                        return False
+                else:
+                    print(f"无法获取基金 {self.fund_code} 的最近两天数据，无法判断是否触底反弹。")
+                    return
+            except Exception as e:
+                print(f"试图检查是否触底反弹失败: {e}")
+                return
+        else:
+            print(f"基金 {self.fund_code} 处于上升趋势，暂时不考虑反弹。")
 
 
 if __name__=="__main__":
     # get_correct_rate(fund_code = '000216',obeserve_start_date='2025-08-01',observe_end_date='2025-09-20',expected_steps=10)
-    result=fourier_predict(code="000216",end_date='2025-10-10',window_size=10,prediction_steps=10,add_trend=True)
-    print(result)
+    # result=fourier_predict(code="000216",end_date='2025-10-10',window_size=10,prediction_steps=10,add_trend=True)
+    instance=decison_maker(fund_code="000216",path=r'A:\projects\money2\my_types\Qdii\000216.csv',df=None)
+    result=instance.instant_bounce(window_size=10)
+    # instance.caculate_year_rate_sliding()
+
+
+

@@ -320,7 +320,7 @@ class ProjectCard(QFrame):
             self.setStyleSheet("""
                 ProjectCard {
                     border: 1px solid black;
-                    border-radius: 5px;
+                    border-radius: 10px;
                 }
             """)
             self._right_click = False
@@ -328,9 +328,7 @@ class ProjectCard(QFrame):
             super().mousePressEvent(event)
 
     def update_flag_visibility(self):
-        """
-        根据json文件状态动态显示或隐藏旗帜。
-        """
+        """根据json文件状态动态显示或隐藏旗帜。"""
         if isflagged(self.filename):
             self.flag_label.show()
         else:
@@ -339,7 +337,7 @@ class ProjectCard(QFrame):
     def caculate_year_rate_sliding(self):
         """计算年化收益率的滑动窗口"""
         df=pd.read_csv(self.file_path)
-        year_rate_sliding(self.filename,df,base_date='2024-10-10',window_size_days=365,step_size_days=7)
+        year_rate_sliding(self.filename,df,base_date='2024-10-10',window_size_days=20,step_size_days=2)
         
 
     def add_to_group(self):
