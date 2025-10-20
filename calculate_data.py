@@ -270,6 +270,13 @@ def find_top_n_cycles(
     return np.round(optimal_cycles, 2).tolist()
 
 
+def get_lowest_point_by_period(df, period_days):
+    df['净值日期'] = pd.to_datetime(df['净值日期'])  # 确保净值日期为datetime格式
+    # 将净值日期转换为周期内的日期
+    df['周期'] = (df['净值日期'] - df['净值日期'].min()).dt.days // period_days
+    lowest_point = df.loc[df['周期'] == df['周期'].max(), '累计净值'].min()
+    return lowest_point
+
 
 
 def fourier_worm_rolling(

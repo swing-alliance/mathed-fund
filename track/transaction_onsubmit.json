@@ -1,0 +1,19 @@
+{
+    "000216": [
+        {
+            "buy_date": "2025-03-1",
+            "buy_price": 101,
+            "status": "unchecked"
+        },
+        {
+            "sell_date": "2025-03-1",
+            "sell_price": 100,
+            "status": "unchecked"
+        },
+        {
+            "sell_date": "2025-03-1",
+            "sell_price": 100,
+            "status": "unchecked"
+        }
+    ]
+}

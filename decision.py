@@ -2,11 +2,15 @@
 from calculate_data import (get_interpolated_fund_data, fourier_worm_rolling, 
                             real_data_direction,fourier_worm_rolling_classic,
                             linear_regression_sliding_window,get_df,find_top_n_cycles, year_rate_sliding,yearly_return_since_start
-                            ,how_long_since_start,get_annualized_volatility_for_period)
+                            ,how_long_since_start,get_annualized_volatility_for_period,get_lowest_point_by_period)
 import pandas as pd
 import akshare as ak
 from sklearn.linear_model import LinearRegression
-from datetime import date
+from datetime import date,timedelta
+import os
+import json
+fund_track_path=os.path.join(os.getcwd(),'track',"track.json")
+transaction_onsubmit_path=os.path.join(os.getcwd(),'track',"transaction_onsubmit.json")
 
 def get_correct_rate(fund_code:str = '005698',obeserve_start_date:str='2025-06-24',observe_end_date:str='2025-09-06',expected_steps=20):
     """获取基金趋势并计算正确率,基于真实数据的校验回测。"""
@@ -70,8 +74,10 @@ class decison_maker:
             self.df=ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
         if path and self.df.empty and not fund_code:
             self.df=pd.read_csv(path)
-        self.yearly_return_since_start=yearly_return_since_start(self.fund_code,self.df)
-        self.max_annualized_volatility,_=get_annualized_volatility_for_period(self.fund_code,self.df,period_days=365)
+        self.newest_date=self.df['净值日期'].max().strftime('%Y-%m-%d')
+        self.lowest_point_since_start=get_lowest_point_by_period(self.df,period_days=30)
+        self.yearly_return_since_start=yearly_return_since_start(code=None,df=self.df)
+        self.max_annualized_volatility,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)
         self.sharp_constant = self.yearly_return_since_start / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
         self.total_days=how_long_since_start(self.fund_code,self.df)
 
@@ -119,14 +125,88 @@ class decison_maker:
 
     def evaluate_invested():
         """评估当前持有的基金持续关注"""
+        
         pass
+
+
+class buy_tracker:
+    """追踪完整的交易过程"""
+    def __init__(self, code=None, fund_track_path=fund_track_path, transaction_onsubmit_path=transaction_onsubmit_path):
+      self.code = code
+      self.fund_track_path = fund_track_path
+      self.transaction_onsubmit_path = transaction_onsubmit_path
+      self.today_date = date.today().strftime('%Y-%m-%d')
+    def on_submit_transaction(self, buy_date, buy_price, sell_date, sell_price,action):
+        if action == "buy":
+            try:
+                self.buy_date =buy_date or self.today_date
+                self.buy_price = buy_price
+                if not os.path.exists(self.transaction_onsubmit_path):
+                    with open(self.transaction_onsubmit_path, 'w', encoding='utf-8') as f:
+                        json.dump({}, f, ensure_ascii=False, indent=4)
+                with open(self.transaction_onsubmit_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read().strip()
+                    if not file_content:
+                            transactions = {}
+                    else:
+                        transactions = json.loads(file_content)
+                        print(transactions)
+                if self.code not in transactions:
+                    transactions[self.code] = []
+                transaction_record = {
+                "buy_date": self.buy_date,
+                "buy_price": self.buy_price,
+                "status":"unchecked"
+                }
+                transactions[self.code].append(transaction_record)
+                with open(self.transaction_onsubmit_path, 'w', encoding='utf-8') as f:
+                    json.dump(transactions, f, ensure_ascii=False, indent=4)
+                print(f"买入记录已添加：{transaction_record}")
+            except Exception as e:
+                print(f"买入失败: {e}")
+                return
+        if action == "sell":
+            try:
+                self.sell_date =sell_date or self.today_date
+                self.sell_price = sell_price
+                with open(self.transaction_onsubmit_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read().strip()
+                    if not file_content:
+                        transactions = {}
+                    else:
+                        transactions = json.loads(file_content)
+                        print(transactions)
+                if self.code in transactions:
+                    transaction_record = {
+                        "sell_date": self.sell_date,
+                        "sell_price": self.sell_price,
+                        "status":"unchecked"
+                    }
+                    transactions[self.code].append(transaction_record)
+                with open(self.transaction_onsubmit_path, 'w', encoding='utf-8') as f:
+                    json.dump(transactions, f, ensure_ascii=False, indent=4)
+                print(f"卖出记录已添加：{transactions[self.code][-1]}")
+            except Exception as e:
+                print(f"卖出失败: {e}")
+                return
+
+    def transaction_confirming(self, buy_date, buy_price, sell_date, sell_price,action):
+        pass
+
+
+
+
+
 if __name__=="__main__":
     # get_correct_rate(fund_code = '000216',obeserve_start_date='2025-08-01',observe_end_date='2025-09-20',expected_steps=10)
     # result=fourier_predict(code="000216",end_date='2025-10-10',window_size=10,prediction_steps=10,add_trend=True)
-    instance=decison_maker(fund_code="000216",path=r'A:\projects\money2\my_types\Qdii\000216.csv',df=None)
-    print(instance.max_annualized_volatility)
-    result=instance.is_instant_bounce(window_size=10)
+    # instance=decison_maker(fund_code="000216",path=r'A:\projects\money2\my_types\Qdii\000216.csv',df=None)
+    # print(instance.newest_date)
+    # result=instance.is_instant_bounce(window_size=10)
+
     # instance.caculate_year_rate_sliding()
+    transaction_worker=buy_tracker(code="000216")
+    transaction_worker.on_submit_transaction(buy_date="2025-03-1",buy_price=101,sell_date="2025-03-1",sell_price=100,action="sell")
 
 
 
