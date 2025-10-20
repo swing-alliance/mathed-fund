@@ -1,7 +1,8 @@
 """最终决策层,拿到一支数据后，计算其未来的走向并做正确率计算，给出决策"""
 from calculate_data import (get_interpolated_fund_data, fourier_worm_rolling, 
                             real_data_direction,fourier_worm_rolling_classic,
-                            linear_regression_sliding_window,get_df,find_top_n_cycles, year_rate_sliding)
+                            linear_regression_sliding_window,get_df,find_top_n_cycles, year_rate_sliding,yearly_return_since_start
+                            ,how_long_since_start,get_annualized_volatility_for_period)
 import pandas as pd
 import akshare as ak
 from sklearn.linear_model import LinearRegression
@@ -69,13 +70,27 @@ class decison_maker:
             self.df=ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
         if path and self.df.empty and not fund_code:
             self.df=pd.read_csv(path)
-        print()
+        self.yearly_return_since_start=yearly_return_since_start(self.fund_code,self.df)
+        self.max_annualized_volatility,_=get_annualized_volatility_for_period(self.fund_code,self.df,period_days=365)
+        self.sharp_constant = self.yearly_return_since_start / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
+        self.total_days=how_long_since_start(self.fund_code,self.df)
+
+    def self_check(self,min_year_rate=0.08,sharp_ratio_threshold=None):
+        """检查这是不是一支合格的基金"""
+        if self.yearly_return_since_start<min_year_rate:
+            print(f"基金 {self.fund_code} 成立以来年化收益率为 {self.yearly_return_since_start:.2%}，低于{min_year_rate:.2%}，不合格。")
+            return False
+        if self.sharp_constant<sharp_ratio_threshold:
+            print(f"基金 {self.fund_code} 夏普比率为 {self.sharp_constant:.2f}，低于{sharp_ratio_threshold}，不合格。")
+            return False
+        return True
+
     def caculate_year_rate_sliding(self):
         result=year_rate_sliding(self.fund_code,self.df,base_date=self.ayear_ago_date,window_size_days=20,step_size_days=2)
         print(result)
     
 
-    def instant_bounce(self,window_size=None):
+    def is_instant_bounce(self,window_size=None):
         """多模态针对下降趋势的基金，在近几个交易日检查是否有回调，触底反弹的情况"""
         func_str,yearly_return_index,slope=linear_regression_sliding_window(code=self.fund_code,df=self.df,window_size=window_size)
         if slope<0:
@@ -102,12 +117,15 @@ class decison_maker:
         else:
             print(f"基金 {self.fund_code} 处于上升趋势，暂时不考虑反弹。")
 
-
+    def evaluate_invested():
+        """评估当前持有的基金持续关注"""
+        pass
 if __name__=="__main__":
     # get_correct_rate(fund_code = '000216',obeserve_start_date='2025-08-01',observe_end_date='2025-09-20',expected_steps=10)
     # result=fourier_predict(code="000216",end_date='2025-10-10',window_size=10,prediction_steps=10,add_trend=True)
     instance=decison_maker(fund_code="000216",path=r'A:\projects\money2\my_types\Qdii\000216.csv',df=None)
-    result=instance.instant_bounce(window_size=10)
+    print(instance.max_annualized_volatility)
+    result=instance.is_instant_bounce(window_size=10)
     # instance.caculate_year_rate_sliding()
 
 

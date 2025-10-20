@@ -76,6 +76,51 @@ def year_rate_sliding(code,df, base_date=None,window_size_days=30, step_size_day
             end_date = end_date - pd.Timedelta(days=step_size_days)
         return annualized_returns[0], window_dates[0]
 
+def yearly_return_since_start(code: str, df: pd.DataFrame) -> float:
+    """计算基金成立以来的年化收益率"""
+    if df.empty:
+        try:
+            df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+        except Exception as e:
+            print(f"获取基金 {code} 数据失败: {e}")
+            return None
+    else:
+        df = df.copy()
+        df['净值日期'] = pd.to_datetime(df['净值日期'])
+        df = df.sort_values("净值日期").reset_index(drop=True)
+        if len(df) < 2:
+            print(f"基金 {code} 的数据不足，无法计算年化收益率。")
+            return None
+        start_value = df['累计净值'].iloc[0]
+        end_value = df['累计净值'].iloc[-1]
+        if start_value <= 0 or end_value <= 0:
+            print(f"基金 {code} 的累计净值异常，无法计算年化收益率。")
+            return None
+        total_days = (df['净值日期'].iloc[-1] - df['净值日期'].iloc[0]).days
+        years = total_days / 365.25
+        if years <= 0:
+            print(f"基金 {code} 的数据时间段不足，无法计算年化收益率。")
+            return None
+        annualized_return = (end_value / start_value) ** (1 / years) - 1
+        return annualized_return
+
+def how_long_since_start(code: str, df: pd.DataFrame) -> int:
+    """计算基金成立以来的天数"""
+    if df.empty:
+        try:
+            df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+        except Exception as e:
+            print(f"获取基金 {code} 数据失败: {e}")
+            return None
+    else:
+        df = df.copy()
+        df['净值日期'] = pd.to_datetime(df['净值日期'])
+        df = df.sort_values("净值日期").reset_index(drop=True)
+        if len(df) < 2:
+            print(f"基金 {code} 的数据不足，无法计算成立天数。")
+            return None
+        total_days = (df['净值日期'].iloc[-1] - df['净值日期'].iloc[0]).days
+        return total_days
 
 def linear_regression_sliding_window(code: str, df: pd.DataFrame, window_size: int = 30):
     """线性回归窗口，反应大方向的趋势"""
@@ -112,41 +157,54 @@ def linear_regression_sliding_window(code: str, df: pd.DataFrame, window_size: i
 #     return np.mean(annualized_returns) / np.std(annualized_returns)
 
 #最高年化波动
-def get_max_annualized_volatility(code: str,df:pd.DataFrame,base_date: datetime, window_size: int) -> tuple[float, pd.Timestamp]:
+def get_annualized_volatility_for_period(code: str, df: pd.DataFrame, period_days: int) -> tuple[float, pd.Timestamp]:
     """
-    计算并返回基金在指定滑动天数内的最高年化波动率，反应不稳定度。
+    计算并返回基金在过去指定天数内的年化波动率。
+
     参数:
     - code (str): 基金代码，例如 '001211'。
-    - window_size (int): 滑动窗口天数，例如 60。
+    - df (pd.DataFrame): 基金数据，必须包含'净值日期'和'累计净值'列。
+    - period_days (int): 要计算的时间段（例如过去 365 天或 30 天）。
+    
     返回:
-    - tuple[float, pd.Timestamp]: 一个元组，包含最高年化波动率和其发生的日期。
+    - tuple[float, pd.Timestamp]: 一个元组，包含年化波动率和计算时使用的日期范围。
                                   如果数据获取失败，则返回 (None, None)。
     """
     if df.empty:
         try:
             df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
-            print(df)
+            if df.empty:
+                print(f"基金 {code} 数据获取失败：返回数据为空。")
+                return None, None
         except Exception as e:
             print(f"获取基金 {code} 数据失败：{e}")
             return None, None
     else:
-        df=df.copy()
-        if base_date:
-            df = df[df['净值日期'] >= base_date]
-        df.set_index('净值日期', inplace=True)
+        df = df.copy()
+        df['净值日期'] = pd.to_datetime(df['净值日期'])
+        df = df.sort_values('净值日期')
         df['累计净值'] = pd.to_numeric(df['累计净值'], errors='coerce')
         df.dropna(subset=['累计净值'], inplace=True)
-        daily_returns = df['累计净值'].pct_change().dropna()
-        daily_volatility = daily_returns.rolling(window=window_size).std()
-        annualized_volatility = daily_volatility * np.sqrt(252)
-        if not annualized_volatility.empty:
-            max_volatility = annualized_volatility.max()
-            max_date = annualized_volatility.idxmax()
-            return max_volatility, max_date
-        else:
-            print("无法计算波动率，数据不足或窗口大小过大。")
+
+        # 计算时间段内的起始日期
+        end_date = df['净值日期'].max()  # 数据的最后日期
+        start_date = end_date - timedelta(days=period_days)  # 计算过去指定天数的起始日期
+
+        # 筛选出数据范围内的数据
+        df_period = df[df['净值日期'] >= start_date]
+        
+        if len(df_period) < 2:
+            print(f"数据点不足以计算过去 {period_days} 天的年化波动率。")
             return None, None
 
+        # 计算每日收益率
+        daily_returns = df_period['累计净值'].pct_change().dropna()
+        
+        # 计算波动率并年化
+        daily_volatility = daily_returns.std()
+        annualized_volatility = daily_volatility * np.sqrt(252)
+
+        return annualized_volatility, start_date
 
 #最大回撤率
 
@@ -918,8 +976,8 @@ def is_low_and_go_up(code, df=None, window_days=120):
 
 
 if __name__ == "__main__":
-    result =year_rate_sliding('000309')
-    print(result)
+    # result =year_rate_sliding('000309')
+    # print(result)
     # risk=get_max_annualized_volatility('000216',get_df_by_path(r'A:\projects\money2\my_types\Qdii\000216.csv'),'2023-4-1',60)
     # print(risk)
     # rolling_prediction = fourier_worm_rolling('005698', '2025-4-10', '2025-10-1', sampling_frequency='D', order=5, window_size=40, prediction_steps=10, trend_added=True)
@@ -964,5 +1022,7 @@ if __name__ == "__main__":
     # print(max_volatility)
     # position=is_low_and_go_up(code='501005',df=None,window_days=100)
     # print(position)
+    output=yearly_return_since_start(code='000216',df=get_df_by_path(r'A:\projects\money2\my_types\Qdii\000216.csv'))
+    print(output)
 
     
