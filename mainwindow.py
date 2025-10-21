@@ -5,6 +5,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import QSize,QThread, pyqtSignal
 from csvqwidget import CsvGraphWidget
 from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog
+
 from utils.pull import fetch_and_save_fund_csv
 from my_types.nice_utils import update_files
 from pannel_plan import ControlPanel
@@ -29,6 +30,7 @@ class MainWindow(QMainWindow):
         self._create_menu_bar()
         self.attention_now=None#当前关注的csvgraphwidget，df,窗口
         self.attention_path=None#当前关注的csv路径
+        self.last_loaded_group=None
         self.load_sys_central()
         
     def _create_menu_bar(self):
@@ -45,6 +47,8 @@ class MainWindow(QMainWindow):
         add_group_action.triggered.connect(lambda:self.add_group())
         load_group_action = QAction("加载分组", self)
         load_group_action.triggered.connect(lambda:self.load_group(groups_path))
+        load_last_group_action = QAction("回到分组", self)
+        load_last_group_action.triggered.connect(lambda:self.load_group(last_group_path=self.last_loaded_group))
         del_group_action = QAction("删除分组", self)
         del_group_action.triggered.connect(lambda:self.del_group(groups_path))
 
@@ -78,6 +82,8 @@ class MainWindow(QMainWindow):
         updateQdii_action = QAction("更新Qdii或另类数据", self)
         updateQdii_action.triggered.connect(lambda: self.start_file_update(Qdii_path, cache_path))
 
+        batch_redirect_action = QAction("批量转到组", self)
+        batch_redirect_action.triggered.connect(self.batch_redirect)
 
 
         load_group_action.setFont(QFont('微软雅黑', 11))
@@ -86,6 +92,7 @@ class MainWindow(QMainWindow):
         advanced_pull_action.setFont(QFont('微软雅黑', 11))
         pull_action.setFont(QFont('微软雅黑', 11))
         load_action.setFont(QFont('微软雅黑', 11))
+        load_last_group_action.setFont(QFont('微软雅黑', 11))
         updateQdii_action.setFont(QFont('微软雅黑', 11))
         index_action.setFont(QFont('微软雅黑', 11))
         qdii_action.setFont(QFont('微软雅黑', 11))
@@ -95,6 +102,7 @@ class MainWindow(QMainWindow):
         updateEquity_action.setFont(QFont('微软雅黑', 11))
         updateindex_action.setFont(QFont('微软雅黑', 11))
         planpage_action.setFont(QFont('微软雅黑', 11))
+        batch_redirect_action.setFont(QFont('微软雅黑', 11))
 
         plan_menu.addAction(planpage_action)
         plan_menu.addAction(balenced_action)
@@ -103,6 +111,7 @@ class MainWindow(QMainWindow):
         plan_menu.addAction(qdii_action)
         file_menu.addAction(load_action)
         file_menu.addAction(load_group_action)
+        file_menu.addAction(load_last_group_action)
         file_menu.addAction(add_group_action)
         file_menu.addAction(del_group_action)
         data_menu.addAction(pull_action)
@@ -111,6 +120,7 @@ class MainWindow(QMainWindow):
         data_menu.addAction(updateEquity_action)
         data_menu.addAction(updateindex_action)
         data_menu.addAction(updateQdii_action)
+        calculate_menu.addAction(batch_redirect_action)
         
         
 
@@ -189,7 +199,6 @@ class MainWindow(QMainWindow):
 
 
     def add_group(self):
-        """添加分组"""
         dialog = GroupConfigDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             group_name = dialog.get_group_name()
@@ -261,14 +270,18 @@ class MainWindow(QMainWindow):
         
 
 
-    def load_group(self, path=None):
+    def load_group(self, path=None,last_group_path=None):
         """加载分组"""
         try:
+            if last_group_path:
+                self.load_plan_pannel(base_path=last_group_path)
+                return
             List_group_dialog_instance = List_group_dialog(groups__path=path,title="选择要加载的分组",parent=self)
             if List_group_dialog_instance.exec_() == QDialog.Accepted:
                 selected_group_path = List_group_dialog_instance.get_selected_group_path()
                 if selected_group_path:
                     self.load_plan_pannel(base_path=selected_group_path)
+                    self.last_loaded_group=selected_group_path
                 else:
                     QMessageBox.information(self, "信息", "未选择任何分组。")
         except Exception as e:
@@ -302,6 +315,24 @@ class MainWindow(QMainWindow):
 
 
 
+    def batch_redirect(self,file_path):
+        """计算后批量导入文件到组"""
+        print("正在执行我")
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            for card in central_widget.loaded_cards.values():
+                isthis_consider_risky_reward,isthis_consider_long_term_return=card.auto_calculate_type()
+                if isthis_consider_risky_reward:
+                    risky_reward_group_path = os.path.join(os.getcwd(), "groups", "危险回报观察组(系统)")
+                    card.add_to_group(risky_reward_group_path)
+                    print("放在危险回报分组")
+                    
+                elif isthis_consider_long_term_return:
+                    print("放在长期收益分组")
+                else:
+                    print("放在其他分组")
+
+        
     def start_file_update(self,file_path,cache_path=cache_path):
             """启动文件更新线程"""
             Font=QFont("微软雅黑", 10)

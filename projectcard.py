@@ -13,6 +13,7 @@ import json
 from signal_handler import signal_emitter
 import pandas as pd 
 from calculate_data import year_rate_sliding
+from decision import decison_maker
 import csv
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
@@ -340,7 +341,29 @@ class ProjectCard(QFrame):
         year_rate_sliding(self.filename,df,base_date='2024-10-10',window_size_days=20,step_size_days=2)
         
 
-    def add_to_group(self):
+    def add_to_group(self,straight_group_path=None):
+        if straight_group_path:
+            """直接定向加入系统分组"""
+            print("直接定向加入系统分组")
+            group_name =os.path.basename(straight_group_path)
+            groups_cache_path = os.path.join(groups_path, 'group_cache.csv')
+            if "系统" in group_name:
+                if not os.path.exists(groups_cache_path):
+                    with open(groups_cache_path, 'w', newline='', encoding='utf-8') as f:
+                        writer = csv.writer(f)
+                    # 写入表头（如果需要）
+                        writer.writerow(['group_name', 'file_path'])
+
+            with open(groups_cache_path, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([self.file_path, group_name])  # 写入数据
+
+            print(f"数据已添加到 {groups_cache_path}")
+            return
+        else:
+            print("不是系统分组")
+            return
+
         """添加到分组的对话框"""
         self.list_group_dialog = List_group_dialog(groups_path,"添加到分组",parent=None,this_code=self.filename)
         try:
@@ -389,8 +412,11 @@ class ProjectCard(QFrame):
             print(f"打开分组对话框失败: {e}")
 
            
-
-
+    def auto_calculate_type(self,yearly_return_since_start=0.012,max_annualized_volatility=0.4):
+        self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None)
+        isthis_consider_risky_reward=self.decision_maker.get_risky_reward(yearly_return_since_start=yearly_return_since_start,max_annualized_volatility=max_annualized_volatility)
+        isthis_consider_long_term_return=self.decision_maker.get_long_term_return()
+        return isthis_consider_risky_reward,isthis_consider_long_term_return
 
 
 

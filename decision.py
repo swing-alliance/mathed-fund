@@ -71,12 +71,14 @@ class decison_maker:
         self.ayear_ago_date=pd.to_datetime(self.today)-pd.Timedelta(days=365)
         self.ayear_ago_date=self.ayear_ago_date.strftime('%Y-%m-%d')
         self.df=df.copy() if df is not None else pd.DataFrame()
+        self.path=path
         if self.fund_code and self.df.empty:
             self.df=ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
         if path and self.df.empty and not fund_code:
             self.df=pd.read_csv(path)
+        self.df['净值日期']=pd.to_datetime(self.df['净值日期'])
         self.newest_date=self.df['净值日期'].max().strftime('%Y-%m-%d')
-        self.lowest_point_since_start=get_lowest_point_by_period(self.df,period_days=30)
+        self.lowest_point_in_period=get_lowest_point_by_period(self.df,period_days=30)
         self.yearly_return_since_start=yearly_return_since_start(code=None,df=self.df)
         self.max_annualized_volatility,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)
         self.sharp_constant = self.yearly_return_since_start / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
@@ -123,10 +125,24 @@ class decison_maker:
                 return
         else:
             print(f"基金 {self.fund_code} 处于上升趋势，暂时不考虑反弹。")
-
-    def evaluate_invested():
-        """评估当前持有的基金持续关注"""
+        pass
+    def get_risky_reward(self,yearly_return_since_start=0.012,max_annualized_volatility=0.4):
+        """短期，高风险高回报"""
+        if self.yearly_return_since_start>yearly_return_since_start and self.max_annualized_volatility>max_annualized_volatility:
+            return True
+        else:
+            return False
         
+    
+    def get_long_term_return(self):
+        """长期回报,定投"""
+        if self.yearly_return_since_start>0.1 and self.max_annualized_volatility<0.3:
+            return True
+        else:
+            return False
+
+    def get_theme_based_return():
+        """基于主题(科技，医疗)的回报"""
         pass
 
 
@@ -325,7 +341,7 @@ if __name__=="__main__":
 
     # instance.caculate_year_rate_sliding()
     transaction_worker=buy_tracker(code="000216")
-    transaction_worker.on_submit_transaction(buy_date="2025-10-15",buy_price=500,sell_date="2025-10-18",sell_nums=149,action="sell")
+    transaction_worker.on_submit_transaction(buy_date="2025-10-20",buy_price=500,sell_date="2025-10-18",sell_nums=149,action="buy")
     transaction_worker.transaction_confirming(n=1)
     confirmed_nums=transaction_worker.get_repository()
     print(confirmed_nums)
