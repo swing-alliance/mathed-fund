@@ -6,10 +6,11 @@ from calculate_data import (get_interpolated_fund_data, fourier_worm_rolling,
 import pandas as pd
 import akshare as ak
 from sklearn.linear_model import LinearRegression
-from datetime import date,timedelta
+from datetime import date,timedelta,datetime
 import os
 import json
-fund_track_path=os.path.join(os.getcwd(),'track',"track.json")
+from my_types.nice_utils import update_files
+transaction_confirmed_path=os.path.join(os.getcwd(),'track',"transaction_confirmed.json")
 transaction_onsubmit_path=os.path.join(os.getcwd(),'track',"transaction_onsubmit.json")
 
 def get_correct_rate(fund_code:str = '005698',obeserve_start_date:str='2025-06-24',observe_end_date:str='2025-09-06',expected_steps=20):
@@ -131,12 +132,12 @@ class decison_maker:
 
 class buy_tracker:
     """追踪完整的交易过程"""
-    def __init__(self, code=None, fund_track_path=fund_track_path, transaction_onsubmit_path=transaction_onsubmit_path):
+    def __init__(self, code=None, transaction_confirmed_path=transaction_confirmed_path, transaction_onsubmit_path=transaction_onsubmit_path):
       self.code = code
-      self.fund_track_path = fund_track_path
+      self.transaction_confirmed_path = transaction_confirmed_path
       self.transaction_onsubmit_path = transaction_onsubmit_path
       self.today_date = date.today().strftime('%Y-%m-%d')
-    def on_submit_transaction(self, buy_date, buy_price, sell_date, sell_price,action):
+    def on_submit_transaction(self, buy_date, buy_price, sell_date, sell_nums,action):
         if action == "buy":
             try:
                 self.buy_date =buy_date or self.today_date
@@ -150,7 +151,6 @@ class buy_tracker:
                             transactions = {}
                     else:
                         transactions = json.loads(file_content)
-                        print(transactions)
                 if self.code not in transactions:
                     transactions[self.code] = []
                 transaction_record = {
@@ -168,18 +168,17 @@ class buy_tracker:
         if action == "sell":
             try:
                 self.sell_date =sell_date or self.today_date
-                self.sell_price = sell_price
+                self.sell_nums = sell_nums
                 with open(self.transaction_onsubmit_path, 'r', encoding='utf-8') as f:
                     file_content = f.read().strip()
                     if not file_content:
                         transactions = {}
                     else:
                         transactions = json.loads(file_content)
-                        print(transactions)
                 if self.code in transactions:
                     transaction_record = {
                         "sell_date": self.sell_date,
-                        "sell_price": self.sell_price,
+                        "sell_nums": self.sell_nums,
                         "status":"unchecked"
                     }
                     transactions[self.code].append(transaction_record)
@@ -190,9 +189,129 @@ class buy_tracker:
                 print(f"卖出失败: {e}")
                 return
 
-    def transaction_confirming(self, buy_date, buy_price, sell_date, sell_price,action):
-        pass
+    def transaction_confirming(self, n=1):
+        """交易确认，确认之前的交易"""
+        try:
+            with open(self.transaction_onsubmit_path, 'r', encoding='utf-8') as f:
+                onsubmit_data = json.load(f)
+                for code, group in onsubmit_data.items():
+                    if code == self.code:
+                        for transaction in group:
+                            if transaction["status"]=="unchecked":
+                                try:
+                                    if "buy_price" in transaction:#买入
+                                        buy_price = transaction["buy_price"]
+                                        buy_date = transaction["buy_date"]
+                                        confirm_result= get_next_trading_day(on_submit_date=buy_date, code=str(self.code),n=n)
+                                        if confirm_result is None:
+                                            print("无法获取下一个交易日")
+                                            continue
+                                        else:
+                                            next_trading_day, single_value = confirm_result
+                                            print(f"下一个交易日：{next_trading_day}, 单位净值：{single_value}")
+                                        record = {
+                                            "buy_price": buy_price,
+                                            "confirmed_date": next_trading_day,
+                                            "single_value": single_value
+                                        }
+                                        with open(self.transaction_confirmed_path, 'r', encoding='utf-8') as f:
+                                            confirmed_data = json.load(f)
+                                        if code not in confirmed_data:
+                                            confirmed_data[code] = []
+                                            confirmed_data[code].append(record)
+                                        else:
+                                            confirmed_data[code].append(record)
+                                        with open(self.transaction_confirmed_path, 'w', encoding='utf-8') as f:
+                                            json.dump(confirmed_data, f, ensure_ascii=False, indent=4)
+                                        transaction["status"] = "checked"
+                                    elif "sell_nums" in transaction:#卖出
+                                        sell_nums = transaction["sell_nums"]
+                                        sell_date = transaction["sell_date"]
+                                        confirm_result= get_next_trading_day(on_submit_date=sell_date, code=str(self.code),n=n)
+                                        if confirm_result is None:
+                                            print("无法获取下一个交易日")
+                                            continue
+                                        else:
+                                            next_trading_day, single_value = confirm_result
+                                            print(f"下一个交易日：{next_trading_day}, 单位净值：{single_value}")
+                                            total_nums=self.get_repository()
+                                            if total_nums<sell_nums:
+                                                print("仓库数量不足,不执行卖出操作")
+                                                transaction["status"] = "Failed"
+                                                continue
+                                        record = {
+                                            "sell_nums": sell_nums,
+                                            "confirmed_date": next_trading_day,
+                                            "single_value": single_value
+                                        }
+                                        with open(self.transaction_confirmed_path, 'r', encoding='utf-8') as f:
+                                            confirmed_data = json.load(f)
+                                        if code not in confirmed_data:
+                                            confirmed_data[code] = []
+                                            confirmed_data[code].append(record)
+                                        else:
+                                            confirmed_data[code].append(record)
+                                        with open(self.transaction_confirmed_path, 'w', encoding='utf-8') as f:
+                                            json.dump(confirmed_data, f, ensure_ascii=False, indent=4)
+                                        transaction["status"] = "checked"
+                                except Exception as e:
+                                    print(f"最后买入确认失败: {e}")
+                                    return
+                            else:
+                                continue
+                with open(self.transaction_onsubmit_path, 'w', encoding='utf-8') as f:
+                    json.dump(onsubmit_data, f, ensure_ascii=False, indent=4)
+                
+            print("交易确认成功！")
+        except Exception as e:
+            print(f"买入确认失败: {e}")
+            return
 
+    def get_repository(self):
+        """获取仓库目前的数量"""
+        try:
+            with open(self.transaction_confirmed_path, 'r', encoding='utf-8') as f:
+                confirmed_data = json.load(f)
+                confirmed_nums=0
+                for code, group in confirmed_data.items():
+                    if code == self.code:
+                        for transaction in group:
+                            if "buy_price" in transaction:
+                                buy_price = transaction["buy_price"]
+                                single_value = transaction["single_value"]
+                                confirmed_nums=confirmed_nums+buy_price/single_value
+                            elif "sell_nums" in transaction:
+                                sell_nums = transaction["sell_nums"]
+                                confirmed_nums=confirmed_nums-sell_nums
+                if confirmed_nums<0:
+                    print("严重错误：仓库中的数量为负数")
+                    return -1
+                return confirmed_nums #目前仓库中的数量
+        except Exception as e:
+            print(f"获取仓库失败: {e}")
+            return
+
+    
+
+def get_next_trading_day(on_submit_date, code, n=1):
+    """返回 on_submit_date 后的第 n 个交易日"""
+    try:
+        df = ak.fund_open_fund_info_em(symbol=code, indicator="单位净值走势")
+        df['净值日期'] = pd.to_datetime(df['净值日期'], format="%Y-%m-%d")
+        on_submit_date_obj = datetime.strptime(on_submit_date, "%Y-%m-%d")
+        future_trading_days = df[df['净值日期'] > on_submit_date_obj]
+        if future_trading_days.empty:
+            print("没有找到有效的交易日数据。")
+            return None
+        if len(future_trading_days) >= n:
+            next_trade_day = future_trading_days.iloc[n - 1]  # n-1，因为索引从0开始
+            return next_trade_day['净值日期'].strftime("%Y-%m-%d"),next_trade_day['单位净值']
+        else:
+            print(f"只有 {len(future_trading_days)} 个交易日，无法找到第 {n} 个交易日。")
+            return None
+    except Exception as e:
+        print(f"获取下一个交易日失败: {e}")
+        return None
 
 
 
@@ -206,7 +325,7 @@ if __name__=="__main__":
 
     # instance.caculate_year_rate_sliding()
     transaction_worker=buy_tracker(code="000216")
-    transaction_worker.on_submit_transaction(buy_date="2025-03-1",buy_price=101,sell_date="2025-03-1",sell_price=100,action="sell")
-
-
-
+    transaction_worker.on_submit_transaction(buy_date="2025-10-15",buy_price=500,sell_date="2025-10-18",sell_nums=149,action="sell")
+    transaction_worker.transaction_confirming(n=1)
+    confirmed_nums=transaction_worker.get_repository()
+    print(confirmed_nums)
