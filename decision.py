@@ -64,7 +64,7 @@ def fourier_predict(code, end_date, window_size, prediction_steps=10, add_trend=
 
 
 class decison_maker:
-    """决策类，封装各种决策方法"""
+    """决策类，封装各种计算方法,计算一直基金的各类数据"""
     def __init__(self, fund_code,path,df):
         self.fund_code=fund_code
         self.today=date.today().strftime('%Y-%m-%d')
@@ -134,16 +134,19 @@ class decison_maker:
             return False
         
     
-    def get_long_term_return(self):
+    def get_long_term_return(self,days_since_start=1618):
         """长期回报,定投"""
-        if self.yearly_return_since_start>0.1 and self.max_annualized_volatility<0.3:
+        if self.yearly_return_since_start>0.2 and self.max_annualized_volatility<0.3 and self.total_days>days_since_start if days_since_start is not None else True:
             return True
         else:
             return False
-
-    def get_theme_based_return():
-        """基于主题(科技，医疗)的回报"""
-        pass
+        
+    def get_low_point(self,max_annualized_volatility=0.4,days_since_start=1618):
+        """超低点"""
+        if self.yearly_return_since_start<0.001 and self.max_annualized_volatility>max_annualized_volatility and self.total_days>days_since_start if days_since_start is not None else True:
+            return True
+        else:
+            return False
 
 
 class buy_tracker:
@@ -328,6 +331,7 @@ def get_next_trading_day(on_submit_date, code, n=1):
     except Exception as e:
         print(f"获取下一个交易日失败: {e}")
         return None
+
 
 
 

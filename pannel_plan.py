@@ -194,6 +194,29 @@ class ControlPanel(QWidget):
 
 
 
+    def resort_self(self):
+        """重新排序项目卡片按照夏普比率从大到小"""
+        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().sharp_constant, reverse=True)
+        for card in self.loaded_cards.values():
+            self.scroll_layout.removeWidget(card)
+        for card in sorted_cards:
+            self.scroll_layout.addWidget(card)
+    def resort_self_by_largest_yearly_return(self):
+        """重新排序项目卡片按照年化收益率从大到小"""
+        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().yearly_return_since_start, reverse=True)
+        for card in self.loaded_cards.values():
+            self.scroll_layout.removeWidget(card)
+        for card in sorted_cards:
+            self.scroll_layout.addWidget(card)
+
+    def resort_self_by_largest_votolity(self):
+        """重新排序项目卡片按照波动率从大到小"""
+        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().max_annualized_volatility, reverse=True)
+        for card in self.loaded_cards.values():
+            self.scroll_layout.removeWidget(card)
+        for card in sorted_cards:
+            self.scroll_layout.addWidget(card)
+
     # def load_projects_from_path(self, path):
     #         def load_files_from_path(directory_path):
     #             """加载指定路径下的文件（无进度框）"""

@@ -5,7 +5,6 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import QSize,QThread, pyqtSignal
 from csvqwidget import CsvGraphWidget
 from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog
-
 from utils.pull import fetch_and_save_fund_csv
 from my_types.nice_utils import update_files
 from pannel_plan import ControlPanel
@@ -84,6 +83,13 @@ class MainWindow(QMainWindow):
 
         batch_redirect_action = QAction("批量转到组", self)
         batch_redirect_action.triggered.connect(self.batch_redirect)
+        group_resort_action = QAction("当前组重新排序夏普比", self)
+        group_resort_action.triggered.connect(self.group_resort)
+        group_resort_yearly_return_action = QAction("当前组年化收益排序", self)
+        group_resort_yearly_return_action.triggered.connect(self.group_sort_by_max_yearly_return)
+        group_resort_votality_action = QAction("当前组年化波动率排序", self)
+        group_resort_votality_action.triggered.connect(self.group_sort_by_votality)
+
 
 
         load_group_action.setFont(QFont('微软雅黑', 11))
@@ -103,6 +109,9 @@ class MainWindow(QMainWindow):
         updateindex_action.setFont(QFont('微软雅黑', 11))
         planpage_action.setFont(QFont('微软雅黑', 11))
         batch_redirect_action.setFont(QFont('微软雅黑', 11))
+        group_resort_action.setFont(QFont('微软雅黑', 11))
+        group_resort_yearly_return_action.setFont(QFont('微软雅黑', 11))
+        group_resort_votality_action.setFont(QFont('微软雅黑', 11))
 
         plan_menu.addAction(planpage_action)
         plan_menu.addAction(balenced_action)
@@ -121,6 +130,11 @@ class MainWindow(QMainWindow):
         data_menu.addAction(updateindex_action)
         data_menu.addAction(updateQdii_action)
         calculate_menu.addAction(batch_redirect_action)
+        calculate_menu.addAction(group_resort_action)
+        calculate_menu.addAction(group_resort_yearly_return_action)
+        calculate_menu.addAction(group_resort_votality_action)
+
+
         
         
 
@@ -315,24 +329,48 @@ class MainWindow(QMainWindow):
 
 
 
-    def batch_redirect(self,file_path):
+    def batch_redirect(self):
         """计算后批量导入文件到组"""
         print("正在执行我")
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
             for card in central_widget.loaded_cards.values():
-                isthis_consider_risky_reward,isthis_consider_long_term_return=card.auto_calculate_type()
+                isthis_consider_risky_reward,isthis_consider_long_term_return,isthis_consider_low_point=card.auto_calculate_type()
                 if isthis_consider_risky_reward:
                     risky_reward_group_path = os.path.join(os.getcwd(), "groups", "危险回报观察组(系统)")
                     card.add_to_group(risky_reward_group_path)
                     print("放在危险回报分组")
                     
                 elif isthis_consider_long_term_return:
+                    long_term_return_group_path = os.path.join(os.getcwd(), "groups", "长期收益观察组(系统)")
+                    card.add_to_group(long_term_return_group_path)
                     print("放在长期收益分组")
-                else:
+                elif isthis_consider_low_point:
+                    low_point_group_path = os.path.join(os.getcwd(), "groups", "黑马或白马")
+                    card.add_to_group(low_point_group_path)
                     print("放在其他分组")
+                else:
+                    print("不放在任何分组")
 
-        
+    def group_resort(self):
+        """分组重排"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self()#pannel_plan中定义
+    
+    def group_sort_by_max_yearly_return(self):
+        """分组重排, 按最大年化收益排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_largest_yearly_return()
+
+    def group_sort_by_votality(self):
+        """分组重排, 按波动率排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_largest_votolity()
+
+
     def start_file_update(self,file_path,cache_path=cache_path):
             """启动文件更新线程"""
             Font=QFont("微软雅黑", 10)
@@ -352,6 +390,10 @@ class MainWindow(QMainWindow):
             
             # 启动后台线程进行文件更新
             self.worker.start()
+
+
+
+
 
     def update_progress(self, current, total):
         """更新进度条"""

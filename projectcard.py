@@ -345,80 +345,92 @@ class ProjectCard(QFrame):
         if straight_group_path:
             """直接定向加入系统分组"""
             print("直接定向加入系统分组")
-            group_name =os.path.basename(straight_group_path)
+            group_name = os.path.basename(straight_group_path)
             groups_cache_path = os.path.join(groups_path, 'group_cache.csv')
+            
             if "系统" in group_name:
                 if not os.path.exists(groups_cache_path):
                     with open(groups_cache_path, 'w', newline='', encoding='utf-8') as f:
                         writer = csv.writer(f)
-                    # 写入表头（如果需要）
+                        # 写入表头（如果需要）
                         writer.writerow(['group_name', 'file_path'])
-
-            with open(groups_cache_path, 'a', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                writer.writerow([self.file_path, group_name])  # 写入数据
-
-            print(f"数据已添加到 {groups_cache_path}")
-            return
-        else:
-            print("不是系统分组")
-            return
-
-        """添加到分组的对话框"""
-        self.list_group_dialog = List_group_dialog(groups_path,"添加到分组",parent=None,this_code=self.filename)
-        try:
-            if self.list_group_dialog.exec_() == QDialog.Accepted:
-                this_group_path = self.list_group_dialog.get_selected_group_path()
-                group_name = os.path.basename(this_group_path)
-                self.massage_box = MessageBoxYesOrNo(self, title="确认加入分组", message=f"确认加入到 {group_name} 吗？")
-                self.group_cache_path = None
-                if self.massage_box.exec_():
-                    try:
-                        for root,_, files in os.walk(groups_path):
-                            for file in files:
-                                if file == 'group_cache.csv':
-                                    self.group_cache_path = os.path.join(root, file)
-                                    print(f"找到 group_cache.csv 文件: {self.group_cache_path}")
-                                    break
-                        if not self.group_cache_path:
-                            with open(os.path.join(groups_path, 'group_cache.csv'), 'w', newline='', encoding='utf-8') as f:
-                                writer = csv.writer(f)
-                                writer.writerow(['code', 'path', 'group_name','last_updated'])
-                            self.group_cache_path = os.path.join(groups_path, 'group_cache.csv')
-                        df=pd.read_csv(self.group_cache_path,header=0, index_col=False)
-                        new_row = {'path': self.file_path, 'group_name': group_name}
-                        if self.file_path in df['path'].values:
-                            df.loc[df['path'] == self.file_path, ['group_name']] = [group_name]
-                            df.to_csv(self.group_cache_path, index=False)
-                            print(f"更新了基金 {self.filename} 的分组信息")
-                        else:
-                            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                            df.to_csv(self.group_cache_path, index=False)
-                            print(f"添加了基金 {self.filename} 到分组 {group_name}")
-                        try:
-                            self.list_group_dialog.deleteLater()
-                            base_path=self.parent_widget.base_path
-                            if "groups" in base_path:
-                                self.deleteLater()
-                        except Exception as e:
-                            QMessageBox.warning(self, "错误", f"添加到分组对话框清理失败: {e}")
-                        return
-                    except Exception as e:
-                        print(f"查找 group_cache.csv 失败: {e}")
-                        return
+            
+            # 读取已有记录，检查是否存在相同的记录
+            existing_records = set()  # 使用 set 来避免重复
+            if os.path.exists(groups_cache_path):
+                with open(groups_cache_path, 'r', newline='', encoding='utf-8') as f:
+                    reader = csv.reader(f)
+                    next(reader)  # 跳过表头
+                    for row in reader:
+                        existing_records.add(tuple(row))  # 将每一行记录存储为元组
+            
+            # 如果没有该记录，则添加
+            if (self.file_path,group_name ) not in existing_records:
+                with open(groups_cache_path, 'a', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([self.file_path, group_name])  # 写入数据
+                print(f"数据已添加到 {groups_cache_path}")
             else:
-                print("对话框被拒绝或关闭。")
-        except Exception as e:
-            print(f"打开分组对话框失败: {e}")
+                print("记录已经存在，跳过添加。")
+        elif not straight_group_path:
+            """添加到分组的对话框"""
+            self.list_group_dialog = List_group_dialog(groups_path,"添加到分组",parent=None,this_code=self.filename)
+            try:
+                if self.list_group_dialog.exec_() == QDialog.Accepted:
+                    this_group_path = self.list_group_dialog.get_selected_group_path()
+                    group_name = os.path.basename(this_group_path)
+                    self.massage_box = MessageBoxYesOrNo(self, title="确认加入分组", message=f"确认加入到 {group_name} 吗？")
+                    self.group_cache_path = None
+                    if self.massage_box.exec_():
+                        try:
+                            for root,_, files in os.walk(groups_path):
+                                for file in files:
+                                    if file == 'group_cache.csv':
+                                        self.group_cache_path = os.path.join(root, file)
+                                        print(f"找到 group_cache.csv 文件: {self.group_cache_path}")
+                                        break
+                            if not self.group_cache_path:
+                                with open(os.path.join(groups_path, 'group_cache.csv'), 'w', newline='', encoding='utf-8') as f:
+                                    writer = csv.writer(f)
+                                    writer.writerow(['code', 'path', 'group_name','last_updated'])
+                                self.group_cache_path = os.path.join(groups_path, 'group_cache.csv')
+                            df=pd.read_csv(self.group_cache_path,header=0, index_col=False)
+                            new_row = {'path': self.file_path, 'group_name': group_name}
+                            if self.file_path in df['path'].values:
+                                df.loc[df['path'] == self.file_path, ['group_name']] = [group_name]
+                                df.to_csv(self.group_cache_path, index=False)
+                                print(f"更新了基金 {self.filename} 的分组信息")
+                            else:
+                                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                                df.to_csv(self.group_cache_path, index=False)
+                                print(f"添加了基金 {self.filename} 到分组 {group_name}")
+                            try:
+                                self.list_group_dialog.deleteLater()
+                                base_path=self.parent_widget.base_path
+                                if "groups" in base_path:
+                                    self.deleteLater()
+                            except Exception as e:
+                                QMessageBox.warning(self, "错误", f"添加到分组对话框清理失败: {e}")
+                            return
+                        except Exception as e:
+                            print(f"查找 group_cache.csv 失败: {e}")
+                            return
+                else:
+                    print("对话框被拒绝或关闭。")
+            except Exception as e:
+                print(f"打开分组对话框失败: {e}")
 
            
     def auto_calculate_type(self,yearly_return_since_start=0.012,max_annualized_volatility=0.4):
         self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None)
         isthis_consider_risky_reward=self.decision_maker.get_risky_reward(yearly_return_since_start=yearly_return_since_start,max_annualized_volatility=max_annualized_volatility)
-        isthis_consider_long_term_return=self.decision_maker.get_long_term_return()
-        return isthis_consider_risky_reward,isthis_consider_long_term_return
+        isthis_consider_long_term_return=self.decision_maker.get_long_term_return(days_since_start=1618)
+        isthis_consider_low_point=self.decision_maker.get_low_point(days_since_start=1618)
+        return isthis_consider_risky_reward,isthis_consider_long_term_return,isthis_consider_low_point
 
-
+    def return_decision(self):
+        self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None)
+        return self.decision_maker
 
 
 class MessageBoxYesOrNo(QMessageBox):
