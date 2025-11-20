@@ -11,7 +11,7 @@ from pannel_plan import ControlPanel
 from sys_center import SysCentral
 import shutil
 
-# from calculate import ArimaPredictor
+
 balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
 Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
@@ -81,13 +81,15 @@ class MainWindow(QMainWindow):
         updateQdii_action = QAction("更新Qdii或另类数据", self)
         updateQdii_action.triggered.connect(lambda: self.start_file_update(Qdii_path, cache_path))
 
-        batch_redirect_action = QAction("批量转到组", self)
+        batch_redirect_action = QAction("批量转到组(bug)", self)
         batch_redirect_action.triggered.connect(self.batch_redirect)
-        group_resort_action = QAction("当前组重新排序夏普比", self)
+        group_resort_action = QAction("当前组重新排序夏普比最大", self)
         group_resort_action.triggered.connect(self.group_resort)
-        group_resort_yearly_return_action = QAction("当前组年化收益排序", self)
+        group_resort_yearly_return_action = QAction("当前组年化收益排序最大", self)
         group_resort_yearly_return_action.triggered.connect(self.group_sort_by_max_yearly_return)
-        group_resort_votality_action = QAction("当前组年化波动率排序", self)
+        group_resort_30days_yearly_return_action = QAction("当前组30天年化收益排序最大", self)
+        group_resort_30days_yearly_return_action.triggered.connect(self.group_sort_by_30days_yearly_return)
+        group_resort_votality_action = QAction("当前组年化波动率排序最大", self)
         group_resort_votality_action.triggered.connect(self.group_sort_by_votality)
 
 
@@ -112,6 +114,7 @@ class MainWindow(QMainWindow):
         group_resort_action.setFont(QFont('微软雅黑', 11))
         group_resort_yearly_return_action.setFont(QFont('微软雅黑', 11))
         group_resort_votality_action.setFont(QFont('微软雅黑', 11))
+        group_resort_30days_yearly_return_action.setFont(QFont('微软雅黑', 11))
 
         plan_menu.addAction(planpage_action)
         plan_menu.addAction(balenced_action)
@@ -133,6 +136,7 @@ class MainWindow(QMainWindow):
         calculate_menu.addAction(group_resort_action)
         calculate_menu.addAction(group_resort_yearly_return_action)
         calculate_menu.addAction(group_resort_votality_action)
+        calculate_menu.addAction(group_resort_30days_yearly_return_action)
 
 
         
@@ -369,9 +373,14 @@ class MainWindow(QMainWindow):
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
             central_widget.resort_self_by_largest_votolity()
+    def group_sort_by_30days_yearly_return(self):
+        """分组重排, 按30天年化收益排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_30days_yearly_return()
 
 
-    def start_file_update(self,file_path,cache_path=cache_path):
+    def start_file_update(self,file_path,cache_path):
             """启动文件更新线程"""
             Font=QFont("微软雅黑", 10)
             self.setFont(Font)
@@ -390,10 +399,6 @@ class MainWindow(QMainWindow):
             
             # 启动后台线程进行文件更新
             self.worker.start()
-
-
-
-
 
     def update_progress(self, current, total):
         """更新进度条"""

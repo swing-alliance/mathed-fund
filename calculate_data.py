@@ -76,33 +76,68 @@ def year_rate_sliding(code,df, base_date=None,window_size_days=30, step_size_day
             end_date = end_date - pd.Timedelta(days=step_size_days)
         return annualized_returns[0], window_dates[0]
 
-def yearly_return_since_start(code: str, df: pd.DataFrame) -> float:
-    """计算基金成立以来的年化收益率"""
+def yearly_return_since_start(code: str, df: pd.DataFrame = pd.DataFrame(), expected_interval_days: int = None) -> float:
+    """
+    计算基金成立以来的年化收益率。
+    如果提供了 expected_interval_days (天数)，则计算最新 expected_interval_days 期间的年化收益率。
+
+    :param code: 基金代码 (str)
+    :param df: 基金累计净值数据 (pd.DataFrame)，包含 '净值日期' 和 '累计净值' 列。
+               如果为空，则使用 akshare 获取数据。
+    :param expected_interval_days: 期望计算的最新数据区间天数 (int)。
+    :return: 年化收益率 (float) 或 None (计算失败时)
+    """
+    # --- 1. 数据获取 ---
     if df.empty:
         try:
+            print(f"尝试使用 akshare 获取基金 {code} 的数据...")
             df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
         except Exception as e:
-            print(f"获取基金 {code} 数据失败: {e}")
+            print(f"❌ 获取基金 {code} 数据失败: {e}")
             return None
-    else:
-        df = df.copy()
+    if df.empty:
+        print(f"❌ 基金 {code} 没有获取到数据。")
+        return None
+    try:
+        df.rename(columns={'累计净值': '累计净值', '净值日期': '净值日期'}, inplace=True)
         df['净值日期'] = pd.to_datetime(df['净值日期'])
+        df['累计净值'] = pd.to_numeric(df['累计净值'], errors='coerce')
+        df.dropna(subset=['净值日期', '累计净值'], inplace=True)
         df = df.sort_values("净值日期").reset_index(drop=True)
-        if len(df) < 2:
-            print(f"基金 {code} 的数据不足，无法计算年化收益率。")
-            return None
-        start_value = df['累计净值'].iloc[0]
-        end_value = df['累计净值'].iloc[-1]
-        if start_value <= 0 or end_value <= 0:
-            print(f"基金 {code} 的累计净值异常，无法计算年化收益率。")
-            return None
-        total_days = (df['净值日期'].iloc[-1] - df['净值日期'].iloc[0]).days
-        years = total_days / 365.25
-        if years <= 0:
-            print(f"基金 {code} 的数据时间段不足，无法计算年化收益率。")
-            return None
-        annualized_return = (end_value / start_value) ** (1 / years) - 1
-        return annualized_return
+    except KeyError as e:
+        print(f"❌ 基金 {code} 数据列名错误，缺少必要的列: {e}")
+        return None
+    
+    if len(df) < 2:
+        print(f"⚠️ 基金 {code} 的数据不足（少于 2 个点），无法计算年化收益率。")
+        return None
+    df_calc = df.copy()
+    if expected_interval_days is not None and expected_interval_days > 0:
+        latest_date = df_calc['净值日期'].iloc[-1]
+        start_date_threshold = latest_date - timedelta(days=expected_interval_days)
+        df_calc = df_calc[df_calc['净值日期'] >= start_date_threshold]
+        if len(df_calc) < 2:
+            print(f"⚠️ 基金 {code} 在最近 {expected_interval_days} 天内的数据不足（少于 2 个点），使用所有数据进行计算。")
+            df_calc = df.copy() # 如果截取失败，则回退到使用全部数据
+        else:
+            pass 
+    start_value = df_calc['累计净值'].iloc[0]
+    end_value = df_calc['累计净值'].iloc[-1]
+    start_date = df_calc['净值日期'].iloc[0]
+    end_date = df_calc['净值日期'].iloc[-1]
+    if start_value <= 0 or end_value <= 0:
+        print(f"❌ 基金 {code} 的累计净值异常（存在非正值），无法计算年化收益率。")
+        return None
+    total_days = (end_date - start_date).days
+    years = total_days / 365.25 # 使用 365.25 考虑闰年
+
+    if years <= 0:
+        print(f"⚠️ 基金 {code} 的数据时间段不足（总天数: {total_days}），无法计算年化收益率。")
+        return 0.0 # 视为 0 收益或返回 None
+    annualized_return = (end_value / start_value) ** (1 / years) - 1
+    return annualized_return
+
+
 
 def how_long_since_start(code: str, df: pd.DataFrame) -> int:
     """计算基金成立以来的天数"""

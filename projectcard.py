@@ -63,6 +63,7 @@ def get_name_by_mapping(code):
 def get_fund_name(filename):
     """通过网络爬取akshare获得基金名称"""
     try:
+        print('尝试得到基金名称')
         info = ak.fund_individual_basic_info_xq(symbol=filename)
         fund_full_name = info[info['item'] == '基金全称']['value'].iloc[0]
         return fund_full_name
@@ -342,6 +343,8 @@ class ProjectCard(QFrame):
         
 
     def add_to_group(self,straight_group_path=None):
+        """加入或转到已有分组"""
+        groups_path = os.path.join(os.getcwd(), 'groups')
         if straight_group_path:
             """直接定向加入系统分组"""
             print("直接定向加入系统分组")
@@ -422,6 +425,7 @@ class ProjectCard(QFrame):
 
            
     def auto_calculate_type(self,yearly_return_since_start=0.012,max_annualized_volatility=0.4):
+        """自动计算类型,不好用"""
         self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None)
         isthis_consider_risky_reward=self.decision_maker.get_risky_reward(yearly_return_since_start=yearly_return_since_start,max_annualized_volatility=max_annualized_volatility)
         isthis_consider_long_term_return=self.decision_maker.get_long_term_return(days_since_start=1618)

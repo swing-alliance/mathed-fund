@@ -202,8 +202,16 @@ class ControlPanel(QWidget):
         for card in sorted_cards:
             self.scroll_layout.addWidget(card)
     def resort_self_by_largest_yearly_return(self):
-        """重新排序项目卡片按照年化收益率从大到小"""
+        """重新排序项目卡片按照开始年化收益率从大到小"""
         sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().yearly_return_since_start, reverse=True)
+        for card in self.loaded_cards.values():
+            self.scroll_layout.removeWidget(card)
+        for card in sorted_cards:
+            self.scroll_layout.addWidget(card)
+
+    def resort_self_by_30days_yearly_return(self):
+        """重新排序项目卡片按照30天年化收益率从大到小"""
+        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().yearly_return_30days, reverse=True)
         for card in self.loaded_cards.values():
             self.scroll_layout.removeWidget(card)
         for card in sorted_cards:

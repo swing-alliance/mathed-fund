@@ -9,7 +9,7 @@ from sklearn.linear_model import LinearRegression
 from datetime import date,timedelta,datetime
 import os
 import json
-from my_types.nice_utils import update_files
+
 transaction_confirmed_path=os.path.join(os.getcwd(),'track',"transaction_confirmed.json")
 transaction_onsubmit_path=os.path.join(os.getcwd(),'track',"transaction_onsubmit.json")
 
@@ -80,6 +80,7 @@ class decison_maker:
         self.newest_date=self.df['净值日期'].max().strftime('%Y-%m-%d')
         self.lowest_point_in_period=get_lowest_point_by_period(self.df,period_days=30)
         self.yearly_return_since_start=yearly_return_since_start(code=None,df=self.df)
+        self.yearly_return_30days=yearly_return_since_start(code=None,df=self.df,expected_interval_days=30)
         self.max_annualized_volatility,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)
         self.sharp_constant = self.yearly_return_since_start / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
         self.total_days=how_long_since_start(self.fund_code,self.df)

@@ -25,6 +25,8 @@ def save_to_folder(df, base_path, file_name):
         print(f"保存文件 {file_name} 时出错: {e}")
 
 def where_to_go(code):
+    "根据基金代码拿到数据，保存到文件夹"
+    print(f'开始处理{code}')
     try:
         fund_info_df = ak.fund_individual_basic_info_xq(symbol=code)
         fund_type = fund_info_df[fund_info_df['item'] == '基金类型']['value'].iloc[0]
@@ -55,50 +57,107 @@ def update_files(path, cache_path, progress_callback=None):
     更新所有文件, 支持断点续传。每个文件更新后调用 progress_callback 更新进度。
     """
     today = date.today()
-    all_files = os.listdir(path)
+    
+    # --- 1. 路径和文件准备 ---
+    try:
+        all_files = os.listdir(path)
+    except FileNotFoundError:
+        # 如果path不存在，说明分组目录有问题，直接返回
+        print(f"错误：分组路径不存在或无法访问：{path}")
+        return
+
     csv_files = [file for file in all_files if file.endswith('.csv')]
     total_len = len(csv_files)
     count = 1
 
     try:
+        # 尝试读取缓存文件，如果文件不存在，将由调用者处理 FileNotFoundError
         cache_df = pd.read_csv(cache_path)
     except FileNotFoundError:
-        print(f"错误：未找到缓存文件 {cache_path}")
+        # 此处只是打印错误，但程序会继续运行，可能会在后面的代码中失败
+        print(f"致命错误：未找到缓存文件 {cache_path}，无法进行断点续传。")
         return
 
+    # --- 2. 遍历并更新文件 ---
     for single in csv_files:
         file_path = os.path.join(path, single)
         fund_code = single.split('.')[0]
+        
         try:
-            cached_date = cache_df.loc[cache_df['path'] == file_path, 'latest_date'].item()
-            if cached_date == today.strftime('%Y-%m-%d'):
-                print(f'{single} 缓存中已经是最新，跳过更新 ({count}/{total_len})。')
+            # 🌟 修复核心逻辑：安全地从缓存中获取日期 🌟
+            # 1. 查找匹配的日期 Series
+            date_series = cache_df.loc[cache_df['path'] == file_path, 'latest_date']
+
+            # 2. 检查 Series 长度，安全提取单值
+            if len(date_series) == 1:
+                # 找到唯一匹配项，安全提取值
+                cached_date = str(date_series.iloc[0]) 
+            elif len(date_series) == 0:
+                # 缓存中没有该文件的记录，视为从未更新过
+                cached_date = '1970-01-01' 
+            else:
+                # 致命数据错误：路径重复
+                print(f"致命数据错误：缓存中存在多条记录匹配路径 {file_path}，跳过更新。")
                 count += 1
                 if progress_callback:
                     progress_callback(count, total_len)
                 continue
+            
+            # --- 3. 比较日期和更新逻辑 ---
+            
+            if cached_date == today.strftime('%Y-%m-%d'):
+                # 缓存日期等于今天，跳过
+                print(f'{single} 缓存中已经是最新，跳过更新 ({count}/{total_len})。')
+                
             else:
+                # 需要进行数据请求和更新
+                print(f'{single} 正在进行网络请求...')
+                
+                # 网络请求
                 data = ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
-                data["净值日期"] = pd.to_datetime(data['净值日期'])
-                latest_date = data['净值日期'].max()
-                latest_date_str = latest_date.strftime('%Y-%m-%d')
-                if latest_date_str != today and latest_date_str == cached_date:
-                    print(f'{single} 今天还没最新且缓存中已经是最新，跳过写入缓存 ({count}/{total_len})。')
+                
+                # 数据处理
+                if data is None or data.empty:
+                    print(f'{single} 警告：akshare返回空数据，跳过写入 ({count}/{total_len})。')
                     count += 1
                     if progress_callback:
                         progress_callback(count, total_len)
                     continue
+
+                data["净值日期"] = pd.to_datetime(data['净值日期'])
+                latest_date = data['净值日期'].max()
+                latest_date_str = latest_date.strftime('%Y-%m-%d')
+                
+                # 检查最新日期是否与缓存日期一致（数据源尚未更新）
+                if latest_date_str == cached_date:
+                    print(f'{single} 数据源未更新，缓存已是最新，跳过写入缓存 ({count}/{total_len})。')
                 else:
+                    # 写入数据和更新缓存
                     output_path = os.path.join(path, single)
                     data.to_csv(output_path, index=False)
+                    
+                    # 更新缓存 DataFrame
+                    # 使用布尔索引查找并更新 latest_date
                     cache_df.loc[cache_df['path'] == file_path, 'latest_date'] = latest_date_str
+                    
+                    # 写入缓存文件
                     cache_df.to_csv(cache_path, index=False)
+                    
                     print(f'{single} 更新成功 ({count}/{total_len})，更新日期为 {latest_date_str}。缓存已同步写入。')
-                    count += 1
-                    if progress_callback:
-                        progress_callback(count, total_len)
+                    
+            # --- 4. 进度更新 ---
+            count += 1
+            if progress_callback:
+                progress_callback(count, total_len)
+                
         except Exception as e:
+            # 捕获 akshare 网络错误、文件写入错误等
             print(f"更新失败 {fund_code}: {e}")
+            count += 1
+            if progress_callback:
+                progress_callback(count, total_len)
+            continue
+            
     print('所有文件更新处理完成！')
 
 def de_dupulicate(path):
@@ -133,6 +192,7 @@ def de_dupulicate(path):
 
 
 def exam(path):
+    """查看所有文件的基金类型"""
     all_files = os.listdir(path)
     csv_files = [file for file in all_files if file.endswith('.csv')]
     total_len=len(csv_files)
@@ -252,15 +312,8 @@ def collect_csv_files():
         print('未找到任何 CSV 文件')
 
 if __name__ == "__main__":
-        # i=10000
-        # code = str(i).zfill(6)
-        # where_to_go(code)
-        # output=update(Equity_path)
-        # exam(balanced_path)
-        # flush(balanced_path)
-        #  collect_csv_files()
-        # flush_those_outdated()
-        # update_files(Qdii_path,r"A:\projects\money2\mapping\mapping_latestdate.csv")
-        de_dupulicate(r"A:\projects\money2\mapping\mapping_latestdate.csv")
+       for code in range(28000,30000):
+            zfilledcode=str(code).zfill(6)
+            where_to_go(zfilledcode)
         
         
