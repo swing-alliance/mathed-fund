@@ -25,6 +25,7 @@ mapping_latestdate = {}
 mapping_path = os.path.join('mapping', 'mapping.csv')
 mapping_latestdate_path = os.path.join('mapping', 'mapping_latestdate.csv')
 groups_path = os.path.join(os.getcwd(), 'groups')
+group_cache_path = os.path.join(groups_path, 'group_cache.csv')
 
 if os.path.exists(mapping_path):
     with open(mapping_path, 'r', encoding='utf-8') as f:
@@ -135,7 +136,9 @@ def to_unflag(filename):
 
 
 def get_latest_date_by_mapping(filepath):
+    """通过把mapping_latestdate加载成字典找到对应的最新净值日期"""
     if filepath in mapping_latestdate:
+        print("缓存命中最新日期")
         return mapping_latestdate[filepath]
     else:
         try:
@@ -150,6 +153,7 @@ def get_latest_date_by_mapping(filepath):
                 mapping_df = pd.DataFrame(columns=['path', 'date'])
             new_entry = pd.DataFrame({'path': [filepath], 'latest_date': [latest_date]})
             mapping_df = pd.concat([mapping_df, new_entry], ignore_index=True)
+            print("执行到写入最新日期")
             mapping_df.to_csv(mapping_latestdate_path, index=False)
             return latest_date
         except Exception as e:
@@ -206,30 +210,58 @@ class ProjectCard(QFrame):
             print("对话框被拒绝或关闭。")
 
     def discard(self):
-        """丢弃操作：路径下的文件并刷新卡片"""
+        """丢弃操作：删除路径下的文件并刷新卡片（清理缓存索引）"""
         target_path = self.file_path
         print(f"丢弃文件：{target_path}")
+
+        # --- 1. 文件存在性检查 ---
         if not target_path or not os.path.exists(target_path):
             QMessageBox.warning(self, "警告", f"文件 '{self.filename}' 不存在，无法丢弃。")
             return
+
+        # --- 2. 确认对话框 ---
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("确认操作")
-        msg_box.setIcon(QMessageBox.Warning)  # 设置警告图标
+        msg_box.setIcon(QMessageBox.Warning) # 设置警告图标
         msg_box.setText(f"确定要丢弃文件 '{self.filename}' 吗？")
-        msg_box.setInformativeText("后续只能手动恢复")
+        msg_box.setInformativeText("文件将被永久删除，后续只能手动恢复")
         ok_button = msg_box.addButton("确定", QMessageBox.AcceptRole)
         cancel_button = msg_box.addButton("取消", QMessageBox.RejectRole)
-        msg_box.setDefaultButton(cancel_button)  # 设置“取消”为默认按钮
-        font = QFont("微软雅黑", 12)
-        msg_box.setFont(font)
+        msg_box.setDefaultButton(cancel_button) # 设置“取消”为默认按钮
+        
+        # 确保 QFont 可用，如果 '微软雅黑' 不在您的环境中，可能需要调整
+        try:
+            font = QFont("微软雅黑", 12)
+            msg_box.setFont(font)
+        except Exception:
+            pass # 字体设置失败不影响功能
         msg_box.exec_()
         if msg_box.clickedButton() == ok_button:
             try:
                 os.remove(target_path)
                 print(f"文件 '{self.filename}' 已成功删除")
-                self.deleteLater()  # 删除后再清理对象
+                all_rows = []
+                try:
+                    with open(group_cache_path, 'r', newline='', encoding='utf-8') as f:
+                        reader = csv.reader(f)
+                        all_rows = list(reader)
+                except FileNotFoundError:
+                    print(f"警告：缓存文件 {group_cache_path} 不存在，跳过缓存清理。")
+                updated_rows = []
+                for row in all_rows:
+                    if row and row[0] != self.file_path:
+                        updated_rows.append(row)
+                    elif not row:
+                        updated_rows.append(row)
+                if all_rows:
+                    if os.path.exists(group_cache_path) or updated_rows:
+                        with open(group_cache_path, 'w', newline='', encoding='utf-8') as f:
+                            writer = csv.writer(f)
+                            writer.writerows(updated_rows)
+                        print(f"缓存文件 '{group_cache_path}' 已更新，'{self.file_path}' 索引已删除。")
+                self.deleteLater() # 删除后再清理对象
             except Exception as e:
-                QMessageBox.warning(self, "错误", f"删除文件失败: {e}")
+                QMessageBox.warning(self, "错误", f"删除操作失败: {e}")
 
 
 

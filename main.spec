@@ -55,7 +55,7 @@ exe = EXE(
     runtime_tmpdir=None,
     
     # 保持 console=True 以便查看 mini_racer 的错误信息
-    console=True, 
+    console=False, 
     
     disable_windowed_traceback=False,
     argv_emulation=False,
