@@ -10,11 +10,13 @@ Thumbs.db          # Windows 缩略图缓存
 # 字节码文件
 *.pyc
 __pycache__/
-
+venv/
 # 虚拟环境目录
 venv/
 .venv/
-
+# 忽略构建和分发文件
+dist/
+build/
 # ------------------------------
 # 3. 忽略 打包 (PyInstaller/cx_Freeze) 生成的目录和文件
 # ------------------------------
