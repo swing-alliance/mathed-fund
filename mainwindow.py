@@ -87,10 +87,20 @@ class MainWindow(QMainWindow):
         group_resort_action.triggered.connect(self.group_resort)
         group_resort_yearly_return_action = QAction("当前组年化收益排序最大", self)
         group_resort_yearly_return_action.triggered.connect(self.group_sort_by_max_yearly_return)
+        group_resort_80days_yearly_return_action = QAction("当前组80天年化收益排序最大", self)
+        group_resort_80days_yearly_return_action.triggered.connect(self.group_sort_by_80days_yearly_return)
         group_resort_30days_yearly_return_action = QAction("当前组30天年化收益排序最大", self)
         group_resort_30days_yearly_return_action.triggered.connect(self.group_sort_by_30days_yearly_return)
+        group_resort_14days_yearly_return_action = QAction("当前组14天年化收益排序最大", self)
+        group_resort_14days_yearly_return_action.triggered.connect(self.group_sort_by_14days_yearly_return) 
+        group_resort_3days_yearly_return_action= QAction("当前组3天年化收益排序最大", self)
+        group_resort_3days_yearly_return_action.triggered.connect(self.group_sort_by_3days_yearly_return)
         group_resort_votality_action = QAction("当前组年化波动率排序最大", self)
         group_resort_votality_action.triggered.connect(self.group_sort_by_votality)
+        group_fileter_lowpoint_action = QAction("当前组过滤低点", self)
+        group_fileter_lowpoint_action.triggered.connect(self.fileter_group_by_lowpoint)
+        group_return_market_index_action = QAction("返回总体市场指数", self)
+        group_return_market_index_action.triggered.connect(self.return_market_index)
 
 
 
@@ -114,8 +124,15 @@ class MainWindow(QMainWindow):
         group_resort_action.setFont(QFont('微软雅黑', 11))
         group_resort_yearly_return_action.setFont(QFont('微软雅黑', 11))
         group_resort_votality_action.setFont(QFont('微软雅黑', 11))
+        group_resort_80days_yearly_return_action.setFont(QFont('微软雅黑', 11))
         group_resort_30days_yearly_return_action.setFont(QFont('微软雅黑', 11))
+        group_resort_3days_yearly_return_action.setFont(QFont('微软雅黑', 11))
+        group_resort_14days_yearly_return_action.setFont(QFont('微软雅黑', 11))
+        group_fileter_lowpoint_action.setFont(QFont('微软雅黑', 11))
+        group_return_market_index_action.setFont(QFont('微软雅黑', 11))
 
+
+        
         plan_menu.addAction(planpage_action)
         plan_menu.addAction(balenced_action)
         plan_menu.addAction(equity_action)
@@ -136,7 +153,13 @@ class MainWindow(QMainWindow):
         calculate_menu.addAction(group_resort_action)
         calculate_menu.addAction(group_resort_yearly_return_action)
         calculate_menu.addAction(group_resort_votality_action)
+        
+        calculate_menu.addAction(group_resort_80days_yearly_return_action)
         calculate_menu.addAction(group_resort_30days_yearly_return_action)
+        calculate_menu.addAction(group_resort_14days_yearly_return_action)
+        calculate_menu.addAction(group_resort_3days_yearly_return_action)
+        calculate_menu.addAction(group_fileter_lowpoint_action)
+        calculate_menu.addAction(group_return_market_index_action)
 
 
         
@@ -373,11 +396,43 @@ class MainWindow(QMainWindow):
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
             central_widget.resort_self_by_largest_votolity()
+
+    def group_sort_by_80days_yearly_return(self):
+        """分组重排, 按80天年化收益排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_80days_yearly_return()
+
     def group_sort_by_30days_yearly_return(self):
         """分组重排, 按30天年化收益排序"""
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
             central_widget.resort_self_by_30days_yearly_return()
+    
+    def group_sort_by_14days_yearly_return(self):
+        """分组重排, 按14天年化收益排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_14days_yearly_return()
+
+    def group_sort_by_3days_yearly_return(self):
+        """分组重排, 按3天年化收益排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_3days_yearly_return()
+
+    def fileter_group_by_lowpoint(self):
+        """分组重排, 按低点过滤"""
+        print("正在过滤低点")
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.filter_self_by_consider_lowpoint()
+
+    def return_market_index(self):
+        """返回总体市场指数"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.return_market_general_index()
 
 
     def start_file_update(self,file_path,cache_path):

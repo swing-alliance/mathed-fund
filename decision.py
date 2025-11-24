@@ -2,7 +2,7 @@
 from calculate_data import (get_interpolated_fund_data, fourier_worm_rolling, 
                             real_data_direction,fourier_worm_rolling_classic,
                             linear_regression_sliding_window,get_df,find_top_n_cycles, year_rate_sliding,yearly_return_since_start
-                            ,how_long_since_start,get_annualized_volatility_for_period,get_lowest_point_by_period)
+                            ,how_long_since_start,get_annualized_volatility_for_period,get_lowest_point_by_period,get_highest_point_by_period)
 import pandas as pd
 import akshare as ak
 from sklearn.linear_model import LinearRegression
@@ -76,14 +76,20 @@ class decison_maker:
             self.df=ak.fund_open_fund_info_em(symbol=fund_code, indicator="累计净值走势")
         if path and self.df.empty and not fund_code:
             self.df=pd.read_csv(path)
+            self.fund_code=os.path.basename(path).split('.')[0]
         self.df['净值日期']=pd.to_datetime(self.df['净值日期'])
         self.newest_date=self.df['净值日期'].max().strftime('%Y-%m-%d')
-        self.lowest_point_in_period=get_lowest_point_by_period(self.df,period_days=30)
-        self.yearly_return_since_start=yearly_return_since_start(code=None,df=self.df)
-        self.yearly_return_30days=yearly_return_since_start(code=None,df=self.df,expected_interval_days=30)
         self.max_annualized_volatility,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)
-        self.sharp_constant = self.yearly_return_since_start / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
+        self.sharp_constant = self.year_rate_since_start_this() / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
         self.total_days=how_long_since_start(self.fund_code,self.df)
+
+    def year_rate_since_start_this(self,expected_interval_days=None):
+        """计算成立以来的年化收益率"""
+        if expected_interval_days is not None:
+            return yearly_return_since_start(code=None,df=self.df,expected_interval_days=expected_interval_days)
+        return yearly_return_since_start(code=None,df=self.df)
+
+
 
     def self_check(self,min_year_rate=0.08,sharp_ratio_threshold=None):
         """检查这是不是一支合格的基金"""
@@ -148,6 +154,41 @@ class decison_maker:
             return True
         else:
             return False
+        
+    def is_consider_lowpoint(self):
+        """
+        判断是否处于低点买入的考虑范围，基于严格的日期、回撤和波动率条件。
+        """
+        MINIMUM_DAYS_BETWEEN_PEAKS = 3  # 最低点必须在最高点之后至少 N 天
+        DRAWDOWN_PERCENTAGE_THRESHOLD = 0.1  # 回撤百分比阈值 (5%)
+        VOLATILITY_THRESHOLD = 0.3  # 年化波动率阈值 (30%)
+        # 1. 获取过去40天的极值和日期
+        # 假设 these are already calculated and stored in self.*
+        self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_by_period(self.df, period_days=40)
+        self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=40)
+        if self.df.empty:
+            return False
+        current_net_value = self.df['累计净值'].iloc[-1]
+        current_annualized_volatility = self.max_annualized_volatility # 假设此属性存在
+        time_difference = self.lowest_point_date - self.highest_point_date
+        is_low_after_high = time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS)
+
+        if not is_low_after_high:
+            return False
+        if self.highest_point_in_period_value <= 0:
+            return False
+        drawdown = (self.highest_point_in_period_value - current_net_value) / self.highest_point_in_period_value
+        has_sufficient_drawdown = drawdown >= DRAWDOWN_PERCENTAGE_THRESHOLD
+        if not has_sufficient_drawdown:
+            return False
+        has_high_volatility = current_annualized_volatility >= VOLATILITY_THRESHOLD
+        if not has_high_volatility:
+            return False
+        is_current_net_value_the_low_point = (current_net_value == self.lowest_point_in_period_value)
+        if is_low_after_high and has_sufficient_drawdown and has_high_volatility and is_current_net_value_the_low_point:
+            return True
+        
+        return False
 
 
 class buy_tracker:

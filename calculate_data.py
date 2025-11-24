@@ -309,10 +309,18 @@ def get_lowest_point_by_period(df, period_days):
     df['净值日期'] = pd.to_datetime(df['净值日期'])  # 确保净值日期为datetime格式
     # 将净值日期转换为周期内的日期
     df['周期'] = (df['净值日期'] - df['净值日期'].min()).dt.days // period_days
-    lowest_point = df.loc[df['周期'] == df['周期'].max(), '累计净值'].min()
-    return lowest_point
+    lowest_point_value = df.loc[df['周期'] == df['周期'].max(), '累计净值'].min()
+    lowest_point_date = df.loc[df['累计净值'] == lowest_point_value, '净值日期'].iloc[0]
+    return lowest_point_value, lowest_point_date
 
 
+def get_highest_point_by_period(df, period_days):
+    df['净值日期'] = pd.to_datetime(df['净值日期'])  # 确保净值日期为datetime格式
+    # 将净值日期转换为周期内的日期
+    df['周期'] = (df['净值日期'] - df['净值日期'].min()).dt.days // period_days
+    highest_point_value = df.loc[df['周期'] == df['周期'].max(), '累计净值'].max()
+    highest_point_date = df.loc[df['累计净值'] == highest_point_value, '净值日期'].iloc[0]
+    return highest_point_value, highest_point_date
 
 def fourier_worm_rolling(
     code: str,
