@@ -11,6 +11,7 @@ from PyQt5.QtGui import QFont
 import pandas as pd
 import shutil
 from projectcard import ProjectCard
+from PyQt5.QtCore import QTimer
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
 
@@ -44,8 +45,12 @@ class ControlPanel(QWidget):
         self.search_input.setClearButtonEnabled(True) # 添加清除按钮
         self.search_input.setMaximumWidth(300)
         self.search_input.setFont(QFont('微软雅黑', 12))
-        self.search_input.textChanged.connect(self.filter_cards_by_input)
-
+        #QTimer 用于延时过滤
+        self.filter_timer = QTimer(self)
+        self.filter_timer.setSingleShot(True)  
+        self.filter_timer.setInterval(20)      
+        self.filter_timer.timeout.connect(self._perform_filtering) 
+        self.search_input.textChanged.connect(self.start_filter_timer)
 
 
         top_bar.addWidget(self.add_btn, alignment=Qt.AlignLeft)
@@ -184,16 +189,34 @@ class ControlPanel(QWidget):
 
 
 
-    def filter_cards_by_input(self):
-        """根据搜索输入过滤显示的项目卡片"""
-        search_text = self.search_input.text().lower()
+    def start_filter_timer(self):
+        """
+        当文本改变时调用，它会重置并启动定时器。
+        如果用户在 200ms 内再次输入，定时器会被重置，从而延迟执行过滤。
+        """
+        if self.filter_timer.isActive():
+            self.filter_timer.stop()
+        self.filter_timer.start()
+
+
+    def _perform_filtering(self):
+        """
+        实际执行过滤逻辑的函数 (原 filter_cards_by_input)。
+        只有在用户停止输入 200ms 后才会被调用。
+        """
+        search_text = self.search_input.text().lower().strip() # 加上 strip() 避免空格干扰
+        
+        # 遍历所有卡片
         for card in self.loaded_cards.values():
-            filename =card.filename.lower()
+            filename = card.filename.lower()
             fund_title = card.fund_tittle.lower()
-            if search_text in fund_title or search_text in filename:
-                card.show()
+            is_match = search_text in fund_title or search_text in filename
+            if is_match:
+                if not card.isVisible(): # 只有在不可见时才调用 show()
+                    card.show()
             else:
-                card.hide()
+                if card.isVisible(): # 只有在可见时才调用 hide()
+                    card.hide()
 
             
     def what_label_now(self):
