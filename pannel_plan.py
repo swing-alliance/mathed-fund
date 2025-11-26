@@ -39,8 +39,19 @@ class ControlPanel(QWidget):
         self.add_btn.setFixedSize(40, 40)
         self.add_btn.clicked.connect(self.add_project_from_found)
         self.index_label=self.what_label_now()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("搜索项目...")
+        self.search_input.setClearButtonEnabled(True) # 添加清除按钮
+        self.search_input.setMaximumWidth(300)
+        self.search_input.setFont(QFont('微软雅黑', 12))
+        self.search_input.textChanged.connect(self.filter_cards_by_input)
+
+
+
         top_bar.addWidget(self.add_btn, alignment=Qt.AlignLeft)
+        top_bar.addWidget(self.search_input)
         top_bar.addStretch(1)  
+        
         top_bar.addWidget(self.index_label, alignment=Qt.AlignRight)
         top_bar.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
         
@@ -50,6 +61,8 @@ class ControlPanel(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)  # 自动扩展
         main_layout.addWidget(self.scroll_area)
+        
+        
 
         # 滚动内容容器
         self.scroll_content = QWidget()
@@ -169,6 +182,18 @@ class ControlPanel(QWidget):
                 load_projects_from_groups(this_group_path=self.base_path)
 
 
+
+
+    def filter_cards_by_input(self):
+        """根据搜索输入过滤显示的项目卡片"""
+        search_text = self.search_input.text().lower()
+        for card in self.loaded_cards.values():
+            filename =card.filename.lower()
+            fund_title = card.fund_tittle.lower()
+            if search_text in fund_title or search_text in filename:
+                card.show()
+            else:
+                card.hide()
 
             
     def what_label_now(self):
