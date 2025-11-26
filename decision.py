@@ -2,7 +2,7 @@
 from calculate_data import (get_interpolated_fund_data, fourier_worm_rolling, 
                             real_data_direction,fourier_worm_rolling_classic,
                             linear_regression_sliding_window,get_df,find_top_n_cycles, year_rate_sliding,yearly_return_since_start
-                            ,how_long_since_start,get_annualized_volatility_for_period,get_lowest_point_by_period,get_highest_point_by_period)
+                            ,how_long_since_start,get_annualized_volatility_for_period,get_lowest_point_by_period,get_highest_point_by_period,short_term_daily_return)
 import pandas as pd
 import akshare as ak
 from sklearn.linear_model import LinearRegression
@@ -90,6 +90,9 @@ class decison_maker:
         return yearly_return_since_start(code=None,df=self.df)
 
 
+    def short_term_return(self,days=3):
+        """计算短期收益率"""
+        return short_term_daily_return(code=None,df=self.df,days=days)
 
     def self_check(self,min_year_rate=0.08,sharp_ratio_threshold=None):
         """检查这是不是一支合格的基金"""

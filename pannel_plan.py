@@ -285,59 +285,118 @@ class ControlPanel(QWidget):
 
 
     def return_market_general_index(self):
-        """返回目前市场大体行情指数，用于决策参考"""
-        index_up = 0
-        index_down = 0
-        index_normal = 0
+        index_up = index_down = index_normal = 0
+        extreme_hot = extreme_cold = 0      # 三天极热/极冷计数
+        obvious_hot = obvious_cold = 0      # 三天明显热/明显冷
+
+        total_cards = len(self.loaded_cards)
+
         for card in self.loaded_cards.values():
-            return_rate = card.return_decision().year_rate_since_start_this(expected_interval_days=30)
-            if return_rate > 0.10:
+            rd = card.return_decision()
+            
+            # 【核心不变】30天年化主逻辑
+            year_rate_30d = rd.year_rate_since_start_this(expected_interval_days=30)
+            if year_rate_30d > 0.10:
                 index_up += 1
-            elif return_rate < 0:
+            elif year_rate_30d < 0:
                 index_down += 1
             else:
                 index_normal += 1
-        self._show_market_index_dialog(index_up, index_down, index_normal)
+
+            # 【新增】最近三天几何日均收益率
+            ret_3d_daily = rd.short_term_return(days=3)
+            if ret_3d_daily is not None:
+                if ret_3d_daily >= 0.028:       # 顶级亢奋（历史不到20次）
+                    extreme_hot += 1
+                elif ret_3d_daily <= -0.025:     # 顶级恐慌
+                    extreme_cold += 1
+                elif ret_3d_daily >= 0.015:      # 明显加速
+                    obvious_hot += 1
+                elif ret_3d_daily <= -0.015:     # 明显杀跌
+                    obvious_cold += 1
+
+        self._show_market_index_dialog(
+        index_up, index_down, index_normal,
+        extreme_hot, extreme_cold, obvious_hot, obvious_cold,
+        total_cards
+    )
 
 
-    def _show_market_index_dialog(self, index_up, index_down, index_normal):
-        """
-        内部方法：根据传入的指数数据创建并显示 QDialog 弹窗。
-        - 改进：加入微软雅黑字体，加粗关键数字，显示市场结论。
-        """
-        total = index_up + index_down + index_normal
-        
-        # --- 1. 创建对话框并设置基本属性 ---
-        dialog = QDialog(self) 
-        
-        # 尝试设置字体（注意：为确保所有控件生效，也可以单独设置）
-        font = QFont('微软雅黑', 10)
-        # 不直接对 dialog.setFont，因为 QLabel 的 RichText 格式化效果更好
+    def _show_market_index_dialog(self, index_up, index_down, index_normal,
+        extreme_hot, extreme_cold, obvious_hot, obvious_cold, total_cards):
+        dialog = QDialog(self)
         dialog.setWindowTitle("市场行情指数")
-        dialog.setFixedSize(600, 400) # 扩大尺寸以容纳结论
+        dialog.setFixedSize(780, 680)
+        dialog.setFont(QFont('微软雅黑', 11))
+
+        # 1. 原有30天结论（保持原样）
         market_conclusion = generate_market_conclusion(index_up, index_down, index_normal)
-        data_text = (f"过去一个月 <b>{total}</b> 条数据中：<br>"
-                    f"<b>{index_up}</b> 个走强，<b>{index_down}</b> 个走弱，<b>{index_normal}</b> 个表现平平。")
-        conclusion_text = f"市场总结： {market_conclusion}"
-        data_label = QLabel(data_text)
-        data_label.setTextFormat(Qt.RichText)
-        data_label.setAlignment(Qt.AlignCenter)
-        data_label.setFont(QFont('微软雅黑', 12)) # 独立设置字体和大小
+
+        # 2. 计算30天核心趋势方向（简化判断）
+        p_up   = index_up / total_cards
+        p_down = index_down / total_cards
+
+        is_bull   = p_up > 0.55 or (p_up > p_down + 0.10)   # 明确偏牛
+        is_bear   = p_down > 0.55 or (p_down > p_up + 0.10) # 明确偏熊
+        is_shock  = not (is_bull or is_bear)                # 震荡市
+        # 3. 3天极端情绪判断
+        has_extreme_hot  = extreme_hot >= max(5, total_cards * 0.1)
+        has_extreme_cold = extreme_cold >= max(5, total_cards * 0.1)
+        has_obvious_hot  = obvious_hot >= total_cards * 0.2
+        has_obvious_cold = obvious_cold >= total_cards * 0.2
+
+        # 4. 【核心】多时间框架综合决策逻辑（这就是你缺的灵魂！）
+        if has_extreme_hot and (is_bull or not is_bear):
+            final_advice = "【牛市顶部预警】30天趋势向上但3天极度亢奋，短期冲顶概率极高！\n→ 立即减仓50~80%，留底仓等调整结束再回补！"
+        elif has_extreme_cold and (is_bear or not is_bull):
+            final_advice = "【熊市底部确认】30天趋势向下但3天极度恐慌，超级黄金坑已现！\n→ 大胆加仓或开启定投！这是长期最佳买入点！"
+        elif has_extreme_hot and is_shock:
+            final_advice = "【震荡市冲高回落风险】3天出现极端普涨，属于诱多概率大\n→ 建议高抛低吸，勿追高，重仓者减仓观望"
+        elif has_extreme_cold and is_shock:
+            final_advice = "【震荡市低吸机会】3天出现极端普跌，恐慌盘集中释放\n→ 可轻仓抄底，等待企稳信号"
+        elif is_bull and (has_obvious_hot or extreme_hot > 0):
+            final_advice = "【牛市加速段】30天趋势强+3天资金加速流入，最佳持仓阶段！\n→ 满仓甚至可适度加仓强势板块，无需减仓！"
+        elif is_bear and (has_obvious_cold or extreme_cold > 0):
+            final_advice = "【熊市下跌加速】趋势+情绪共振向下，杀伤力最大\n→ 空仓者继续观望，重仓者必须止损或大幅减仓！"
+        elif is_bull:
+            final_advice = "【牛市健康运行中】30天趋势向上，3天无极端，趋势未结束\n→ 继续持有强势基金，趋势未完不要下车"
+        elif is_bear:
+            final_advice = "【熊市调整中】30天趋势向下，但3天无极端杀跌\n→ 降低仓位，优先配置防御板块，耐心等底部信号"
+        else:
+            final_advice = "【震荡市】30天多空平衡，3天无明显极端\n→ 保持定投 + 轻仓波段，不追涨杀跌"
+
+        # 5. 3天情绪简要提示（辅助信息）
+        if has_extreme_hot:
+            short_signal = f"极度亢奋！{extreme_hot}只基金3日日均≥4.5%"
+        elif has_extreme_cold:
+            short_signal = f"极度恐慌！{extreme_cold}只基金3日日均≤-4.5%"
+        elif has_obvious_hot:
+            short_signal = f"明显加速（{obvious_hot}只≥3%）"
+        elif has_obvious_cold:
+            short_signal = f"明显降温（{obvious_cold}只≤-3%）"
+        else:
+            short_signal = "情绪平稳"
+
+        # 6. 最终UI展示（层次清晰，一眼看懂）
+        html = f"""
+        <b>30天年化趋势：</b> 走强<b>{index_up}</b> 　 走弱<b>{index_down}</b> 　 表现平平<b>{index_normal}</b> （共{total_cards}只）<br><br>
+        {market_conclusion.replace('【', '<br><b>【').replace('】', '】</b>')}<br><br>
         
-        # B. 结论 Label (左对齐，用于显示更长的分析文本)
-        conclusion_label = QLabel(conclusion_text)
-        conclusion_label.setWordWrap(True) # 允许自动换行
-        conclusion_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        conclusion_label.setFont(font)
+        <b>3日极端情绪：</b> {short_signal}<br><br>
+        
+        <h3 align="center"><font >【最终综合结论】</font></h3>
+        <font  size="5"><b>{final_advice.split('】')[1] if '】' in final_advice else final_advice}</b></font>
+        """
+
+        label = QLabel(html)
+        label.setTextFormat(Qt.RichText)
+        label.setWordWrap(True)
+        label.setContentsMargins(25, 25, 25, 25)
+        label.setFont(QFont('微软雅黑', 11))
+
         layout = QVBoxLayout()
-        layout.addWidget(data_label)
-        layout.addSpacing(15) 
-        layout.addWidget(conclusion_label)
-        layout.addStretch(1) 
-        button_layout = QHBoxLayout()
-        button_layout.addStretch(1)
-        button_layout.addStretch(1)
-        layout.addLayout(button_layout)
+        layout.addWidget(label)
+        layout.addStretch()
         dialog.setLayout(layout)
         dialog.exec_()
 

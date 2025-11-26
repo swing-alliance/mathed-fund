@@ -139,6 +139,39 @@ def yearly_return_since_start(code: str, df: pd.DataFrame = pd.DataFrame(), expe
 
 
 
+def short_term_daily_return(code: str, df: pd.DataFrame = None, days: int = 7) -> float:
+    """
+    计算最近 days 天内的【真实几何平均日收益率】（可直接年化）
+    返回值示例：
+        0.03  → 日均3%  → 年化 (1+0.03)^252 -1 ≈ 109倍（超级极端）
+       -0.02  → 日均-2% → 年化 ≈ -99.9%（恐慌杀跌）
+    """
+    if df is None or df.empty:
+        try:
+            df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+        except Exception as e:
+            print(f"获取基金 {code} 数据失败: {e}")
+            return None
+
+    df = df.copy()
+    df['净值日期'] = pd.to_datetime(df['净值日期'])
+    df = df.sort_values("净值日期").reset_index(drop=True)
+
+    if len(df) < days + 1:
+        return None
+
+    recent = df.tail(days + 1)['累计净值'].values
+    if np.any(recent <= 0):
+        return None
+
+    daily_returns = np.diff(recent) / recent[:-1]        # [r1, r2, ..., rn]
+    geometric_daily_return = (1 + daily_returns).prod() ** (1 / days) - 1
+
+    return round(geometric_daily_return, 6)
+
+
+
+
 def how_long_since_start(code: str, df: pd.DataFrame) -> int:
     """计算基金成立以来的天数"""
     if df.empty:
