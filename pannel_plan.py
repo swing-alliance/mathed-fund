@@ -407,15 +407,15 @@ class ControlPanel(QWidget):
             # 【新增】最近三天几何日均收益率
             ret_3d_daily = rd.short_term_return(days=3)
             if ret_3d_daily is not None:
-                if ret_3d_daily >= 0.028:       # 顶级亢奋（历史不到20次）
+                if ret_3d_daily >= 0.028:       # 顶级亢奋
                     extreme_hot += 1
                 elif ret_3d_daily <= -0.025:     # 顶级恐慌
                     extreme_cold += 1
-                elif ret_3d_daily >= 0.015:      # 明显加速
+                elif ret_3d_daily >= 0.015:      # 明显升温
                     obvious_hot += 1
                 elif ret_3d_daily <= -0.015:     # 明显杀跌
                     obvious_cold += 1
-
+            print('顶级亢奋数量',extreme_hot,'顶级恐慌数量',extreme_cold,'明显加速数量',obvious_hot,'明显杀跌数量',obvious_cold)
             #计算当日市场盈亏情况
             today_profit_conclusion, date_str = rd.onedayprofitconclusion() 
             decide_todayconclusiondates.append(date_str)
@@ -483,16 +483,17 @@ class ControlPanel(QWidget):
             final_advice = "【震荡市】30天多空平衡，3天无明显极端\n→ 保持定投 + 轻仓波段，不追涨杀跌"
 
         # 5. 3天情绪简要提示（辅助信息）
-        if has_extreme_hot:
-            short_signal = f"极度亢奋！{extreme_hot}只基金3日日均≥4.5%"
-        elif has_extreme_cold:
-            short_signal = f"极度恐慌！{extreme_cold}只基金3日日均≤-4.5%"
-        elif has_obvious_hot:
-            short_signal = f"明显加速（{obvious_hot}只≥3%）"
-        elif has_obvious_cold:
-            short_signal = f"明显降温（{obvious_cold}只≤-3%）"
-        else:
-            short_signal = "情绪平稳"
+        parts = []
+        if extreme_hot > 0 and total_cards > 0:
+            parts.append(f"极端亢奋比率{extreme_hot/total_cards:.2%}")
+        if extreme_cold > 0 and total_cards > 0:
+            parts.append(f"极端恐慌比率{extreme_cold/total_cards:.2%}")
+        if obvious_hot > 0 and total_cards > 0:
+            parts.append(f"明显加速比率{obvious_hot/total_cards:.2%}")
+        if obvious_cold > 0 and total_cards > 0:
+            parts.append(f"明显杀跌比率{obvious_cold/total_cards:.2%}")
+        short_signal = "; ".join(parts) if parts else "暂无情绪数据"
+
 
 
         # 6. 最终UI展示（层次清晰，一眼看懂）
