@@ -138,7 +138,6 @@ def to_unflag(filename):
 def get_latest_date_by_mapping(filepath):
     """通过把mapping_latestdate加载成字典找到对应的最新净值日期"""
     if filepath in mapping_latestdate:
-        print("缓存命中最新日期")
         return mapping_latestdate[filepath]
     else:
         try:
@@ -217,23 +216,17 @@ class ProjectCard(QFrame):
         """丢弃操作：删除路径下的文件并刷新卡片（清理缓存索引）"""
         target_path = self.file_path
         print(f"丢弃文件：{target_path}")
-
-        # --- 1. 文件存在性检查 ---
         if not target_path or not os.path.exists(target_path):
             QMessageBox.warning(self, "警告", f"文件 '{self.filename}' 不存在，无法丢弃。")
             return
-
-        # --- 2. 确认对话框 ---
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("确认操作")
-        msg_box.setIcon(QMessageBox.Warning) # 设置警告图标
+        msg_box.setIcon(QMessageBox.Warning)
         msg_box.setText(f"确定要丢弃文件 '{self.filename}' 吗？")
         msg_box.setInformativeText("文件将被永久删除，后续只能手动恢复")
         ok_button = msg_box.addButton("确定", QMessageBox.AcceptRole)
         cancel_button = msg_box.addButton("取消", QMessageBox.RejectRole)
-        msg_box.setDefaultButton(cancel_button) # 设置“取消”为默认按钮
-        
-        # 确保 QFont 可用，如果 '微软雅黑' 不在您的环境中，可能需要调整
+        msg_box.setDefaultButton(cancel_button)
         try:
             font = QFont("微软雅黑", 12)
             msg_box.setFont(font)

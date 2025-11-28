@@ -19,9 +19,7 @@ balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
 Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
 Qdii_path = os.path.join(os.getcwd(), 'my_types','Qdii')
-
 groups_path = os.path.join(os.getcwd(), 'groups')
-
 
 
 class ControlPanel(QWidget):
@@ -197,67 +195,44 @@ class ControlPanel(QWidget):
 
 
     def _perform_filtering(self):
-        """
-        增量式过滤：只对需要改变状态（从布局中移除或添加）的卡片进行操作。
-        """
+        """增量式过滤：只对需要改变状态（从布局中移除或添加）的卡片进行操作。"""
         search_text = self.search_input.text().lower().strip()
-        
-        # 禁用更新
         self.setUpdatesEnabled(False) 
-        
-        # 跟踪当前布局中的组件，用于快速判断
-        # 假设 self.scroll_layout 是您的布局
         current_widgets_in_layout = {self.scroll_layout.itemAt(i).widget() 
                                     for i in range(self.scroll_layout.count()) 
                                     if self.scroll_layout.itemAt(i).widget() is not None}
-        
-        # 准备一个列表，存放本次应该显示的卡片，以便按正确的顺序重新添加
         cards_to_show_in_order = []
-
-        # 1. 遍历所有卡片，决定其状态
         for card in self.loaded_cards.values():
-            
-            # 使用预处理数据 (推荐)
             filename = card.search_data['filename'] 
             fund_title = card.search_data['fund_title']
-            
             is_match = (search_text == "") or (search_text in filename or search_text in fund_title)
 
             if is_match:
                 cards_to_show_in_order.append(card)
             else:
-                # A. 如果不匹配，且卡片当前在布局中，则移除
                 if card in current_widgets_in_layout:
                     self.scroll_layout.removeWidget(card)
-                    card.setParent(None) # 断开父子关系
+                    card.setParent(None) 
                     card.hide()
-                # B. 如果不匹配且不在布局中，无需操作
                 else:
                     card.hide()
-                    
-        # 2. 清空并重新添加（这是为了保证顺序正确）
-        # 在这个结构下，为了确保卡片始终按照 self.loaded_cards 的顺序显示，
-        # 我们仍然需要清空整个布局，只添加匹配项。
-        # 否则，如果使用增量添加，卡片会在列表的末尾出现。
-
-        # 我们回到使用 clear_layout，但目标是确保清空/添加操作的性能已经通过 Debouncing 优化到最低频率。
-        
-        # --- 重新使用 clear_layout，并优化清空逻辑 ---
-        
-        # 重新清空布局（现在我们知道清空是必须的，以保证顺序）
-        # 但我们优化 clear_layout，只移除可见的/在布局中的组件
-        
         self.clear_layout_widgets_only(self.scroll_layout) 
-
-        # 3. 重新添加所有匹配的卡片（按加载顺序）
         for card in cards_to_show_in_order:
             self.scroll_layout.addWidget(card)
             card.show()
-
-        # 启用更新
         self.setUpdatesEnabled(True)
 
-            
+    def clear_layout_widgets_only(self, layout):
+        """辅助函数：从给定的布局中移除所有组件。只移除 QWidget，不处理子布局，以确保卡片对象仍存在。"""
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                
+                if widget is not None:
+                    widget.setParent(None)            
+
+
     def what_label_now(self):
         """用于显示当前所关注的项目类"""
         qlabel = QLabel()
@@ -339,45 +314,20 @@ class ControlPanel(QWidget):
             self.scroll_layout.addWidget(card)
 
     def filter_self_by_consider_lowpoint(self):
-        """
-        过滤项目卡片只显示考虑低点的 (通过控制可见性实现，无重叠Bug)
-        """
-        
-        # 遍历所有卡片，根据条件显示或隐藏
+        """过滤项目卡片只显示考虑低点的 (通过控制可见性实现，无重叠Bug)"""
         for card in self.loaded_cards.values():
-            
-            # 1. 判断是否符合过滤条件 (注意：这里必须调用方法，加上括号 ())
             is_lowpoint = card.return_decision().is_consider_lowpoint()
-            
             if is_lowpoint is True:
-                # 2. 符合条件：显示卡片
                 card.show()
             else:
-                # 3. 不符合条件：隐藏卡片 (解决重叠Bug的关键)
                 card.hide()
-                
-        # 4. 通知布局系统重新计算大小，以回收被隐藏控件占用的空间
-        # 这一步是让QScrollArea/QLayout适应新高度的关键
         if self.scroll_layout:
             self.scroll_layout.update()
-            # 尝试更新父级视图以确保刷新，特别是滚动区域
             scroll_area = self.scroll_layout.parentWidget().parentWidget()
             if hasattr(scroll_area, 'viewport'):
                 scroll_area.viewport().update()
         
-    def clear_layout_widgets_only(self, layout):
-        """
-        辅助函数：从给定的布局中移除所有组件。
-        只移除 QWidget，不处理子布局，以确保卡片对象仍存在。
-        """
-        if layout is not None:
-            while layout.count():
-                item = layout.takeAt(0)
-                widget = item.widget()
-                
-                if widget is not None:
-                    # 从布局中移除并断开父子关系
-                    widget.setParent(None)
+    
 
 
             
@@ -415,7 +365,6 @@ class ControlPanel(QWidget):
                     obvious_hot += 1
                 elif ret_3d_daily <= -0.015:     # 明显杀跌
                     obvious_cold += 1
-            print('顶级亢奋数量',extreme_hot,'顶级恐慌数量',extreme_cold,'明显加速数量',obvious_hot,'明显杀跌数量',obvious_cold)
             #计算当日市场盈亏情况
             today_profit_conclusion, date_str = rd.onedayprofitconclusion() 
             decide_todayconclusiondates.append(date_str)
@@ -438,21 +387,17 @@ class ControlPanel(QWidget):
         total_cards,today_up_ratio,today_down_ratio,most_today_date
     )
 
-
     def _show_market_index_dialog(self, index_up, index_down, index_normal,
         extreme_hot, extreme_cold, obvious_hot, obvious_cold, total_cards,today_up_ratio,today_down_ratio,most_today_date):
         dialog = QDialog(self)
         dialog.setWindowTitle("市场行情指数")
         dialog.setFixedSize(780, 680)
         dialog.setFont(QFont('微软雅黑', 11))
-
         # 1. 原有30天结论（保持原样）
         market_conclusion = generate_market_conclusion(index_up, index_down, index_normal)
-
         # 2. 计算30天核心趋势方向（简化判断）
         p_up   = index_up / total_cards
         p_down = index_down / total_cards
-
         is_bull   = p_up > 0.55 or (p_up > p_down + 0.10)   # 明确偏牛
         is_bear   = p_down > 0.55 or (p_down > p_up + 0.10) # 明确偏熊
         is_shock  = not (is_bull or is_bear)                # 震荡市
@@ -461,7 +406,6 @@ class ControlPanel(QWidget):
         has_extreme_cold = extreme_cold >= max(5, total_cards * 0.1)
         has_obvious_hot  = obvious_hot >= total_cards * 0.2
         has_obvious_cold = obvious_cold >= total_cards * 0.2
-
         # 4. 【核心】多时间框架综合决策逻辑（这就是你缺的灵魂！）
         if has_extreme_hot and (is_bull or not is_bear):
             final_advice = "【牛市顶部预警】30天趋势向上但3天极度亢奋，短期冲顶概率极高！\n→ 立即减仓50~80%，留底仓等调整结束再回补！"
@@ -577,45 +521,7 @@ def generate_market_conclusion(index_up: int, index_down: int, index_normal: int
                 "• 防御型投资者：可超配红利高股息+黄金+债券混合基金\n"
                 "当前不宜重仓单一方向，分散与耐心是最优策略。")
 
-    # def load_projects_from_path(self, path):
-    #         def load_files_from_path(directory_path):
-    #             """加载指定路径下的文件（无进度框）"""
-                
-    #             # 路径检查（添加更稳健的检查）
-    #             if not os.path.isdir(directory_path):
-    #                 print(f"路径 {directory_path} 不存在或不是目录！")
-    #                 return
 
-    #             project_files = os.listdir(directory_path)
-    #             self.file_nums = len(project_files)
-                
-    #             if not project_files:
-    #                 print(f"路径 {directory_path} 中没有文件！")
-    #                 return
-    #             for index, file_name in enumerate(project_files):
-    #                 if file_name not in self.loaded_cards:
-    #                     file_path = os.path.join(directory_path, file_name)
-    #                     try:
-    #                         card = ProjectCard(file_path)
-    #                         card.visualize_requested.connect(self.visualize_requested.emit)
-    #                         self.scroll_layout.addWidget(card)
-    #                         self.loaded_cards[file_name] = card
-    #                     except Exception as e:
-    #                         print(f"创建 ProjectCard 失败 ({file_name}): {e}")
-    #                         continue
-    #         if path == balanced_path:
-    #             load_files_from_path(balanced_path)
-    #         elif path == Equity_path:
-    #             load_files_from_path(Equity_path)
-    #         elif path == index_path:
-    #             load_files_from_path(index_path)
-    #         elif path == Qdii_path:
-    #             load_files_from_path(Qdii_path)
-
-
-    def refresh_self(self):
-        print("试图刷新自己")
-        self.load_projects_from_path(self.base_path)
 
 
 
