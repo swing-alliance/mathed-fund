@@ -190,10 +190,7 @@ class ControlPanel(QWidget):
 
 
     def start_filter_timer(self):
-        """
-        当文本改变时调用，它会重置并启动定时器。
-        如果用户在 200ms 内再次输入，定时器会被重置，从而延迟执行过滤。
-        """
+        """当文本改变时调用，它会重置并启动定时器。"""
         if self.filter_timer.isActive():
             self.filter_timer.stop()
         self.filter_timer.start()
@@ -201,22 +198,64 @@ class ControlPanel(QWidget):
 
     def _perform_filtering(self):
         """
-        实际执行过滤逻辑的函数 (原 filter_cards_by_input)。
-        只有在用户停止输入 200ms 后才会被调用。
+        增量式过滤：只对需要改变状态（从布局中移除或添加）的卡片进行操作。
         """
-        search_text = self.search_input.text().lower().strip() # 加上 strip() 避免空格干扰
+        search_text = self.search_input.text().lower().strip()
         
-        # 遍历所有卡片
+        # 禁用更新
+        self.setUpdatesEnabled(False) 
+        
+        # 跟踪当前布局中的组件，用于快速判断
+        # 假设 self.scroll_layout 是您的布局
+        current_widgets_in_layout = {self.scroll_layout.itemAt(i).widget() 
+                                    for i in range(self.scroll_layout.count()) 
+                                    if self.scroll_layout.itemAt(i).widget() is not None}
+        
+        # 准备一个列表，存放本次应该显示的卡片，以便按正确的顺序重新添加
+        cards_to_show_in_order = []
+
+        # 1. 遍历所有卡片，决定其状态
         for card in self.loaded_cards.values():
-            filename = card.filename.lower()
-            fund_title = card.fund_tittle.lower()
-            is_match = search_text in fund_title or search_text in filename
+            
+            # 使用预处理数据 (推荐)
+            filename = card.search_data['filename'] 
+            fund_title = card.search_data['fund_title']
+            
+            is_match = (search_text == "") or (search_text in filename or search_text in fund_title)
+
             if is_match:
-                if not card.isVisible(): # 只有在不可见时才调用 show()
-                    card.show()
+                cards_to_show_in_order.append(card)
             else:
-                if card.isVisible(): # 只有在可见时才调用 hide()
+                # A. 如果不匹配，且卡片当前在布局中，则移除
+                if card in current_widgets_in_layout:
+                    self.scroll_layout.removeWidget(card)
+                    card.setParent(None) # 断开父子关系
                     card.hide()
+                # B. 如果不匹配且不在布局中，无需操作
+                else:
+                    card.hide()
+                    
+        # 2. 清空并重新添加（这是为了保证顺序正确）
+        # 在这个结构下，为了确保卡片始终按照 self.loaded_cards 的顺序显示，
+        # 我们仍然需要清空整个布局，只添加匹配项。
+        # 否则，如果使用增量添加，卡片会在列表的末尾出现。
+
+        # 我们回到使用 clear_layout，但目标是确保清空/添加操作的性能已经通过 Debouncing 优化到最低频率。
+        
+        # --- 重新使用 clear_layout，并优化清空逻辑 ---
+        
+        # 重新清空布局（现在我们知道清空是必须的，以保证顺序）
+        # 但我们优化 clear_layout，只移除可见的/在布局中的组件
+        
+        self.clear_layout_widgets_only(self.scroll_layout) 
+
+        # 3. 重新添加所有匹配的卡片（按加载顺序）
+        for card in cards_to_show_in_order:
+            self.scroll_layout.addWidget(card)
+            card.show()
+
+        # 启用更新
+        self.setUpdatesEnabled(True)
 
             
     def what_label_now(self):
@@ -326,19 +365,33 @@ class ControlPanel(QWidget):
             if hasattr(scroll_area, 'viewport'):
                 scroll_area.viewport().update()
         
-
+    def clear_layout_widgets_only(self, layout):
+        """
+        辅助函数：从给定的布局中移除所有组件。
+        只移除 QWidget，不处理子布局，以确保卡片对象仍存在。
+        """
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                
+                if widget is not None:
+                    # 从布局中移除并断开父子关系
+                    widget.setParent(None)
 
 
             
 
 
     def return_market_general_index(self):
+        """返回总体市场指数"""
         index_up = index_down = index_normal = 0
         extreme_hot = extreme_cold = 0      # 三天极热/极冷计数
         obvious_hot = obvious_cold = 0      # 三天明显热/明显冷
-
         total_cards = len(self.loaded_cards)
-
+        decide_todayconclusiondates = []
+        today_up=0
+        today_down=0
         for card in self.loaded_cards.values():
             rd = card.return_decision()
             
@@ -363,15 +416,31 @@ class ControlPanel(QWidget):
                 elif ret_3d_daily <= -0.015:     # 明显杀跌
                     obvious_cold += 1
 
+            #计算当日市场盈亏情况
+            today_profit_conclusion, date_str = rd.onedayprofitconclusion() 
+            decide_todayconclusiondates.append(date_str)
+            if today_profit_conclusion == "up":
+                today_up += 1
+            else:
+                today_down += 1
+        altimate_today_date_conunt={}        
+        for everydate in decide_todayconclusiondates:
+            if everydate not in altimate_today_date_conunt:
+                altimate_today_date_conunt[everydate]=1
+            altimate_today_date_conunt[everydate] +=1
+        most_today_date=max(altimate_today_date_conunt,key=altimate_today_date_conunt.get)
+
+        today_up_ratio = today_up / total_cards if total_cards > 0 else 0
+        today_down_ratio = today_down / total_cards if total_cards > 0 else 0
         self._show_market_index_dialog(
         index_up, index_down, index_normal,
         extreme_hot, extreme_cold, obvious_hot, obvious_cold,
-        total_cards
+        total_cards,today_up_ratio,today_down_ratio,most_today_date
     )
 
 
     def _show_market_index_dialog(self, index_up, index_down, index_normal,
-        extreme_hot, extreme_cold, obvious_hot, obvious_cold, total_cards):
+        extreme_hot, extreme_cold, obvious_hot, obvious_cold, total_cards,today_up_ratio,today_down_ratio,most_today_date):
         dialog = QDialog(self)
         dialog.setWindowTitle("市场行情指数")
         dialog.setFixedSize(780, 680)
@@ -425,13 +494,14 @@ class ControlPanel(QWidget):
         else:
             short_signal = "情绪平稳"
 
+
         # 6. 最终UI展示（层次清晰，一眼看懂）
         html = f"""
         <b>30天年化趋势：</b> 走强<b>{index_up}</b> 　 走弱<b>{index_down}</b> 　 表现平平<b>{index_normal}</b> （共{total_cards}只）<br><br>
         {market_conclusion.replace('【', '<br><b>【').replace('】', '】</b>')}<br><br>
         
         <b>3日极端情绪：</b> {short_signal}<br><br>
-        
+        <b>{most_today_date}当日市场整体：</b>上涨占比{today_up_ratio:.0%}，下跌占比{today_down_ratio:.0%}<br><br>
         <h3 align="center"><font >【最终综合结论】</font></h3>
         <font  size="5"><b>{final_advice.split('】')[1] if '】' in final_advice else final_advice}</b></font>
         """

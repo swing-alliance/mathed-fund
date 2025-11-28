@@ -171,6 +171,10 @@ class ProjectCard(QFrame):
         self.latest_date = get_latest_date_by_mapping(self.file_path)
         self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名
         self.fund_tittle: str = get_name_by_mapping(self.filename)  # 获取基金名称
+        self.search_data = {
+            'filename': self.filename.lower(),
+            'fund_title': self.fund_tittle.lower() # 假设 fund_tittle 就是你要搜索的标题
+        }
         self._right_click = False
         signal_emitter.refresh_ui_signal.connect(self.update_flag_visibility)
         self.design()

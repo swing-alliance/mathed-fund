@@ -164,7 +164,7 @@ class decison_maker:
         """
         MINIMUM_DAYS_BETWEEN_PEAKS = 3  # 最低点必须在最高点之后至少 N 天
         DRAWDOWN_PERCENTAGE_THRESHOLD = 0.1  # 回撤百分比阈值 (5%)
-        VOLATILITY_THRESHOLD = 0.3  # 年化波动率阈值 (30%)
+        VOLATILITY_THRESHOLD = 0.28  # 年化波动率阈值 (28%)
         # 1. 获取过去40天的极值和日期
         # 假设 these are already calculated and stored in self.*
         self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_by_period(self.df, period_days=40)
@@ -190,9 +190,18 @@ class decison_maker:
         is_current_net_value_the_low_point = (current_net_value == self.lowest_point_in_period_value)
         if is_low_after_high and has_sufficient_drawdown and has_high_volatility and is_current_net_value_the_low_point:
             return True
-        
         return False
 
+    def onedayprofitconclusion(self):
+        """一天的收益结论"""
+        lasttwo=self.df.tail(2)
+        if len(lasttwo)<2:
+            print("数据不足，无法计算一天收益结论。")
+            return
+        if lasttwo['累计净值'].iloc[-1]>lasttwo['累计净值'].iloc[-2]:
+            return "up" ,lasttwo['净值日期'].iloc[-1].strftime('%Y-%m-%d')
+        else:
+            return "down",lasttwo['净值日期'].iloc[-1].strftime('%Y-%m-%d')
 
 class buy_tracker:
     """追踪完整的交易过程"""
