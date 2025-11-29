@@ -79,7 +79,7 @@ class decison_maker:
             self.fund_code=os.path.basename(path).split('.')[0]
         self.df['净值日期']=pd.to_datetime(self.df['净值日期'])
         self.newest_date=self.df['净值日期'].max().strftime('%Y-%m-%d')
-        self.max_annualized_volatility,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)
+        self.max_annualized_volatility,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)#365天最大年化波动率
         self.sharp_constant = self.year_rate_since_start_this() / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
         self.total_days=how_long_since_start(self.fund_code,self.df)
 
@@ -163,8 +163,8 @@ class decison_maker:
         判断是否处于低点买入的考虑范围，基于严格的日期、回撤和波动率条件。
         """
         MINIMUM_DAYS_BETWEEN_PEAKS = 3  # 最低点必须在最高点之后至少 N 天
-        DRAWDOWN_PERCENTAGE_THRESHOLD = 0.1  # 回撤百分比阈值 (5%)
-        VOLATILITY_THRESHOLD = 0.28  # 年化波动率阈值 (28%)
+        DRAWDOWN_PERCENTAGE_THRESHOLD = 0.1  # 回撤百分比阈值 (10%),40天
+        VOLATILITY_THRESHOLD = 0.20  # 年化波动率阈值 (20%)
         # 1. 获取过去40天的极值和日期
         # 假设 these are already calculated and stored in self.*
         self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_by_period(self.df, period_days=40)

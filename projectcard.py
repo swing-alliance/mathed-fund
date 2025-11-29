@@ -383,11 +383,8 @@ class ProjectCard(QFrame):
             if "系统" in group_name:
                 if not os.path.exists(groups_cache_path):
                     with open(groups_cache_path, 'w', newline='', encoding='utf-8') as f:
-                        writer = csv.writer(f)
-                        # 写入表头（如果需要）
+                        writer = csv.writer(f)# 写入表头（如果需要）
                         writer.writerow(['group_name', 'file_path'])
-            
-            # 读取已有记录，检查是否存在相同的记录
             existing_records = set()  # 使用 set 来避免重复
             if os.path.exists(groups_cache_path):
                 with open(groups_cache_path, 'r', newline='', encoding='utf-8') as f:
@@ -467,12 +464,11 @@ class ProjectCard(QFrame):
 
 
 class MessageBoxYesOrNo(QMessageBox):
+    """自定义的消息框，带有“确认”和“取消”按钮"""
     def __init__(self, parent=None, title="提示", message="确定吗？"):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setText(message)
-
-        # 设置中文按钮
         self.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         self.button(QMessageBox.Yes).setText("确认")
         self.button(QMessageBox.No).setText("取消")
@@ -481,7 +477,7 @@ class MessageBoxYesOrNo(QMessageBox):
     def exec_(self):
         response = super().exec_()
         if response == QMessageBox.Yes:
-            return True  # 用户点击了“确认”
+            return True 
         elif response == QMessageBox.No:
             return False  # 用户点击了“取消”
-        return None  # 如果出现其他情况
+        return None  

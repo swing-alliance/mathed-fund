@@ -451,8 +451,6 @@ class MainWindow(QMainWindow):
             self.progress_dialog.setFont(QFont('微软雅黑', 10))
             self.progress_dialog.setFixedSize(600, 100)
             self.progress_dialog.canceled.connect(self.on_cancel_button_clicked)
-            
-            # 启动后台线程进行文件更新
             self.worker.start()
 
     def update_progress(self, current, total):
