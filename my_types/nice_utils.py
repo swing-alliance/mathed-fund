@@ -28,7 +28,11 @@ def where_to_go(code):
     "根据基金代码拿到数据，保存到文件夹"
     print(f'开始处理{code}')
     try:
-        fund_info_df = ak.fund_individual_basic_info_xq(symbol=code)
+        try:
+            fund_info_df = ak.fund_individual_basic_info_xq(symbol=code)
+        except Exception as e:
+            print(f"失败 {code}: {e}")
+            return
         fund_type = fund_info_df[fund_info_df['item'] == '基金类型']['value'].iloc[0]
         df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
         file_name = f"{code}.csv"
@@ -311,9 +315,30 @@ def collect_csv_files():
     else:
         print('未找到任何 CSV 文件')
 
+
+def flush_outdated_fund(path):
+    threshold_date = datetime(2025, 9, 1)
+    for file in os.listdir(path):
+        if not file.endswith('.csv'):
+            continue
+        file_path = os.path.join(path, file)
+        try:
+            df = pd.read_csv(file_path, usecols=['净值日期'])
+            df['净值日期'] = pd.to_datetime(df['净值日期'])
+            latest_date = df['净值日期'].max()
+            if latest_date < threshold_date:
+                os.remove(file_path)
+                print(f"已删除文件: {file_path}")
+            else:
+                print(f"文件 {file_path} 没有过期")
+        except Exception as e:
+            print(f"处理文件失败: {file_path}，错误: {e}")
+
+
 if __name__ == "__main__":
-       for code in range(28000,30000):
-            zfilledcode=str(code).zfill(6)
-            where_to_go(zfilledcode)
-        
+       #截至110000到119999
+    #    for code in range(501000,600000):
+    #         zfilledcode=str(code).zfill(6)
+    #         where_to_go(zfilledcode)
+        flush_outdated_fund(balanced_path)
         
