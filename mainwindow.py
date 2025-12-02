@@ -83,8 +83,10 @@ class MainWindow(QMainWindow):
 
         batch_redirect_action = QAction("批量转到组(bug)", self)
         batch_redirect_action.triggered.connect(self.batch_redirect)
-        group_resort_action = QAction("当前组重新排序夏普比最大", self)
+        group_resort_action = QAction("当前组重新排序365天夏普比最大", self)
         group_resort_action.triggered.connect(self.group_resort)
+        group_resort_60days_sharpe_action = QAction("当前组60天夏普比排序最大", self)
+        group_resort_60days_sharpe_action.triggered.connect(self.group_sort_by_largest_sharpe_60days)
         group_resort_yearly_return_action = QAction("当前组年化收益排序最大", self)
         group_resort_yearly_return_action.triggered.connect(self.group_sort_by_max_yearly_return)
         group_resort_80days_yearly_return_action = QAction("当前组80天年化收益排序最大", self)
@@ -122,6 +124,7 @@ class MainWindow(QMainWindow):
         planpage_action.setFont(QFont('微软雅黑', 11))
         batch_redirect_action.setFont(QFont('微软雅黑', 11))
         group_resort_action.setFont(QFont('微软雅黑', 11))
+        group_resort_60days_sharpe_action.setFont(QFont('微软雅黑', 11))
         group_resort_yearly_return_action.setFont(QFont('微软雅黑', 11))
         group_resort_votality_action.setFont(QFont('微软雅黑', 11))
         group_resort_80days_yearly_return_action.setFont(QFont('微软雅黑', 11))
@@ -151,6 +154,7 @@ class MainWindow(QMainWindow):
         data_menu.addAction(updateQdii_action)
         calculate_menu.addAction(batch_redirect_action)
         calculate_menu.addAction(group_resort_action)
+        calculate_menu.addAction(group_resort_60days_sharpe_action)
         calculate_menu.addAction(group_resort_yearly_return_action)
         calculate_menu.addAction(group_resort_votality_action)
         
@@ -383,8 +387,13 @@ class MainWindow(QMainWindow):
         """分组重排"""
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
-            central_widget.resort_self()#pannel_plan中定义
+            central_widget.resort_self()#pannel_plan中定义的夏普比算法
     
+    def group_sort_by_largest_sharpe_60days(self):
+        """分组重排, 按60天夏普比排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_largest_sharpe_60days()
     def group_sort_by_max_yearly_return(self):
         """分组重排, 按最大年化收益排序"""
         central_widget = self.centralWidget()

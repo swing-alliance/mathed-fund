@@ -225,54 +225,133 @@ def linear_regression_sliding_window(code: str, df: pd.DataFrame, window_size: i
 #     return np.mean(annualized_returns) / np.std(annualized_returns)
 
 #最高年化波动
-def get_annualized_volatility_for_period(code: str, df: pd.DataFrame, period_days: int) -> tuple[float, pd.Timestamp]:
+def get_annualized_volatility_for_period(
+    code: str, 
+    df: Optional[pd.DataFrame] = None, 
+    period_days: int = 365,
+    exclude_zero_returns: bool = True
+) -> Tuple[Optional[float], Optional[pd.Timestamp], Optional[pd.Timestamp], int]:
     """
-    计算并返回基金在过去指定天数内的年化波动率。
-
+    计算基金在过去指定天数内的年化波动率（简化版，无最小交易日限制）
+    
     参数:
-    - code (str): 基金代码，例如 '001211'。
-    - df (pd.DataFrame): 基金数据，必须包含'净值日期'和'累计净值'列。
-    - period_days (int): 要计算的时间段（例如过去 365 天或 30 天）。
+    ----------
+    code : str
+        基金代码，例如 '001211'
+    df : pd.DataFrame, optional
+        基金数据DataFrame，必须包含'净值日期'和'累计净值'列。
+        如果为None或空，则从akshare获取
+    period_days : int, default=365
+        要计算的时间段（日历日）
+    exclude_zero_returns : bool, default=True
+        是否排除收益率为0的数据点（可能由于数据问题）
     
     返回:
-    - tuple[float, pd.Timestamp]: 一个元组，包含年化波动率和计算时使用的日期范围。
-                                  如果数据获取失败，则返回 (None, None)。
+    -------
+    tuple (volatility, start_date, end_date, actual_trading_days)
+        - volatility : 年化波动率（小数形式，如0.15表示15%），计算失败返回None
+        - start_date : 计算窗口的实际开始日期（交易日）
+        - end_date : 计算窗口的结束日期（最新交易日）
+        - actual_trading_days : 实际使用的交易日数量
     """
-    if df.empty:
+    # ==================== 1. 数据获取 ====================
+    if df is None or df.empty:
         try:
             df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
             if df.empty:
-                print(f"基金 {code} 数据获取失败：返回数据为空。")
-                return None, None
+                print(f"[{code}] 数据为空")
+                return None, None, None, 0
         except Exception as e:
-            print(f"获取基金 {code} 数据失败：{e}")
-            return None, None
+            print(f"[{code}] 数据获取失败: {e}")
+            return None, None, None, 0
     else:
         df = df.copy()
-        df['净值日期'] = pd.to_datetime(df['净值日期'])
-        df = df.sort_values('净值日期')
+    
+    # ==================== 2. 数据清洗 ====================
+    try:
+        # 检查必要列
+        if not {'净值日期', '累计净值'}.issubset(df.columns):
+            print(f"[{code}] 缺少必要列")
+            return None, None, None, 0
+        
+        # 基础清洗
+        df['净值日期'] = pd.to_datetime(df['净值日期'], errors='coerce')
         df['累计净值'] = pd.to_numeric(df['累计净值'], errors='coerce')
-        df.dropna(subset=['累计净值'], inplace=True)
-
-        # 计算时间段内的起始日期
-        end_date = df['净值日期'].max()  # 数据的最后日期
-        start_date = end_date - timedelta(days=period_days)  # 计算过去指定天数的起始日期
-
-        # 筛选出数据范围内的数据
-        df_period = df[df['净值日期'] >= start_date]
+        df = df.dropna(subset=['净值日期', '累计净值'])
+        df = df.sort_values('净值日期')
+        df = df.drop_duplicates(subset='净值日期', keep='last')
         
-        if len(df_period) < 2:
-            print(f"数据点不足以计算过去 {period_days} 天的年化波动率。")
-            return None, None
-
-        # 计算每日收益率
-        daily_returns = df_period['累计净值'].pct_change().dropna()
+        if len(df) < 2:
+            print(f"[{code}] 数据点不足")
+            return None, None, None, 0
+            
+    except Exception as e:
+        print(f"[{code}] 数据清洗失败: {e}")
+        return None, None, None, 0
+    
+    # ==================== 3. 确定时间窗口 ====================
+    try:
+        # 设置日期索引
+        df.set_index('净值日期', inplace=True)
         
-        # 计算波动率并年化
-        daily_volatility = daily_returns.std()
-        annualized_volatility = daily_volatility * np.sqrt(252)
-
-        return annualized_volatility, start_date
+        # 获取最新日期
+        end_date = df.index.max()
+        start_date_calendar = end_date - timedelta(days=period_days)
+        
+        # 筛选时间段
+        period_data = df[df.index >= start_date_calendar].copy()
+        actual_trading_days = len(period_data)
+        
+        # 实际开始日期（第一个交易日）
+        actual_start_date = period_data.index.min() if actual_trading_days > 0 else None
+        
+    except Exception as e:
+        print(f"[{code}] 时间窗口确定失败: {e}")
+        return None, None, None, 0
+    
+    # ==================== 4. 波动率计算 ====================
+    if actual_trading_days < 2:
+        print(f"[{code}] 交易日数不足2天")
+        return None, None, None, 0
+    
+    try:
+        # 提取净值序列
+        nav_series = period_data['累计净值']
+        
+        # 计算收益率
+        returns = nav_series.pct_change().dropna()
+        
+        # 过滤零收益率
+        if exclude_zero_returns:
+            returns = returns[returns.abs() > 1e-8]
+        
+        # 检查是否有足够收益率数据
+        if len(returns) < 1:
+            print(f"[{code}] 无有效收益率数据")
+            return None, None, None, 0
+        daily_vol = returns.std()
+        if actual_trading_days > 1:
+            # 简单方法：使用实际交易日密度估算年交易日
+            days_span = (end_date - actual_start_date).days + 1
+            if days_span > 0:
+                # 计算交易日密度
+                trading_density = actual_trading_days / days_span
+                # 估算年交易日，限制在合理范围
+                annual_days = min(260, max(200, int(trading_density * 365)))
+            else:
+                annual_days = 252
+        else:
+            annual_days = 252
+        annualized_vol = daily_vol * np.sqrt(annual_days)
+        return (
+            annualized_vol, 
+            pd.Timestamp(actual_start_date) if actual_start_date else None,
+            pd.Timestamp(end_date),
+            actual_trading_days
+        )
+    except Exception as e:
+        print(f"[{code}] 波动率计算失败: {e}")
+        return None, None, None, 0
 
 #最大回撤率
 
@@ -1053,7 +1132,12 @@ def is_low_and_go_up(code, df=None, window_days=120):
     return position
 
 
-
+def support_line_lifting(df,observed_days=60):
+    "至少两个支撑点，且后一个支撑点高于前一个支撑点"
+    df['净值日期'] = pd.to_datetime(df['净值日期'])
+    df['净值日期'] = df['净值日期'].dt.date
+    df = df.set_index('净值日期')
+    
 
 
 
@@ -1105,7 +1189,19 @@ if __name__ == "__main__":
     # print(max_volatility)
     # position=is_low_and_go_up(code='501005',df=None,window_days=100)
     # print(position)
-    output=yearly_return_since_start(code='000216',df=get_df_by_path(r'A:\projects\money2\my_types\Qdii\000216.csv'))
-    print(output)
+    # output=yearly_return_since_start(code='000216',df=get_df_by_path(r'A:\projects\money2\my_types\Qdii\000216.csv'))
+    # print(output)
 
+    vol, start, end, days = get_annualized_volatility_for_period(
+        code="000216",  # 示例基金代码
+        df=None,
+        period_days=365,
+        min_trading_days=60
+    )
+    
+    if vol is not None:
+        print(f"\n结果:")
+        print(f"年化波动率: {vol:.2%}")
+        print(f"时间窗口: {start.date()} 到 {end.date()}")
+        print(f"交易日数: {days}")
     

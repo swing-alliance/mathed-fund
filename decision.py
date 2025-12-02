@@ -79,84 +79,29 @@ class decison_maker:
             self.fund_code=os.path.basename(path).split('.')[0]
         self.df['净值日期']=pd.to_datetime(self.df['净值日期'])
         self.newest_date=self.df['净值日期'].max().strftime('%Y-%m-%d')
-        self.max_annualized_volatility,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)#365天最大年化波动率
+        self.max_annualized_volatility,_,_,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)#365天最大年化波动率
         self.sharp_constant = self.year_rate_since_start_this() / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
         self.total_days=how_long_since_start(self.fund_code,self.df)
 
     def year_rate_since_start_this(self,expected_interval_days=None):
-        """计算成立以来的年化收益率"""
+        """计算成立以来或者指定天数的年化收益率"""
         if expected_interval_days is not None:
             return yearly_return_since_start(code=None,df=self.df,expected_interval_days=expected_interval_days)
-        return yearly_return_since_start(code=None,df=self.df)
+        return yearly_return_since_start(code=None,df=self.df,expected_interval_days=365)#默认计算最近365天以来的年化收益率
 
 
     def short_term_return(self,days=3):
         """计算短期收益率"""
         return short_term_daily_return(code=None,df=self.df,days=days)
 
-    def self_check(self,min_year_rate=0.08,sharp_ratio_threshold=None):
-        """检查这是不是一支合格的基金"""
-        if self.yearly_return_since_start<min_year_rate:
-            print(f"基金 {self.fund_code} 成立以来年化收益率为 {self.yearly_return_since_start:.2%}，低于{min_year_rate:.2%}，不合格。")
-            return False
-        if self.sharp_constant<sharp_ratio_threshold:
-            print(f"基金 {self.fund_code} 夏普比率为 {self.sharp_constant:.2f}，低于{sharp_ratio_threshold}，不合格。")
-            return False
-        return True
 
-    def caculate_year_rate_sliding(self):
-        result=year_rate_sliding(self.fund_code,self.df,base_date=self.ayear_ago_date,window_size_days=20,step_size_days=2)
-        print(result)
     
 
-    def is_instant_bounce(self,window_size=None):
-        """多模态针对下降趋势的基金，在近几个交易日检查是否有回调，触底反弹的情况"""
-        func_str,yearly_return_index,slope=linear_regression_sliding_window(code=self.fund_code,df=self.df,window_size=window_size)
-        if slope<0:
-            try:
-                worker_date=self.df['净值日期'].max()
-                last_day_data = self.df[self.df['净值日期'] == worker_date]
-                yesterday_date = worker_date - pd.Timedelta(days=1)
-                yesterday_data = self.df[self.df['净值日期'] == yesterday_date]
-                if not last_day_data.empty and not yesterday_data.empty:
-                    latest_day_value = last_day_data['累计净值'].values[0]
-                    yesterday_value = yesterday_data['累计净值'].values[0]
-                    if latest_day_value > yesterday_value*1.001:  # 假设反弹阈值为0.1%
-                        print(f"基金 {self.fund_code} 在 {worker_date.strftime('%Y-%m-%d')} 出现触底反弹，建议关注。")
-                        return True
-                    else:
-                        print(f"基金 {self.fund_code} 在 {worker_date.strftime('%Y-%m-%d')} 未出现触底反弹。")
-                        return False
-                else:
-                    print(f"无法获取基金 {self.fund_code} 的最近两天数据，无法判断是否触底反弹。")
-                    return
-            except Exception as e:
-                print(f"试图检查是否触底反弹失败: {e}")
-                return
-        else:
-            print(f"基金 {self.fund_code} 处于上升趋势，暂时不考虑反弹。")
-        pass
-    def get_risky_reward(self,yearly_return_since_start=0.012,max_annualized_volatility=0.4):
-        """短期，高风险高回报"""
-        if self.yearly_return_since_start>yearly_return_since_start and self.max_annualized_volatility>max_annualized_volatility:
-            return True
-        else:
-            return False
+
+
+
         
-    
-    def get_long_term_return(self,days_since_start=1618):
-        """长期回报,定投"""
-        if self.yearly_return_since_start>0.2 and self.max_annualized_volatility<0.3 and self.total_days>days_since_start if days_since_start is not None else True:
-            return True
-        else:
-            return False
-        
-    def get_low_point(self,max_annualized_volatility=0.4,days_since_start=1618):
-        """超低点"""
-        if self.yearly_return_since_start<0.001 and self.max_annualized_volatility>max_annualized_volatility and self.total_days>days_since_start if days_since_start is not None else True:
-            return True
-        else:
-            return False
+
         
     def is_consider_lowpoint(self):
         """
@@ -164,7 +109,7 @@ class decison_maker:
         """
         MINIMUM_DAYS_BETWEEN_PEAKS = 3  # 最低点必须在最高点之后至少 N 天
         DRAWDOWN_PERCENTAGE_THRESHOLD = 0.1  # 回撤百分比阈值 (10%),40天
-        VOLATILITY_THRESHOLD = 0.20  # 年化波动率阈值 (20%)
+        VOLATILITY_THRESHOLD = 0.12  # 年化波动率阈值 (12%)
         # 1. 获取过去40天的极值和日期
         # 假设 these are already calculated and stored in self.*
         self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_by_period(self.df, period_days=40)
@@ -172,7 +117,7 @@ class decison_maker:
         if self.df.empty:
             return False
         current_net_value = self.df['累计净值'].iloc[-1]
-        current_annualized_volatility = self.max_annualized_volatility # 假设此属性存在
+        current_annualized_volatility = self.max_annualized_volatility # 已经计算了最大年化波动率
         time_difference = self.lowest_point_date - self.highest_point_date
         is_low_after_high = time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS)
 
@@ -202,6 +147,12 @@ class decison_maker:
             return "up" ,lasttwo['净值日期'].iloc[-1].strftime('%Y-%m-%d')
         else:
             return "down",lasttwo['净值日期'].iloc[-1].strftime('%Y-%m-%d')
+
+    def max_sharp_ratio_for_days(self,period_days=60):
+        "默认计算60天内的最大夏普比率"
+        period_volatility,_,_,_= get_annualized_volatility_for_period(code=None,df=self.df,period_days=period_days)
+        return self.year_rate_since_start_this(expected_interval_days=period_days)/period_volatility if period_volatility!=0 else 0
+
 
 class buy_tracker:
     """追踪完整的交易过程"""

@@ -257,15 +257,16 @@ class ControlPanel(QWidget):
 
 
     def resort_self(self):
-        """重新排序项目卡片按照夏普比率从大到小"""
+        """重新排序项目卡片按照365天夏普比率从大到小"""
         sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().sharp_constant, reverse=True)
         for card in self.loaded_cards.values():
             self.scroll_layout.removeWidget(card)
         for card in sorted_cards:
             self.scroll_layout.addWidget(card)
-    def resort_self_by_largest_yearly_return(self):
-        """重新排序项目卡片按照开始年化收益率从大到小"""
-        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(), reverse=True)
+
+    def resort_self_by_largest_sharpe_60days(self):
+        """重新排序项目卡片按照60天夏普比率从大到小"""
+        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().max_sharp_ratio_for_days(period_days=60), reverse=True)
         for card in self.loaded_cards.values():
             self.scroll_layout.removeWidget(card)
         for card in sorted_cards:
