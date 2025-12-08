@@ -12,6 +12,7 @@ from sys_center import SysCentral
 import shutil
 
 
+
 balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
 Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
@@ -39,6 +40,7 @@ class MainWindow(QMainWindow):
         plan_menu = menu_bar.addMenu("计划")
         data_menu = menu_bar.addMenu("数据")
         calculate_menu = menu_bar.addMenu("计算")
+        AI_menu = menu_bar.addMenu("AI")
         
         load_action = QAction("加载文件", self)
         load_action.triggered.connect(self.show_graph_for_file)
@@ -104,7 +106,8 @@ class MainWindow(QMainWindow):
         group_return_market_index_action = QAction("返回总体市场指数", self)
         group_return_market_index_action.triggered.connect(self.return_market_index)
 
-
+        ai_prompt_action = QAction("组导出AI提示词", self)
+        ai_prompt_action.triggered.connect(self.export_ai_prompt)
 
         load_group_action.setFont(QFont('微软雅黑', 11))
         add_group_action.setFont(QFont('微软雅黑', 11))
@@ -133,6 +136,7 @@ class MainWindow(QMainWindow):
         group_resort_14days_yearly_return_action.setFont(QFont('微软雅黑', 11))
         group_fileter_lowpoint_action.setFont(QFont('微软雅黑', 11))
         group_return_market_index_action.setFont(QFont('微软雅黑', 11))
+        ai_prompt_action.setFont(QFont('微软雅黑', 11))
 
 
         
@@ -164,6 +168,8 @@ class MainWindow(QMainWindow):
         calculate_menu.addAction(group_resort_3days_yearly_return_action)
         calculate_menu.addAction(group_fileter_lowpoint_action)
         calculate_menu.addAction(group_return_market_index_action)
+    
+        AI_menu.addAction(ai_prompt_action)
 
 
         
@@ -478,6 +484,21 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "错误", f"发生错误: {error_message}")
     def on_cancel_button_clicked(self):
         self.worker.terminate()
+
+
+
+    def export_ai_prompt(self):
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.export_ai_prompt()
+
+
+
+
+
+
+
+
 
 class FileUpdateWorker(QThread):
     progress = pyqtSignal(int, int)  # 用于传递进度的信号 (当前文件, 总文件数)

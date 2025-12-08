@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QFileDialog, QLabel, QFrame, QMessageBox,
     QSpacerItem, QSizePolicy, QScrollArea,QLineEdit, QComboBox,QDialog,QApplication,QMenu,QAction,QProgressDialog
 )
+import pyperclip
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont 
@@ -12,6 +13,7 @@ import pandas as pd
 import shutil
 from projectcard import ProjectCard
 from PyQt5.QtCore import QTimer
+from fundholding import stocker_prompt
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
 
@@ -28,7 +30,7 @@ class ControlPanel(QWidget):
     def __init__(self, parent=None,base_path=None):
         super().__init__(parent)
         self.loaded_cards = {}#用于缓存已加载的卡片
-        self.base_path = base_path 
+        self.base_path = base_path # 当前所关注的文件夹路径
         self.file_nums = len(os.listdir(base_path))
         main_layout = QVBoxLayout(self)
 
@@ -328,6 +330,38 @@ class ControlPanel(QWidget):
             if hasattr(scroll_area, 'viewport'):
                 scroll_area.viewport().update()
         
+    
+    def export_ai_prompt(self):
+        if "组" in self.index_label.text():
+            codes = []
+            for card in self.loaded_cards.values():
+                codes.append(card.filename)
+            if len(codes) > 10:
+                QMessageBox.warning(
+                    self, 
+                    "导出数量超限", 
+                    f"当前选择了 {len(codes)} 只股票，最多只能导出 10 只。\n请减少选择后重试。",
+                    QMessageBox.Ok
+                )
+                return
+            prompt_instance = stocker_prompt(code=None, codes=codes)
+            prompt = prompt_instance.prompt_text_multiple
+            pyperclip.copy(prompt)
+            QMessageBox.information(
+                self,
+                "导出成功",
+                f"已成功生成 {len(codes)} 只股票的 Prompt，并已复制到剪切板！\n",
+                QMessageBox.Ok
+            )
+        else:
+            QMessageBox.warning(
+                self, 
+                "导出失败", 
+                f"只能在组策略下导出 Prompt。",
+                QMessageBox.Ok
+            )
+
+
     
 
 
