@@ -14,7 +14,7 @@ import math
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 
@@ -1139,8 +1139,40 @@ def support_line_lifting(df,observed_days=60):
     df = df.set_index('净值日期')
     
 
-
-
+class export_top50():
+    "已经弃用"
+    def __init__(self,paths):
+        self.excutor=ThreadPoolExecutor(max_workers=8)
+        futures=[]
+        for path in paths:
+            future=self.executor.submit(self.find_single_3days,path)
+            future.append(self.executor.submit(future))
+        for done in as_completed(futures):
+            eventally_addup_raw,basename=done.result()
+    def find_single_3days(self, path):
+        try:
+            df = pd.read_csv(path)
+            df['净值日期'] = pd.to_datetime(df['净值日期'])
+            df = df.sort_values(by='净值日期', ascending=True).reset_index(drop=True)
+            if len(df) < 4:
+                print("❌ 错误：数据不足，至少需要 4 个交易日的数据才能计算出 3 日累计涨跌幅。")
+                return 0.0 # 返回默认值
+            df['日涨跌幅'] = df['累计净值'].pct_change()
+            initial_nav = df.iloc[-4]['累计净值'] 
+            final_nav = df.iloc[-1]['累计净值']
+            eventually_addup_raw = (final_nav / initial_nav) - 1
+            basename=os.path.basename(path).split('.')[0]
+            return eventually_addup_raw,basename
+        except FileNotFoundError:
+            print(f"❌ 错误：文件路径 '{path}' 未找到。")
+            return 0.0
+        except KeyError as e:
+            print(f"❌ 错误：请确保 CSV 文件中包含 '累计净值' 和 '净值日期' 两列。缺失列名: {e}")
+            return 0.0
+        except Exception as e:
+            print(f"❌ 发生了一个意外错误: {e}")
+            return 0.0
+        
 
 if __name__ == "__main__":
     # result =year_rate_sliding('000309')
@@ -1192,16 +1224,18 @@ if __name__ == "__main__":
     # output=yearly_return_since_start(code='000216',df=get_df_by_path(r'A:\projects\money2\my_types\Qdii\000216.csv'))
     # print(output)
 
-    vol, start, end, days = get_annualized_volatility_for_period(
-        code="000216",  # 示例基金代码
-        df=None,
-        period_days=365,
-        min_trading_days=60
-    )
+    # vol, start, end, days = get_annualized_volatility_for_period(
+    #     code="000216",  # 示例基金代码
+    #     df=None,
+    #     period_days=365,
+    #     min_trading_days=60
+    # )
     
-    if vol is not None:
-        print(f"\n结果:")
-        print(f"年化波动率: {vol:.2%}")
-        print(f"时间窗口: {start.date()} 到 {end.date()}")
-        print(f"交易日数: {days}")
-    
+    # if vol is not None:
+    #     print(f"\n结果:")
+    #     print(f"年化波动率: {vol:.2%}")
+    #     print(f"时间窗口: {start.date()} 到 {end.date()}")
+    #     print(f"交易日数: {days}")
+    exportinstance = export_top50()
+    cvalue = exportinstance.find_single_3days(r"C:\Users\zhou\Desktop\fund\my_types\Equity\000696.csv")
+    print(cvalue)

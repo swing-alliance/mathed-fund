@@ -108,7 +108,8 @@ class MainWindow(QMainWindow):
 
         ai_prompt_action = QAction("组导出AI提示词", self)
         ai_prompt_action.triggered.connect(self.export_ai_prompt)
-
+        ai_prompt_top50_action = QAction("计划导出AI提示词top50", self)
+        ai_prompt_top50_action.triggered.connect(self.export_ai_prompt_top50)
         load_group_action.setFont(QFont('微软雅黑', 11))
         add_group_action.setFont(QFont('微软雅黑', 11))
         del_group_action.setFont(QFont('微软雅黑', 11))
@@ -137,6 +138,7 @@ class MainWindow(QMainWindow):
         group_fileter_lowpoint_action.setFont(QFont('微软雅黑', 11))
         group_return_market_index_action.setFont(QFont('微软雅黑', 11))
         ai_prompt_action.setFont(QFont('微软雅黑', 11))
+        ai_prompt_top50_action.setFont(QFont('微软雅黑', 11))
 
 
         
@@ -170,6 +172,7 @@ class MainWindow(QMainWindow):
         calculate_menu.addAction(group_return_market_index_action)
     
         AI_menu.addAction(ai_prompt_action)
+        AI_menu.addAction(ai_prompt_top50_action)
 
 
         
@@ -493,7 +496,10 @@ class MainWindow(QMainWindow):
             central_widget.export_ai_prompt()
 
 
-
+    def export_ai_prompt_top50(self):
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.export_top_50()
 
 
 
