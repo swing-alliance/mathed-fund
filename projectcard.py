@@ -7,13 +7,14 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont 
-from qdialogue import FundInfoDialog,List_group_dialog
+from qdialogue import FundInfoDialog,List_group_dialog,FundHoldingDialog
 import akshare as ak
 import json
 from signal_handler import signal_emitter
 import pandas as pd 
 from calculate_data import year_rate_sliding
 from decision import decison_maker
+from fundholding import get_holdings
 import csv
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
@@ -211,6 +212,19 @@ class ProjectCard(QFrame):
             print("对话框被接受。")
         else:
             print("对话框被拒绝或关闭。")
+    
+    def show_fund_holding(self):
+        """在线显示基金持仓对话框"""
+        hold_df,_,valider=get_holdings(self.filename)
+        if valider:
+            self.Holding_dialogue = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date)
+            result = self.Holding_dialogue.exec_()
+            if result == QDialog.Accepted:
+                print("对话框被接受。")
+            else:
+                print("对话框被拒绝或关闭。")
+        else:
+            pass
 
     def discard(self):
         """丢弃操作：删除路径下的文件并刷新卡片（清理缓存索引）"""
@@ -313,7 +327,8 @@ class ProjectCard(QFrame):
 
             info_action = QAction("转到详细信息", self)
             info_action.triggered.connect(self.show_fund_info)
-            
+            holding_action = QAction("转到持仓", self)
+            holding_action.triggered.connect(self.show_fund_holding)
             visualize_action = QAction("转到图", self)
             visualize_action.triggered.connect(self._emit_visualize_request)
             
@@ -336,6 +351,7 @@ class ProjectCard(QFrame):
             add_to_group_action = QAction("加入或转到已有分组", self)
             add_to_group_action.triggered.connect(lambda: self.add_to_group())
             
+            holding_action.setFont(QFont('微软雅黑', 11))
             add_to_group_action.setFont(QFont('微软雅黑', 11))
             discard_action.setFont(QFont('微软雅黑', 11))
             info_action.setFont(QFont('微软雅黑', 11))
@@ -343,6 +359,7 @@ class ProjectCard(QFrame):
             caculate_year_rate_sliding_action.setFont(QFont('微软雅黑', 11))
 
             menu.addAction(info_action)
+            menu.addAction(holding_action)
             menu.addAction(visualize_action)
             menu.addAction(caculate_year_rate_sliding_action)
             menu.addAction(add_to_group_action)

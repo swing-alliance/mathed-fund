@@ -7,6 +7,7 @@ codes=["000216","000043","501025","002834","018156"]
 
 
 def get_holdings(fund_code, report_year=datetime.datetime.now().year):
+    "得到今年最新的股票持仓情况"
     try:
         holdings_df = ak.fund_portfolio_hold_em(symbol=fund_code, date=report_year)
         if not holdings_df.empty:
@@ -77,5 +78,5 @@ class stocker_prompt():
                 self.prompt_text_multiple+=line + '\n'
 
 if __name__ == '__main__':
-    # stocker_prompt(code="001956",codes=None)
-    stocker_prompt(code=None,codes=codes)
+    print(get_holdings(fund_code="001956"))
+    # stocker_prompt(code=None,codes=codes)

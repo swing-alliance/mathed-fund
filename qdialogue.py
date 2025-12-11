@@ -275,6 +275,63 @@ class FundInfoDialog(QDialog):
 
 
 
+
+class FundHoldingDialog(QDialog):
+    """
+    重仓持股展示对话框（极简纯净版）
+    仅使用 微软雅黑 10号 普通字体
+    无加粗、无颜色、无背景、无网格线
+    """
+    def __init__(self, df, fund_name="某基金", report_date="最新", parent=None):
+        super().__init__(parent)
+        font = QFont("微软雅黑", 10)
+        font.setBold(False)
+        self.setFont(font)
+        self.df = df.reset_index(drop=True)
+        self.fund_name = fund_name
+        self.report_date = report_date
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowTitle(f"{self.fund_name} 前十大重仓股")
+        self.resize(760, 520)
+        layout = QVBoxLayout(self)
+        title = QLabel(f"{self.fund_name} 重仓持股 ({self.report_date})")
+        title.setFont(QFont("微软雅黑", 13))  # 仅放大，不加粗
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+        self.table = QTableWidget()
+        self.table.setRowCount(len(self.df))
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels([
+            "排名", "股票代码", "股票名称", "占净值比例", "持股数（股）", "持仓市值（元）"
+        ])
+        for idx, row in self.df.iterrows():
+            self.table.setItem(idx, 0, QTableWidgetItem(str(idx + 1)))
+            self.table.setItem(idx, 1, QTableWidgetItem(row["股票代码"]))
+            self.table.setItem(idx, 2, QTableWidgetItem(row["股票名称"]))
+            self.table.setItem(idx, 3, QTableWidgetItem(f"{row['占净值比例']:.2f}%"))
+            self.table.setItem(idx, 4, QTableWidgetItem(f"{row['持股数']:,.0f}"))
+            self.table.setItem(idx, 5, QTableWidgetItem(f"{row['持仓市值']:,.2f}"))
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setAlternatingRowColors(False)   # 连交替色都不用了
+        self.table.setShowGrid(False)                # 无网格线
+        self.table.verticalHeader().setVisible(False)  # 隐藏行号
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        layout.addWidget(self.table)
+        total_ratio = self.df["占净值比例"].sum()
+        footer = QLabel(f"前十大重仓股合计占净值比例：{total_ratio:.2f}%")
+        footer.setAlignment(Qt.AlignRight)
+        layout.addWidget(footer)
+        self.setLayout(layout)
+
 class GroupConfigDialog(QDialog):
     """对话框输入组名，描述，用于创建分组"""
     def __init__(self, parent=None):
@@ -407,6 +464,8 @@ class List_group_dialog(QDialog):
         y = (screen.height() - size.height()) // 2
         self.move(x, y)  # 移动窗口到计算出的中心位置
         self.resize(400, 300)  # 保持原有大小
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -198,32 +198,25 @@ class ControlPanel(QWidget):
 
 
     def _perform_filtering(self):
-        """增量式过滤：只对需要改变状态（从布局中移除或添加）的卡片进行操作。"""
+        """实际的过滤逻辑。"""
         search_text = self.search_input.text().lower().strip()
-        self.setUpdatesEnabled(False) 
-        current_widgets_in_layout = {self.scroll_layout.itemAt(i).widget() 
-                                    for i in range(self.scroll_layout.count()) 
-                                    if self.scroll_layout.itemAt(i).widget() is not None}
-        cards_to_show_in_order = []
-        for card in self.loaded_cards.values():
-            filename = card.search_data['filename'] 
-            fund_title = card.search_data['fund_title']
-            is_match = (search_text == "") or (search_text in filename or search_text in fund_title)
-
-            if is_match:
-                cards_to_show_in_order.append(card)
-            else:
-                if card in current_widgets_in_layout:
-                    self.scroll_layout.removeWidget(card)
-                    card.setParent(None) 
-                    card.hide()
-                else:
-                    card.hide()
-        self.clear_layout_widgets_only(self.scroll_layout) 
-        for card in cards_to_show_in_order:
-            self.scroll_layout.addWidget(card)
-            card.show()
-        self.setUpdatesEnabled(True)
+        self.setUpdatesEnabled(False)
+        try:
+            # Step 1: 一次性清空当前布局（所有卡片都 hide）
+            while self.scroll_layout.count():
+                item = self.scroll_layout.takeAt(0)
+                if item.widget():
+                    item.widget().hide()
+            # Step 2: 从永不丢失的全集字典中遍历，匹配的就加回去
+            for card in self.loaded_cards.values():          # 重点在这里！
+                title = getattr(card, 'fund_tittle', '').lower()
+                filename = getattr(card, 'filename', '').lower()
+                if not search_text or search_text in title or search_text in filename:
+                    card.show()
+                    self.scroll_layout.addWidget(card)
+            self.scroll_layout.addStretch()
+        finally:
+            self.setUpdatesEnabled(True)
 
     def clear_layout_widgets_only(self, layout):
         """辅助函数：从给定的布局中移除所有组件。只移除 QWidget，不处理子布局，以确保卡片对象仍存在。"""

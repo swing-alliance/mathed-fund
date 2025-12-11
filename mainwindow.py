@@ -26,7 +26,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("金融计算系统")
-        self.setMinimumSize(QSize(1200, 800)) # 设置一个更大的初始窗口大小
+        self.setMinimumSize(QSize(1600, 988)) # 设置一个更大的初始窗口大小
         self._create_menu_bar()
         self.attention_now=None#当前关注的csvgraphwidget，df,窗口
         self.attention_path=None#当前关注的csv路径
@@ -491,12 +491,14 @@ class MainWindow(QMainWindow):
 
 
     def export_ai_prompt(self):
+        """导出AI提示"""
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
             central_widget.export_ai_prompt()
 
 
     def export_ai_prompt_top50(self):
+        """导出AI提示top50"""
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
             central_widget.export_top_50()
