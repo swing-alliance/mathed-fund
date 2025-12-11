@@ -8,11 +8,15 @@ from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog
 from utils.pull import fetch_and_save_fund_csv
 from my_types.nice_utils import update_files
 from pannel_plan import ControlPanel
+from PyQt5.QtGui import QIcon
 from sys_center import SysCentral
 import shutil
+import glob
 
 
-
+target_dir = os.path.join(os.getcwd(), 'static')
+pics = glob.glob(os.path.join(target_dir, '*.png'))
+pic=pics[0]
 balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
 Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
@@ -25,6 +29,10 @@ to_worker_path = os.path.join(os.getcwd(), 'to_worker')
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        try:
+            self.setWindowIcon(QIcon(pic))
+        except Exception as e:
+            pass
         self.setWindowTitle("金融计算系统")
         self.setMinimumSize(QSize(1600, 988)) # 设置一个更大的初始窗口大小
         self._create_menu_bar()

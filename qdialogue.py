@@ -6,15 +6,19 @@ import re
 import sys
 import pandas as pd
 import akshare as ak
-from PyQt5.QtGui import QFont 
+from PyQt5.QtGui import QFont ,QIcon
 import os
-import shutil
+import glob
+target_dir = os.path.join(os.getcwd(), 'static')
+pics = glob.glob(os.path.join(target_dir, '*.png'))
+pic=pics[0]
 
 
 class pulldata_dialog(QDialog):
     """拉取数据时弹出的参数控制的对话框"""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setWindowIcon(QIcon(pic))
         self.setWindowTitle("输入基金代码")
         self.resize(300, 150)
         self.codes = []  # 保存最终返回的数组
@@ -220,6 +224,7 @@ class FundInfoDialog(QDialog):
     """显示基金详细信息对话框"""
     def __init__(self, df, parent=None):
         super().__init__(parent)
+        self.setWindowIcon(QIcon(pic))
         self.setWindowTitle("详细信息")
         font = QFont("微软雅黑", 10)
         self.setFont(font)
@@ -284,6 +289,7 @@ class FundHoldingDialog(QDialog):
     """
     def __init__(self, df, fund_name="某基金", report_date="最新", parent=None):
         super().__init__(parent)
+        self.setWindowIcon(QIcon(pic))
         font = QFont("微软雅黑", 10)
         font.setBold(False)
         self.setFont(font)
@@ -336,6 +342,7 @@ class GroupConfigDialog(QDialog):
     """对话框输入组名，描述，用于创建分组"""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setWindowIcon(QIcon(pic))
         self.setWindowTitle("添加分组")
         Font=QFont("微软雅黑", 10)
         self.setFont(Font)
@@ -380,6 +387,7 @@ class List_group_dialog(QDialog):
     """列出所有分组（文件夹）的对话框，双击选择某个分组"""
     def __init__(self, groups__path=None, title=None,parent=None,this_code=None):#title,this_code用于标记选中的基金代码
         super().__init__(parent)
+        self.setWindowIcon(QIcon(pic))
         Font = QFont("微软雅黑", 10)
         self.setFont(Font)
         self.setWindowTitle(title if title else "选择分组")

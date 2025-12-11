@@ -8,16 +8,19 @@ from PyQt5.QtWidgets import (
 import pyperclip
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont 
+from PyQt5.QtGui import QFont ,QIcon
 import pandas as pd
 import shutil
 from projectcard import ProjectCard
 from PyQt5.QtCore import QTimer
 from fundholding import stocker_prompt
 from collections import Counter
+import glob
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
-
+target_dir = os.path.join(os.getcwd(), 'static')
+pics = glob.glob(os.path.join(target_dir, '*.png'))
+pic=pics[0]
 balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
 Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
@@ -122,6 +125,7 @@ class ControlPanel(QWidget):
                     print(f"路径 {directory_path} 中没有文件！")
                     return
                 progress_dialog = QProgressDialog("正在加载文件...", "取消", 0, len(project_files), self)
+                progress_dialog.setWindowIcon(QIcon(pic))
                 progress_dialog.setWindowModality(Qt.WindowModal)  # 设置为模态对话框，防止其他操作
                 progress_dialog.setCancelButton(None)  # 禁用取消按钮
                 progress_dialog.setFont(QFont('微软雅黑', 10))
@@ -158,6 +162,7 @@ class ControlPanel(QWidget):
                     return
                 self.file_nums = len(selected_paths)
                 progress_dialog = QProgressDialog("正在加载文件...", "取消", 0, len(selected_paths), self)
+                progress_dialog.setWindowIcon(QIcon(pic))
                 progress_dialog.setWindowModality(Qt.WindowModal)  # 设置为模态对话框，防止其他操作
                 progress_dialog.setCancelButton(None)  # 禁用取消按钮
                 progress_dialog.setFont(QFont('微软雅黑', 10))
@@ -375,13 +380,18 @@ class ControlPanel(QWidget):
     def export_ai_prompt(self):
         if "组" in self.index_label.text():
             codes = []
-            for card in self.loaded_cards.values():
+            num_children = self.scroll_layout.count()
+            for i in range(num_children):
+                item = self.scroll_layout.itemAt(i)
+                card = item.widget()
                 codes.append(card.filename)
+            if not codes:
+                return
             if len(codes) > 12:
                 QMessageBox.warning(
                     self, 
                     "导出数量超限", 
-                    f"当前选择了 {len(codes)} 只股票，最多只能导出 10 只。\n请减少选择后重试。",
+                    f"当前选择了 {len(codes)} 只股票，最多只能导出 12 只。\n请减少选择后重试。",
                     QMessageBox.Ok
                 )
                 return

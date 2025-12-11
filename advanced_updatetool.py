@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (QApplication, QPushButton, QProgressDialog,
                              QVBoxLayout, QWidget, QCheckBox, QHBoxLayout, 
                              QGroupBox, QLabel, QMessageBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont 
+from PyQt5.QtGui import QFont ,QIcon
 from PyQt5.QtWidgets import QDesktopWidget
 import time
 import os
@@ -11,7 +11,12 @@ import pandas as pd
 import threading
 from PyQt5.QtWidgets import QSpinBox
 from concurrent.futures import ThreadPoolExecutor, as_completed, FIRST_COMPLETED, wait
+import glob
 
+
+target_dir = os.path.join(os.getcwd(), 'static')
+pics = glob.glob(os.path.join(target_dir, '*.png'))
+pic=pics[0]
 # 路径定义
 qdii_path = os.path.join(os.getcwd(), 'my_types', 'Qdii')
 equity_path = os.path.join(os.getcwd(), 'my_types', 'Equity')
@@ -153,6 +158,7 @@ class FastWorkerThread(QThread):
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
+        self.setWindowIcon(QIcon(pic))
         self.selected_paths = []  # 存储用户选择的路径
         self.globalfont=QFont("微软雅黑", 10)
         self.initUI()
