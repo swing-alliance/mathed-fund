@@ -49,7 +49,7 @@ class ControlPanel(QWidget):
         #QTimer 用于延时过滤
         self.filter_timer = QTimer(self)
         self.filter_timer.setSingleShot(True)  
-        self.filter_timer.setInterval(200)      
+        self.filter_timer.setInterval(10)      
         self.filter_timer.timeout.connect(self._perform_filtering) 
         self.search_input.textChanged.connect(self.start_filter_timer)
         
@@ -209,37 +209,14 @@ class ControlPanel(QWidget):
             card for card in self.loaded_cards.values()
             if not search_text or search_text in card.fund_tittle or search_text in card.filename
         ]
-        self.setUpdatesEnabled(False)
-        try:
-            while self.scroll_layout.count():
-                item = self.scroll_layout.takeAt(0)
-                if item.widget():
-                    item.widget().hide()
-            for card in visible_cards:
-                card.show()
-            for card in visible_cards:
-                self.scroll_layout.addWidget(card)
-        finally:
-            self.setUpdatesEnabled(True)
-
-        # # """实际的过滤逻辑。"""
-        # search_text = self.search_input.text().lower().strip()
-        # self.setUpdatesEnabled(False)
-        # try:
-        #     # Step 1: 一次性清空当前布局（所有卡片都 hide）
-        #     while self.scroll_layout.count():
-        #         item = self.scroll_layout.takeAt(0)
-        #         if item.widget():
-        #             item.widget().hide()
-        #     # Step 2: 从永不丢失的全集字典中遍历，匹配的就加回去
-        #     for card in self.loaded_cards.values():          # 重点在这里！
-        #         title = getattr(card, 'fund_tittle', '').lower()
-        #         filename = getattr(card, 'filename', '').lower()
-        #         if not search_text or search_text in title or search_text in filename:
-        #             card.show()
-        #             self.scroll_layout.addWidget(card)
-        # finally:
-        #     self.setUpdatesEnabled(True)
+        for card in self.loaded_cards.values():
+            self.scroll_layout.removeWidget(card)
+            card.hide()
+        for card in visible_cards:#写两个for比一个for快十倍
+            card.show()
+        for card in visible_cards:
+            self.scroll_layout.addWidget(card)
+            
 
     def clear_layout_widgets_only(self, layout):
         """辅助函数：从给定的布局中移除所有组件。只移除 QWidget，不处理子布局，以确保卡片对象仍存在。"""
@@ -277,61 +254,104 @@ class ControlPanel(QWidget):
 
     def resort_self(self):
         """重新排序项目卡片按照365天夏普比率从大到小"""
-        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().sharp_constant, reverse=True)
-        for card in self.loaded_cards.values():
+        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().sharp_constant, reverse=True)
+        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
+        self.loaded_cards = new_ordered_cards
+        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
             self.scroll_layout.removeWidget(card)
-        for card in sorted_cards:
+        for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
+        if "组" in self.index_label.text():
+            self.index_label.setText(f"当前组365天夏普比排序")
+        else:
+            self.index_label.setText(f"当前365天夏普比排序")
 
     def resort_self_by_largest_sharpe_60days(self):
         """重新排序项目卡片按照60天夏普比率从大到小"""
-        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().max_sharp_ratio_for_days(period_days=60), reverse=True)
-        for card in self.loaded_cards.values():
+        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().max_sharp_ratio_for_days(period_days=60), reverse=True)
+        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
+        self.loaded_cards = new_ordered_cards
+        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
             self.scroll_layout.removeWidget(card)
-        for card in sorted_cards:
+        for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
+        if "组" in self.index_label.text():
+            self.index_label.setText(f"当前组60天夏普比排序")
+        else:
+            self.index_label.setText(f"当前计划60天夏普比排序")    
+        
 
     def resort_self_by_80days_yearly_return(self):
         """重新排序项目卡片按照80天年化收益率从大到小"""
-        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=80), reverse=True)
-        for card in self.loaded_cards.values():
+        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=80), reverse=True)
+        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
+        self.loaded_cards = new_ordered_cards
+        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
             self.scroll_layout.removeWidget(card)
-        for card in sorted_cards:
+        for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
+        if "组" in self.index_label.text():
+            self.index_label.setText(f"当前组80天年化收益率排序")
+        else:
+            self.index_label.setText(f"当前计划80天年化收益率排序")
 
     def resort_self_by_30days_yearly_return(self):
         """重新排序项目卡片按照30天年化收益率从大到小"""
-        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=30), reverse=True)
-        for card in self.loaded_cards.values():
+        sorted_cards_list = sorted(self.loaded_cards.values(), 
+                                   key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=30), 
+                                   reverse=True)
+        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
+        self.loaded_cards = new_ordered_cards
+        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
             self.scroll_layout.removeWidget(card)
-        for card in sorted_cards:
+        for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
-    
+        if "组" in self.index_label.text():
+            self.index_label.setText(f"当前组30天年化收益率排序")
+        else:
+            self.index_label.setText(f"当前计划30天年化收益率排序")
+
     def resort_self_by_14days_yearly_return(self):
         """重新排序项目卡片按照14天年化收益率从大到小"""
-        print("重新排序项目卡片按照14天年化收益率从大到小被调用")
-        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=14), reverse=True)
-        for card in self.loaded_cards.values():
+        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=14), reverse=True)
+        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
+        self.loaded_cards = new_ordered_cards
+        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
             self.scroll_layout.removeWidget(card)
-        for card in sorted_cards:
+        for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
+        if "组" in self.index_label.text():
+            self.index_label.setText(f"当前组14天年化收益率排序")
+        else:
+            self.index_label.setText(f"当前计划14天年化收益率排序")
 
     def resort_self_by_3days_yearly_return(self):
         """重新排序项目卡片按照3天年化收益率从大到小"""
-        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=3), reverse=True)
-        for card in self.loaded_cards.values():
+        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=3), reverse=True)
+        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
+        self.loaded_cards = new_ordered_cards
+        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
             self.scroll_layout.removeWidget(card)
-        for card in sorted_cards:
+        for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
-
+        if "组" in self.index_label.text():
+            self.index_label.setText(f"当前组3天年化收益率排序")
+        else:
+            self.index_label.setText(f"当前计划3天年化收益率排序")
 
     def resort_self_by_largest_votolity(self):
         """重新排序项目卡片按照波动率从大到小"""
-        sorted_cards = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().max_annualized_volatility, reverse=True)
-        for card in self.loaded_cards.values():
+        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().max_annualized_volatility, reverse=True)
+        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
+        self.loaded_cards = new_ordered_cards
+        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
             self.scroll_layout.removeWidget(card)
-        for card in sorted_cards:
+        for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
+        if "组" in self.index_label.text():
+            self.index_label.setText=(f"当前组做波动率排序")
+        else:    
+            self.index_label.setText=(f"当前计划做波动率排序")
 
     def filter_self_by_consider_lowpoint(self):
         """过滤项目卡片只显示考虑低点的 (通过控制可见性实现，无重叠Bug)"""
@@ -346,6 +366,10 @@ class ControlPanel(QWidget):
             scroll_area = self.scroll_layout.parentWidget().parentWidget()
             if hasattr(scroll_area, 'viewport'):
                 scroll_area.viewport().update()
+        if "组" in self.index_label.text():
+            self.index_label.setText(f"当前组过滤低点")
+        else:
+            self.index_label.setText(f"当前计划过滤低点")
         
     
     def export_ai_prompt(self):
@@ -621,4 +645,4 @@ def find_most_frequent_counter(data_list):
 
 if __name__ == "__main__":
     pass
-
+QLabel
