@@ -49,10 +49,10 @@ class ControlPanel(QWidget):
         #QTimer 用于延时过滤
         self.filter_timer = QTimer(self)
         self.filter_timer.setSingleShot(True)  
-        self.filter_timer.setInterval(20)      
+        self.filter_timer.setInterval(200)      
         self.filter_timer.timeout.connect(self._perform_filtering) 
         self.search_input.textChanged.connect(self.start_filter_timer)
-
+        
 
         top_bar.addWidget(self.add_btn, alignment=Qt.AlignLeft)
         top_bar.addWidget(self.search_input)
@@ -74,8 +74,13 @@ class ControlPanel(QWidget):
         self.scroll_content = QWidget()
         self.scroll_layout = QVBoxLayout(self.scroll_content)
         self.scroll_layout.setAlignment(Qt.AlignTop)  # 卡片从上往下排
+        self.scroll_area.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
         self.scroll_area.setWidget(self.scroll_content)
-
+        self.scroll_area.verticalScrollBar().rangeChanged.connect(
+            lambda min_val, max_val: self.scroll_content.setMinimumWidth(
+                self.scroll_area.viewport().width() + 30
+            )
+        )
         self.load_projects_from_path(path=self.base_path)
 
     def add_project_from_found(self):
@@ -200,23 +205,41 @@ class ControlPanel(QWidget):
     def _perform_filtering(self):
         """实际的过滤逻辑。"""
         search_text = self.search_input.text().lower().strip()
+        visible_cards = [
+            card for card in self.loaded_cards.values()
+            if not search_text or search_text in card.fund_tittle or search_text in card.filename
+        ]
         self.setUpdatesEnabled(False)
         try:
-            # Step 1: 一次性清空当前布局（所有卡片都 hide）
             while self.scroll_layout.count():
                 item = self.scroll_layout.takeAt(0)
                 if item.widget():
                     item.widget().hide()
-            # Step 2: 从永不丢失的全集字典中遍历，匹配的就加回去
-            for card in self.loaded_cards.values():          # 重点在这里！
-                title = getattr(card, 'fund_tittle', '').lower()
-                filename = getattr(card, 'filename', '').lower()
-                if not search_text or search_text in title or search_text in filename:
-                    card.show()
-                    self.scroll_layout.addWidget(card)
-            self.scroll_layout.addStretch()
+            for card in visible_cards:
+                card.show()
+            for card in visible_cards:
+                self.scroll_layout.addWidget(card)
         finally:
             self.setUpdatesEnabled(True)
+
+        # # """实际的过滤逻辑。"""
+        # search_text = self.search_input.text().lower().strip()
+        # self.setUpdatesEnabled(False)
+        # try:
+        #     # Step 1: 一次性清空当前布局（所有卡片都 hide）
+        #     while self.scroll_layout.count():
+        #         item = self.scroll_layout.takeAt(0)
+        #         if item.widget():
+        #             item.widget().hide()
+        #     # Step 2: 从永不丢失的全集字典中遍历，匹配的就加回去
+        #     for card in self.loaded_cards.values():          # 重点在这里！
+        #         title = getattr(card, 'fund_tittle', '').lower()
+        #         filename = getattr(card, 'filename', '').lower()
+        #         if not search_text or search_text in title or search_text in filename:
+        #             card.show()
+        #             self.scroll_layout.addWidget(card)
+        # finally:
+        #     self.setUpdatesEnabled(True)
 
     def clear_layout_widgets_only(self, layout):
         """辅助函数：从给定的布局中移除所有组件。只移除 QWidget，不处理子布局，以确保卡片对象仍存在。"""
