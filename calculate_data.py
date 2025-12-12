@@ -418,6 +418,7 @@ def find_top_n_cycles(
 
 
 def get_lowest_point_by_period(df, period_days):
+    """返回df最近period_days天的最低点的值和日期"""
     df['净值日期'] = pd.to_datetime(df['净值日期'])  # 确保净值日期为datetime格式
     # 将净值日期转换为周期内的日期
     df['周期'] = (df['净值日期'] - df['净值日期'].min()).dt.days // period_days
@@ -427,6 +428,7 @@ def get_lowest_point_by_period(df, period_days):
 
 
 def get_highest_point_by_period(df, period_days):
+    """返回df最近period_days天的最高点的值和日期"""
     df['净值日期'] = pd.to_datetime(df['净值日期'])  # 确保净值日期为datetime格式
     # 将净值日期转换为周期内的日期
     df['周期'] = (df['净值日期'] - df['净值日期'].min()).dt.days // period_days

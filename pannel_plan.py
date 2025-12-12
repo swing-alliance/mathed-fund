@@ -456,8 +456,10 @@ class ControlPanel(QWidget):
         obvious_hot = obvious_cold = 0      # 三天明显热/明显冷
         total_cards = len(self.loaded_cards)
         decide_todayconclusiondates = []
+        today_date=None
         today_up=0
         today_down=0
+        today_withdrawal=0
         for card in self.loaded_cards.values():
             rd = card.return_decision()
             
@@ -483,31 +485,40 @@ class ControlPanel(QWidget):
                     obvious_cold += 1
             #计算当日市场盈亏情况
             today_profit_conclusion, date_str = rd.onedayprofitconclusion() 
-            decide_todayconclusiondates.append(date_str)
-            if today_profit_conclusion == "up":
-                today_up += 1
-            else:
-                today_down += 1
-        altimate_today_date_conunt={}        
-        for everydate in decide_todayconclusiondates:
-            if everydate not in altimate_today_date_conunt:
-                altimate_today_date_conunt[everydate]=1
-            altimate_today_date_conunt[everydate] +=1
-        most_today_date=max(altimate_today_date_conunt,key=altimate_today_date_conunt.get)
-
-        today_up_ratio = today_up / total_cards if total_cards > 0 else 0
-        today_down_ratio = today_down / total_cards if total_cards > 0 else 0
+            one_month_withdrawal_over_10percent = rd.one_month_withdrawal_over_10percent()
+            decide_todayconclusiondates.append((today_profit_conclusion,date_str,one_month_withdrawal_over_10percent))#添加当日盈亏情况,当天日期。当天是否大于10%回撤
+        all_dates = [date_tuple[1] for date_tuple in decide_todayconclusiondates]
+        date_counts = Counter(all_dates)
+        if not date_counts:
+            today_date=None
+        else:
+            today_date = max(date_counts)
+        for date_tuple in decide_todayconclusiondates:
+            if date_tuple[1]==today_date:
+                if date_tuple[0]=="up":
+                    today_up+=1
+                elif date_tuple[0]=="down":
+                    today_down+=1
+                if date_tuple[2]:
+                    today_withdrawal+=1
+        print(f"{today_date}上涨基金数为：{today_up},今日下跌基金数为：{today_down},今日大于10%回撤基金数为：{today_withdrawal}")
+    
+        today_up_ratio = today_up / (today_up+today_down) if today_up+today_down > 0 else 0
+        today_down_ratio = today_down / (today_up+today_down) if today_up+today_down > 0 else 0
+        today_withdrawal_ratio = today_withdrawal / (today_up+today_down) if today_up+today_down > 0 else 0
+        left_cards_ratio = (total_cards - today_up - today_down)/total_cards if total_cards > 0 else 0
+        counted_cards_ratio = 1-left_cards_ratio
         self._show_market_index_dialog(
         index_up, index_down, index_normal,
         extreme_hot, extreme_cold, obvious_hot, obvious_cold,
-        total_cards,today_up_ratio,today_down_ratio,most_today_date
+        total_cards,today_up_ratio,today_down_ratio,left_cards_ratio,counted_cards_ratio,today_withdrawal_ratio,today_date
     )
 
     def _show_market_index_dialog(self, index_up, index_down, index_normal,
-        extreme_hot, extreme_cold, obvious_hot, obvious_cold, total_cards,today_up_ratio,today_down_ratio,most_today_date):
+        extreme_hot, extreme_cold, obvious_hot, obvious_cold, total_cards,today_up_ratio,today_down_ratio,left_cards_ratio,counted_cards_ratio,today_withdrawal_ratio,today_date):
         dialog = QDialog(self)
         dialog.setWindowTitle("市场行情指数")
-        dialog.setFixedSize(780, 680)
+        dialog.setFixedSize(790, 690)
         dialog.setFont(QFont('微软雅黑', 11))
         # 1. 原有30天结论（保持原样）
         market_conclusion = generate_market_conclusion(index_up, index_down, index_normal)
@@ -562,7 +573,7 @@ class ControlPanel(QWidget):
         {market_conclusion.replace('【', '<br><b>【').replace('】', '】</b>')}<br><br>
         
         <b>3日极端情绪：</b> {short_signal}<br><br>
-        <b>{most_today_date}当日市场整体：</b>上涨占比{today_up_ratio:.0%}，下跌占比{today_down_ratio:.0%}<br><br>
+        <b>{today_date}当日市场整体:</b>上涨占{today_up_ratio:.1%} 下跌占{today_down_ratio:.1%}, 月内回撤大于百分之十占{today_withdrawal_ratio:.1%}。<br>剩下{left_cards_ratio:.1%}未即时更新<br><br>
         <h3 align="center"><font >【最终综合结论】</font></h3>
         <font  size="5"><b>{final_advice.split('】')[1] if '】' in final_advice else final_advice}</b></font>
         """

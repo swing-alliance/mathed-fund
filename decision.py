@@ -96,8 +96,15 @@ class decison_maker:
 
 
     
-
-
+    def one_month_withdrawal_over_10percent(self):
+        """判断最近一个月是否有大于10%的回撤"""
+        MINIMUM_DAYS_BETWEEN_PEAKS = 3  # 最低点必须在最高点之后至少 N 天
+        self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_by_period(self.df, period_days=30)
+        self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=30)
+        time_difference = self.lowest_point_date - self.highest_point_date
+        if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS) and self.lowest_point_in_period_value < self.highest_point_in_period_value * 0.9:
+            return True
+        return False
 
 
         

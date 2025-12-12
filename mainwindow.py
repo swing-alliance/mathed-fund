@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
         group_resort_votality_action.triggered.connect(self.group_sort_by_votality)
         group_fileter_lowpoint_action = QAction("当前组过滤低点", self)
         group_fileter_lowpoint_action.triggered.connect(self.fileter_group_by_lowpoint)
-        group_return_market_index_action = QAction("返回总体市场指数", self)
+        group_return_market_index_action = QAction("生成市场指数报告", self)
         group_return_market_index_action.triggered.connect(self.return_market_index)
 
         ai_prompt_action = QAction("组导出AI提示词", self)
