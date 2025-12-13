@@ -158,9 +158,9 @@ class ControlPanel(QWidget):
 
             def load_projects_from_groups( this_group_path=None):
                 csv_path = os.path.join(groups_path, 'group_cache.csv')
-                df=pd.read_csv(csv_path)
+                df=pd.read_csv(csv_path,dtype=str)
                 this_group_name=os.path.basename(this_group_path)
-                selected_paths_series = df.loc[df['group_name'] == this_group_name, 'path']
+                selected_paths_series = df.loc[df['group_name'] == str(this_group_name), 'path']
                 selected_paths = selected_paths_series.tolist()
                 if not selected_paths:
                     print(f"分组 {this_group_name} 中没有项目！")

@@ -467,13 +467,6 @@ class ProjectCard(QFrame):
                 print(f"打开分组对话框失败: {e}")
 
            
-    def auto_calculate_type(self,yearly_return_since_start=0.012,max_annualized_volatility=0.4):
-        """自动计算类型,不好用"""
-        self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None)
-        isthis_consider_risky_reward=self.decision_maker.get_risky_reward(yearly_return_since_start=yearly_return_since_start,max_annualized_volatility=max_annualized_volatility)
-        isthis_consider_long_term_return=self.decision_maker.get_long_term_return(days_since_start=1618)
-        isthis_consider_low_point=self.decision_maker.get_low_point(days_since_start=1618)
-        return isthis_consider_risky_reward,isthis_consider_long_term_return,isthis_consider_low_point
 
     def return_decision(self):
         self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None)
