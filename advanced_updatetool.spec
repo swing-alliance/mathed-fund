@@ -12,7 +12,9 @@ static_dir   = os.path.join(project_root, 'static')
 png_files = glob.glob(os.path.join(static_dir, '*.png'))
 if not png_files:
     raise FileNotFoundError("static 目录下没有找到 .png 图标文件！请放一张图标进去")
-icon_path = png_files[0]      # 取第一个，推荐 256×256 的 infinite.png
+for i, item in enumerate(png_files):
+    if "premium" in item:
+        icon_path = png_files[i]
 
 
 # ==================== 需要额外打包的资源 ====================

@@ -20,7 +20,9 @@ TO_WORKER = "to_worker"
 FOUND_PATH = "found"
 target_dir = os.path.join(os.getcwd(), 'static')
 pics = glob.glob(os.path.join(target_dir, '*.png'))
-pic=pics[0]
+pic = next((p for p in pics if 'infinite.png' in p), None)
+if pic is None and pics:
+    pic = pics[0]
 balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
 Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
@@ -417,8 +419,6 @@ class ControlPanel(QWidget):
             item = self.scroll_layout.itemAt(i)
             card = item.widget()
             latest_datememory.append(card.latest_date)
-        element, _ = find_most_frequent_counter(latest_datememory)
-        latest_date = element
         try:
             for i in range(num_children):
                 item = self.scroll_layout.itemAt(i)
@@ -426,8 +426,8 @@ class ControlPanel(QWidget):
                 if card and hasattr(card, 'fund_tittle'):
                     if count >= max_cards:
                         break
-                    if card.fund_tittle not in listeddict and card.latest_date == latest_date:
-                        listeddict[card.fund_tittle] = True
+                    if card.fund_tittle not in listeddict:
+                        listeddict[card.fund_tittle] = 1
                         print(f"{card.filename}符合要求")
                         count += 1
                         file_names.append(card.fund_tittle)
@@ -436,7 +436,7 @@ class ControlPanel(QWidget):
             if file_names:
                 for name in file_names:
                     print(f"- {name}")
-                prompt = f"你是一个专业的AI助手,这是最近表现优秀的{count}只基金,查看表达了什么信号,结合最近一个月的时事新闻，做市场调研，并给出最终的建议:{', '.join(file_names)}\n"
+                prompt = f"你是一个专业的AI助手,这是最近表现优秀的{count}只基金按强弱排名,查看表达了什么信号,结合最近一个月的时事新闻，做市场调研，并给出最终的建议:{', '.join(file_names)}\n"
                 pyperclip.copy(prompt)
                 QMessageBox.information(self,"导出成功",f"已成功生成 {count}只股票的Prompt,并已复制到剪切板!\n",QMessageBox.Ok)
             else:
@@ -649,19 +649,7 @@ def generate_market_conclusion(index_up: int, index_down: int, index_normal: int
                 "当前不宜重仓单一方向，分散与耐心是最优策略。")
 
 
-def find_most_frequent_counter(data_list):
-    """
-    使用 collections.Counter 找出列表中出现次数最多的元素。
-    """
-    if not data_list:
-        return None, 0
-    counts = Counter(data_list)
-    most_common_item = counts.most_common(1)
-    if most_common_item:
-        most_frequent_element, max_frequency = most_common_item[0]
-        return most_frequent_element, max_frequency
-    else:
-        return None, 0
+
 
 
 if __name__ == "__main__":

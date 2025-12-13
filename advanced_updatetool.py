@@ -12,10 +12,22 @@ import threading
 from PyQt5.QtWidgets import QSpinBox
 from concurrent.futures import ThreadPoolExecutor, as_completed, FIRST_COMPLETED, wait
 import glob
-
+import time
 
 target_dir = os.path.join(os.getcwd(), 'static')
-pics = glob.glob(os.path.join(target_dir, '*.png'))
+timenow = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+current_month = int(time.strftime('%m', time.localtime(time.time())))  # 获取当前月份
+if 3 <= current_month <= 5:
+    season = 'spring'
+elif 6 <= current_month <= 8:
+    season = 'summer'
+elif 9 <= current_month <= 11:
+    season = 'autumn'
+else:
+    season = 'winter'
+pics = glob.glob(os.path.join(target_dir, f'{season}*.png'))
+if not pics:
+    pics = glob.glob(os.path.join(target_dir, 'infinite.png'))
 pic=pics[0]
 # 路径定义
 qdii_path = os.path.join(os.getcwd(), 'my_types', 'Qdii')

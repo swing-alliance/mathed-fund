@@ -11,7 +11,11 @@ import os
 import glob
 target_dir = os.path.join(os.getcwd(), 'static')
 pics = glob.glob(os.path.join(target_dir, '*.png'))
-pic=pics[0]
+pic = next((p for p in pics if 'infinite.png' in p), None)
+if pic is None and pics:
+    pic = pics[0]
+    
+
 
 
 class pulldata_dialog(QDialog):
