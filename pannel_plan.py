@@ -252,7 +252,7 @@ class ControlPanel(QWidget):
         elif self.base_path == Qdii_path:
             qlabel.setText(f"QDII或另类{self.file_nums}个")
         elif "groups" in self.base_path:
-            df=pd.read_csv(os.path.join(groups_path, 'group_cache.csv'))
+            df=pd.read_csv(os.path.join(groups_path, 'group_cache.csv'),dtype=str)
             group_name=os.path.basename(self.base_path)
             matching_row = df[df['group_name'] == group_name]
             self.group_file_nums = len(matching_row)
