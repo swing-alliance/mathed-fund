@@ -79,8 +79,11 @@ class ControlPanel(QWidget):
         self.scroll_content = QWidget()
         self.scroll_layout = QVBoxLayout(self.scroll_content)
         self.scroll_layout.setAlignment(Qt.AlignTop)  # 卡片从上往下排
+        self.scroll_layout.setContentsMargins(0, 0, 30, 0)
         self.scroll_area.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
         self.scroll_area.setWidget(self.scroll_content)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        
         self.scroll_area.verticalScrollBar().rangeChanged.connect(
             lambda min_val, max_val: self.scroll_content.setMinimumWidth(
                 self.scroll_area.viewport().width() + 30

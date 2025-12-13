@@ -44,7 +44,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='main',
+    name='FindOutFund',
     debug=False,                    # 正式打包建议 False
     bootloader_ignore_signals=False,
     strip=False,

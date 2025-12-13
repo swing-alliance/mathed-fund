@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             pass
         self.setWindowTitle("金融计算系统")
-        self.setMinimumSize(QSize(1600, 988)) # 设置一个更大的初始窗口大小
+        self.setMinimumSize(QSize(1400, 865)) # 设置一个更大的初始窗口大小
         self._create_menu_bar()
         self.attention_now=None#当前关注的csvgraphwidget，df,窗口
         self.attention_path=None#当前关注的csv路径
