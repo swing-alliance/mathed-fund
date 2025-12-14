@@ -106,6 +106,15 @@ class decison_maker:
             return True
         return False
 
+    def one_month_up_over_10percent(self):
+        """判断最近一个月是否有大于10%的上涨"""
+        MINIMUM_DAYS_BETWEEN_TROUGHS = 3  # 最高点必须在最低点之后至少 N 天
+        self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_by_period(self.df, period_days=30)
+        self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=30)
+        time_difference = self.highest_point_date - self.lowest_point_date
+        if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_TROUGHS) and self.highest_point_in_period_value > self.lowest_point_in_period_value * 1.1:
+            return True
+        return False
 
         
 

@@ -463,6 +463,7 @@ class ControlPanel(QWidget):
         today_up=0
         today_down=0
         today_withdrawal=0
+        today_upover10=0
         for card in self.loaded_cards.values():
             rd = card.return_decision()
             
@@ -489,7 +490,8 @@ class ControlPanel(QWidget):
             #计算当日市场盈亏情况
             today_profit_conclusion, date_str = rd.onedayprofitconclusion() 
             one_month_withdrawal_over_10percent = rd.one_month_withdrawal_over_10percent()
-            decide_todayconclusiondates.append((today_profit_conclusion,date_str,one_month_withdrawal_over_10percent))#添加当日盈亏情况,当天日期。当天是否大于10%回撤
+            one_month_up_over_10percent = rd.one_month_up_over_10percent()
+            decide_todayconclusiondates.append((today_profit_conclusion,date_str,one_month_withdrawal_over_10percent,one_month_up_over_10percent))#添加当日盈亏情况,当天日期。当天是否大于10%回撤
         all_dates = [date_tuple[1] for date_tuple in decide_todayconclusiondates]
         date_counts = Counter(all_dates)
         if not date_counts:
@@ -504,21 +506,24 @@ class ControlPanel(QWidget):
                     today_down+=1
                 if date_tuple[2]:
                     today_withdrawal+=1
-        print(f"{today_date}上涨基金数为：{today_up},今日下跌基金数为：{today_down},今日大于10%回撤基金数为：{today_withdrawal}")
+                if date_tuple[3]:
+                    today_upover10+=1
+        print(f"{today_date}上涨基金数为：{today_up},今日下跌基金数为：{today_down},今日过去30天大于10%回撤基金数为：{today_withdrawal},今日过去30天大于10%上涨基金数为：{today_upover10}")
     
         today_up_ratio = today_up / (today_up+today_down) if today_up+today_down > 0 else 0
         today_down_ratio = today_down / (today_up+today_down) if today_up+today_down > 0 else 0
         today_withdrawal_ratio = today_withdrawal / (today_up+today_down) if today_up+today_down > 0 else 0
+        today_upover10_ratio = today_upover10 / (today_up+today_down) if today_up+today_down > 0 else 0
         left_cards_ratio = (total_cards - today_up - today_down)/total_cards if total_cards > 0 else 0
         counted_cards_ratio = 1-left_cards_ratio
         self._show_market_index_dialog(
         index_up, index_down, index_normal,
         extreme_hot, extreme_cold, obvious_hot, obvious_cold,
-        total_cards,today_up_ratio,today_down_ratio,left_cards_ratio,counted_cards_ratio,today_withdrawal_ratio,today_date
+        total_cards,today_up_ratio,today_down_ratio,left_cards_ratio,counted_cards_ratio,today_withdrawal_ratio,today_upover10_ratio,today_date
     )
 
     def _show_market_index_dialog(self, index_up, index_down, index_normal,
-        extreme_hot, extreme_cold, obvious_hot, obvious_cold, total_cards,today_up_ratio,today_down_ratio,left_cards_ratio,counted_cards_ratio,today_withdrawal_ratio,today_date):
+        extreme_hot, extreme_cold, obvious_hot, obvious_cold, total_cards,today_up_ratio,today_down_ratio,left_cards_ratio,counted_cards_ratio,today_withdrawal_ratio,today_upover10_ratio,today_date):
         dialog = QDialog(self)
         dialog.setWindowTitle("市场行情指数")
         dialog.setFixedSize(790, 690)
@@ -568,6 +573,17 @@ class ControlPanel(QWidget):
             parts.append(f"明显杀跌比率{obvious_cold/total_cards:.2%}")
         short_signal = "; ".join(parts) if parts else "暂无情绪数据"
 
+        overallwords=""
+        if today_up_ratio>0:
+            overallwords+=f"&nbsp;&nbsp;上涨占{today_up_ratio:.1%}  "
+        if today_down_ratio>0:
+            overallwords+=f"&nbsp;&nbsp;下跌占{today_down_ratio:.1%}<br>"
+        if today_withdrawal_ratio>0:
+            overallwords+=f"&nbsp;&nbsp;今日过去30天回撤大于百分之十占{today_withdrawal_ratio:.1%}  "
+        if today_upover10_ratio>0:
+            overallwords+=f"&nbsp;&nbsp;今日过去30天增长大于百分之十占{today_upover10_ratio:.1%}" 
+
+
 
 
         # 6. 最终UI展示（层次清晰，一眼看懂）
@@ -576,10 +592,12 @@ class ControlPanel(QWidget):
         {market_conclusion.replace('【', '<br><b>【').replace('】', '】</b>')}<br><br>
         
         <b>3日极端情绪：</b> {short_signal}<br><br>
-        <b>{today_date}当日市场整体:</b>上涨占{today_up_ratio:.1%} 下跌占{today_down_ratio:.1%}, 月内回撤大于百分之十占{today_withdrawal_ratio:.1%}。<br>剩下{left_cards_ratio:.1%}未即时更新<br><br>
+        <b>{today_date}当日市场整体:</b><br>{overallwords}<br>剩下{left_cards_ratio:.1%}未即时更新。<br><br>
         <h3 align="center"><font >【最终综合结论】</font></h3>
         <font  size="5"><b>{final_advice.split('】')[1] if '】' in final_advice else final_advice}</b></font>
         """
+
+        
 
         label = QLabel(html)
         label.setTextFormat(Qt.RichText)
