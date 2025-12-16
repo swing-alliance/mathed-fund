@@ -1,11 +1,12 @@
 import pandas as pd
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QComboBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QComboBox,QPushButton,QLabel,QHBoxLayout,QFrame
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtGui import QFont 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from signal_handler import history_signal_emitter
 import mplcursors
 import numpy as np
 
@@ -91,8 +92,9 @@ class MplCanvas(FigureCanvas):
         self.press = None
 
 class CsvGraphWidget(QWidget):
+    revert_requested = history_signal_emitter.load_previous_widget_signal
     """一个QWidget，用于展示基金净值折线图，新增时间范围选择功能。"""
-    def __init__(self, df, parent=None):
+    def __init__(self, df, basename=None, parent=None):
         super(CsvGraphWidget, self).__init__(parent)
         # 游标和事件ID的初始化
         self._active_cursor: mplcursors.cursor = None
@@ -106,6 +108,12 @@ class CsvGraphWidget(QWidget):
             raise ValueError("CSV文件缺少'净值日期'或'单位净值'列。")
         except ValueError:
             raise ValueError("CSV文件'净值日期'列的格式不正确，应为'YYYY-MM-DD'。")
+        self.reverse_button = QPushButton("返回")
+        self.name_label = QLabel(basename if basename else "图", self)
+        self.reverse_button.setFont(QFont("微软雅黑", 11))
+        self.reverse_button.setMaximumWidth(90)
+        self.name_label.setFont(QFont("微软雅黑", 12))
+        self.top_layout = QHBoxLayout()
         self.layout = QVBoxLayout(self)
         self.setLayout(self.layout)
         self.load_elements()
@@ -117,6 +125,12 @@ class CsvGraphWidget(QWidget):
         self.time_range_combo.setFont(QFont("微软雅黑", 11))
         self.time_range_combo.setMinimumWidth(100)
         self.time_range_combo.setMinimumHeight(25)
+        self.reverse_button.clicked.connect(self.revert_requested.emit)
+        self.top_layout.addWidget(self.name_label)
+        
+        self.top_layout.addWidget(self.reverse_button)
+        
+        self.layout.addLayout(self.top_layout)
         self.layout.addWidget(self.time_range_combo)
         self.canvas = MplCanvas()
         self.layout.addWidget(self.canvas)
@@ -147,47 +161,7 @@ class CsvGraphWidget(QWidget):
             
         self._plot_data()
 
-    def _setup_cursor_and_events(self):
-        """设置游标和事件绑定，有bug，不建议使用。"""
-        def on_click(event):
-            line = self.canvas.axes.lines[0] if self.canvas.axes.lines else None
-            if line is None:
-                return
-            # 如果点击在画布外，则销毁游标并退出
-            if not event.inaxes:
-                if self._active_cursor is not None:
-                    self._active_cursor.remove()
-                    self._active_cursor = None
-                    self.canvas.draw_idle()
-                return
-            contains, info = line.contains(event)
-            if contains:
-                if self._active_cursor is None:
-                    self._active_cursor = mplcursors.cursor(line, hover=False, highlight=True)
-                    # 连接 'add' 事件，它会在选中时自动触发
-                    @self._active_cursor.connect("add")
-                    def on_add(sel):
-                        x, y = sel.target
-                        dt = mdates.num2date(x)
-                        sel.annotation.set_text(f"{dt:%Y-%m-%d}\n净值: {y:.4f}")
-                        sel.annotation.get_bbox_patch().set(fc="white", alpha=0.9)
-                # --- 关键改动在这里 ---
-                # 使用库的内部方法来获取正确的 Selection 对象
-                sel = self._active_cursor._get_selection_at_point(event)
-                if sel:
-                    # 找到 Selection 对象后，手动添加它
-                    self._active_cursor.add_selection(sel)
-            else:
-                # 如果点击在空白处，则销毁游标
-                if self._active_cursor is not None:
-                    self._active_cursor.remove()
-                    self._active_cursor = None
-            self.canvas.draw_idle()
-        # 断开旧的连接，防止重复绑定
-        if self._click_cid is not None:
-            self.canvas.mpl_disconnect(self._click_cid)
-        self._click_cid = self.canvas.mpl_connect("button_press_event", on_click)
-
+   
         
     def _plot_data(self):
         """内部方法，仅用于绘制数据。"""

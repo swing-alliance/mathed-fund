@@ -10,6 +10,7 @@ from my_types.nice_utils import update_files
 from pannel_plan import ControlPanel
 from PyQt5.QtGui import QIcon
 from sys_center import SysCentral
+from signal_handler import history_signal_emitter
 import shutil
 import glob
 import time
@@ -45,6 +46,10 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(QIcon(pic))
         except Exception as e:
             pass
+        self._central_widget_history = []
+        self._history_storage_container = QWidget(self) 
+        self._history_storage_container.hide()
+        history_signal_emitter.load_previous_widget_signal.connect(self.load_widget_history)
         self.setWindowTitle("金融计算系统")
         self.setMinimumSize(QSize(1400, 865)) # 设置一个更大的初始窗口大小
         self._create_menu_bar()
@@ -219,6 +224,8 @@ class MainWindow(QMainWindow):
         根据给定的文件路径绘制图表并设置为中心部件。
         如果没有提供文件路径，则弹出文件选择对话框。
         """
+        basename=os.path.basename(file_path) if file_path else "未选择文件"
+        basename= basename.split(".")[0]
         this_file_path = file_path
         if not this_file_path:
             data_dir = os.path.join(os.getcwd(), 'found')
@@ -240,10 +247,15 @@ class MainWindow(QMainWindow):
                 if '净值日期' not in df.columns :
                     QMessageBox.warning(self, "错误", "CSV文件缺少必要的列,'净值日期' ")
                     return
-                new_graph_widget = CsvGraphWidget(df)
+                new_graph_widget = CsvGraphWidget(df,basename=basename)
                 old_widget = self.centralWidget()
-                if old_widget:
-                    old_widget.deleteLater()
+                if len(self._central_widget_history) >= 5:
+                    removed_widget = self._central_widget_history.pop(0)
+                    removed_widget.deleteLater()
+                if old_widget and isinstance(old_widget, ControlPanel):
+                    self._central_widget_history.append(old_widget)
+                    old_widget.setParent(self._history_storage_container)
+                    old_widget.hide()
                 self.setCentralWidget(new_graph_widget)
                 self.attention_now = new_graph_widget
                 self.attention_path = this_file_path
@@ -523,6 +535,17 @@ class MainWindow(QMainWindow):
         if isinstance(central_widget, ControlPanel):
             central_widget.export_top_50()
 
+
+    def load_widget_history(self):
+        if not self._central_widget_history:
+            return
+        previous_widget = self._central_widget_history.pop()
+        current_widget = self.centralWidget()
+        previous_widget.setParent(self) 
+        self.setCentralWidget(previous_widget)
+        previous_widget.show() # 确保它可见
+        if current_widget:
+            current_widget.deleteLater()
 
 
 
