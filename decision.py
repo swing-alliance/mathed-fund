@@ -2,7 +2,8 @@
 from calculate_data import (get_interpolated_fund_data, fourier_worm_rolling, 
                             real_data_direction,fourier_worm_rolling_classic,
                             linear_regression_sliding_window,get_df,find_top_n_cycles, year_rate_sliding,yearly_return_since_start
-                            ,how_long_since_start,get_annualized_volatility_for_period,get_lowest_point_by_period,get_highest_point_by_period,short_term_daily_return,get_lowest_point_after_high)
+                            ,how_long_since_start,get_annualized_volatility_for_period,get_lowest_point_by_period,get_highest_point_by_period,short_term_daily_return,get_lowest_point_after_high
+                            ,get_lowest_point_before_high)
 import pandas as pd
 import akshare as ak
 from sklearn.linear_model import LinearRegression
@@ -110,7 +111,7 @@ class decison_maker:
     def one_month_up_over_10percent(self):
         """判断最近一个月是否有大于10%的上涨"""
         MINIMUM_DAYS_BETWEEN_TROUGHS = 3  # 最高点必须在最低点之后至少 N 天
-        self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_after_high(self.df, period_days=30)
+        self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_before_high(self.df, period_days=30)
         self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=30)
         if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
             time_difference = self.highest_point_date - self.lowest_point_date
