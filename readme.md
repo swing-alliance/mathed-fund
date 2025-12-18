@@ -1,0 +1,4 @@
+\mapping\mapping_latestdate.csv是基金净值csv路径和最新日期的映射
+\mapping\mapping.csv是基金代码和基金名称的映射
+\groups\group_cache.csv是基金净值csv路径和组名的映射
+\track\flagged.json是标记的基金代码记录

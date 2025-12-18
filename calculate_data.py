@@ -436,6 +436,20 @@ def get_highest_point_by_period(df, period_days):
     highest_point_date = df.loc[df['累计净值'] == highest_point_value, '净值日期'].iloc[0]
     return highest_point_value, highest_point_date
 
+def get_lowest_point_after_high(df, period_days):
+    highpoint_value, highpoint_date = get_highest_point_by_period(df, period_days)
+    df['净值日期'] = pd.to_datetime(df['净值日期'])
+    try:
+        df = df[df['净值日期'] > highpoint_date]
+        if df.empty:
+            return None, None
+    except Exception as e:
+        print(f"筛选高点后数据失败: {e}")
+        return None, None
+    lowest_point_value = df['累计净值'].min()
+    lowest_point_date = df.loc[df['累计净值'] == lowest_point_value, '净值日期'].iloc[0]
+    return lowest_point_value, lowest_point_date
+
 def fourier_worm_rolling(
     code: str,
     start_date: pd.Timestamp,

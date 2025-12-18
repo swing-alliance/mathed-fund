@@ -359,9 +359,9 @@ class ControlPanel(QWidget):
         for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
         if "组" in self.index_label.text():
-            self.index_label.setText=(f"当前组做波动率排序")
+            self.index_label.setText(f"当前组做波动率排序")
         else:    
-            self.index_label.setText=(f"当前计划做波动率排序")
+            self.index_label.setText(f"当前计划做波动率排序")
 
     def filter_self_by_consider_lowpoint(self):
         """过滤项目卡片只显示考虑低点的 (通过控制可见性实现，无重叠Bug)"""
