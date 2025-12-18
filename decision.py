@@ -100,22 +100,24 @@ class decison_maker:
     def one_month_withdrawal_over_10percent(self):
         """判断最近一个月是否有大于10%的回撤"""
         MINIMUM_DAYS_BETWEEN_PEAKS = 3  # 最低点必须在最高点之后至少 N 天
+        VOLATILITY_THRESHOLD = 0.10  # 年化波动率阈值 (10%)
         self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_after_high(self.df, period_days=30)
         self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=30)
         if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
             time_difference = self.lowest_point_date - self.highest_point_date
-            if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS) and self.lowest_point_in_period_value < self.highest_point_in_period_value * 0.9:
+            if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS) and self.lowest_point_in_period_value < self.highest_point_in_period_value * 0.9 and self.max_annualized_volatility >= VOLATILITY_THRESHOLD:
                 return True
         return False
 
     def one_month_up_over_10percent(self):
         """判断最近一个月是否有大于10%的上涨"""
         MINIMUM_DAYS_BETWEEN_TROUGHS = 3  # 最高点必须在最低点之后至少 N 天
+        VOLATILITY_THRESHOLD = 0.30  # 年化波动率阈值 (30%)
         self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_before_high(self.df, period_days=30)
         self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=30)
         if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
             time_difference = self.highest_point_date - self.lowest_point_date
-            if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_TROUGHS) and self.highest_point_in_period_value > self.lowest_point_in_period_value * 1.1:
+            if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_TROUGHS) and self.highest_point_in_period_value > self.lowest_point_in_period_value * 1.1 and self.max_annualized_volatility <= VOLATILITY_THRESHOLD:
                 return True
         return False
 
