@@ -512,15 +512,15 @@ class ControlPanel(QWidget):
                     today_up+=1
                 elif date_tuple[0]=="down":
                     today_down+=1
-                if date_tuple[2]:
-                    month_happened_withdrawal+=1
-                if date_tuple[3]:
-                    month_happened_upover10+=1
+            if date_tuple[2]:
+                month_happened_withdrawal+=1
+            if date_tuple[3]:
+                month_happened_upover10+=1
         print(f"{today_date}上涨基金数为：{today_up},今日下跌基金数为：{today_down},今日过去30天大于10%回撤基金数为：{month_happened_withdrawal},今日过去30天大于10%上涨基金数为：{month_happened_upover10}")
         today_up_ratio = today_up / (today_up+today_down) if today_up+today_down > 0 else 0
         today_down_ratio = today_down / (today_up+today_down) if today_up+today_down > 0 else 0
-        month_happened_withdrawal_ratio = month_happened_withdrawal / (today_up+today_down) if today_up+today_down > 0 else 0#月内存在10%回撤的比例
-        month_happened_upover10_ratio = month_happened_upover10 / (today_up+today_down) if today_up+today_down > 0 else 0#月内存在10%上涨的比例
+        month_happened_withdrawal_ratio = month_happened_withdrawal / total_cards#月内存在10%回撤的比例
+        month_happened_upover10_ratio = month_happened_upover10 / total_cards#月内存在10%上涨的比例
         left_cards_ratio = (total_cards - today_up - today_down)/total_cards if total_cards > 0 else 0
         counted_cards_ratio = 1-left_cards_ratio
         self._show_market_index_dialog(
@@ -640,7 +640,7 @@ def generate_market_conclusion(index_up: int, index_down: int, index_normal: int
     STRENGTH_ADVANTAGE_THRESHOLD = 0.10
     HIGH_DIVERGENCE_THRESHOLD = 0.85
     ABSOLUTE_BULLISH_THRESHOLD = 0.60
-    EXTREME_MOVEMENT_THRESHOLD = 0.50  # 新增：极端波动阈值
+    EXTREME_MOVEMENT_THRESHOLD = 0.40  # 新增：极端波动阈值
     
     # 判断市场分化程度
     extreme_movement_ratio = month_happened_withdrawal_ratio + month_happened_upover10_ratio
@@ -658,10 +658,10 @@ def generate_market_conclusion(index_up: int, index_down: int, index_normal: int
     if has_extreme_volatility:
         if month_happened_withdrawal_ratio > 0.3 and month_happened_upover10_ratio > 0.3:
             volatility_note = "市场同时存在大量暴涨暴跌基金，波动极为剧烈。"
-        elif month_happened_upover10_ratio > 0.4:
-            volatility_note = "市场存在显著赚钱效应，但需注意波动风险。"
-        elif month_happened_withdrawal_ratio > 0.4:
-            volatility_note = "市场回撤压力较大，投资者情绪偏向谨慎。"
+        elif month_happened_upover10_ratio > 0.3:
+            volatility_note = "市场存在显著赚钱效应或者结构性行情特征，但需注意波动,短期过热风险。"
+        elif month_happened_withdrawal_ratio > 0.3:
+            volatility_note = "市场回撤压力较大，投资者情绪偏向谨慎,市场可能继续探底。"
     
     # 主要判断逻辑
     if p_up > ABSOLUTE_BULLISH_THRESHOLD:
