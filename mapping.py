@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import akshare as ak
-
+"""用于完成基金代码和基金名称的映射关系的建立和更新"""
 # 定义 mapping.csv 文件的路径
 mapping_file_path = os.path.join('mapping', 'mapping.csv')
 

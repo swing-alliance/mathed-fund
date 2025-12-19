@@ -10,7 +10,6 @@ from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont ,QIcon
 import pandas as pd
-import shutil
 from projectcard import ProjectCard
 from PyQt5.QtCore import QTimer
 from fundholding import stocker_prompt
@@ -35,6 +34,8 @@ class ControlPanel(QWidget):
     visualize_requested = pyqtSignal(str)
     def __init__(self, parent=None,base_path=None):
         super().__init__(parent)
+        self.hidden_storage = QWidget()
+        self.card_to_show=[]
         self.loaded_cards = {}#用于缓存已加载的卡片
         self.base_path = base_path # 当前所关注的文件夹路径
         self.file_nums = len(os.listdir(base_path))
@@ -219,24 +220,32 @@ class ControlPanel(QWidget):
             card for card in self.loaded_cards.values()
             if not search_text or search_text in card.fund_tittle or search_text in card.filename
         ]
-        for card in self.loaded_cards.values():
-            self.scroll_layout.removeWidget(card)
-            card.hide()
-        for card in visible_cards:#写两个for比一个for快十倍
-            card.show()
-        for card in visible_cards:
-            self.scroll_layout.addWidget(card)
-            
+        self.setUpdatesEnabled(False)
+        try:
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+                card.hide()
+            for card in visible_cards:#写两个for比一个for快十倍
+                if "过滤低点" in self.index_label.text():
+                    if card.filename in self.card_to_show:
+                        card.show()
+                    else:
+                        continue
+                else:
+                    card.show()
+            for card in visible_cards:
+                self.scroll_layout.addWidget(card)
+        finally:
+            card_count = 0
+            for i in range(self.scroll_layout.count()):
+                widget = self.scroll_layout.itemAt(i).widget()
+                if isinstance(widget, ProjectCard):
+                    card_count += 1
+            print(f"当前布局中有 {card_count} 个卡片")
+            self.setUpdatesEnabled(True)
+            self.update()
 
-    def clear_layout_widgets_only(self, layout):
-        """辅助函数：从给定的布局中移除所有组件。只移除 QWidget，不处理子布局，以确保卡片对象仍存在。"""
-        if layout is not None:
-            while layout.count():
-                item = layout.takeAt(0)
-                widget = item.widget()
-                
-                if widget is not None:
-                    widget.setParent(None)            
+            
 
 
     def what_label_now(self):
@@ -365,21 +374,18 @@ class ControlPanel(QWidget):
 
     def filter_self_by_consider_lowpoint(self):
         """过滤项目卡片只显示考虑低点的 (通过控制可见性实现，无重叠Bug)"""
+        filtered_cards = [card for card in self.loaded_cards.values() if card.return_decision().is_consider_lowpoint() is True]
         for card in self.loaded_cards.values():
-            is_lowpoint = card.return_decision().is_consider_lowpoint()
-            if is_lowpoint is True:
-                card.show()
-            else:
+                self.scroll_layout.removeWidget(card)
                 card.hide()
-        if self.scroll_layout:
-            self.scroll_layout.update()
-            scroll_area = self.scroll_layout.parentWidget().parentWidget()
-            if hasattr(scroll_area, 'viewport'):
-                scroll_area.viewport().update()
-        if "组" in self.index_label.text():
-            self.index_label.setText(f"当前组过滤低点")
-        else:
-            self.index_label.setText(f"当前计划过滤低点")
+        for card in filtered_cards:
+            self.card_to_show.append(card.filename)
+            card.show()
+        for card in filtered_cards:
+            self.scroll_layout.addWidget(card)
+        self.scroll_layout.invalidate() 
+        status_type = "组" if "组" in self.index_label.text() else "计划"
+        self.index_label.setText(f"当前{status_type}过滤低点 ({len(filtered_cards)})")
         
     
     def export_ai_prompt(self):
@@ -414,6 +420,7 @@ class ControlPanel(QWidget):
         """
         file_names = []
         latest_datememory=[]
+        prompt=""
         listeddict={}
         count=0
         max_cards = 50
@@ -431,15 +438,16 @@ class ControlPanel(QWidget):
                         break
                     if card.fund_tittle not in listeddict:
                         listeddict[card.fund_tittle] = 1
-                        print(f"{card.filename}符合要求")
                         count += 1
                         file_names.append(card.fund_tittle)
                     else:
                         continue  
             if file_names:
-                for name in file_names:
-                    print(f"- {name}")
-                prompt = f"你是一个专业的AI助手,这是最近表现优秀的{count}只基金按强弱排名,查看表达了什么信号,结合最近一个月的时事新闻，做市场调研，并给出最终的建议:{', '.join(file_names)}\n"
+                if "过滤低点" in self.index_label.text():
+                    print("导出考虑低点的Prompt")
+                    prompt = f"你是一个专业的AI助手,这是最近表现下跌的{count}只基金,均为考虑低点后跌破20天均线,且回撤超过7.2%的基金,查看表达了什么信号,结合最近一个月的时事新闻，做市场调研，并给出最终的建议能否买入还是卖出或是等待:{', '.join(file_names)}\n"
+                else:
+                    prompt = f"你是一个专业的AI助手,这是最近表现优秀的{count}只基金按强弱排名,查看表达了什么信号,结合最近一个月的时事新闻，做市场调研，并给出最终的建议:{', '.join(file_names)}\n"
                 pyperclip.copy(prompt)
                 QMessageBox.information(self,"导出成功",f"已成功生成 {count}只股票的Prompt,并已复制到剪切板!\n",QMessageBox.Ok)
             else:
@@ -761,7 +769,10 @@ def generate_market_conclusion(index_up: int, index_down: int, index_normal: int
 
 
 
-
+class containerwidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
 if __name__ == "__main__":
     pass

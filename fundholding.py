@@ -1,7 +1,7 @@
 import akshare as ak
 import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import datetime
+
 fund_code = "001877"
 codes=["000216","000043","501025","002834","018156"]
 
@@ -32,7 +32,7 @@ def get_holdings(fund_code, report_year=datetime.datetime.now().year):
 
 
 class stocker_prompt():
-    "生成提示词"
+    "基于持仓生成提示词"
     def __init__(self,code=None,codes=None):
         self.code = code
         self.codes = codes

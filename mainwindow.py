@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWidget, QDialog,QStackedWidget, QProgressDialog
+from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWidget, QDialog, QProgressDialog
 from PyQt5.QtGui import QFont 
 from PyQt5.QtCore import QSize,QThread, pyqtSignal
 from csvqwidget import CsvGraphWidget

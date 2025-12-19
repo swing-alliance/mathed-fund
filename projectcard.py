@@ -15,6 +15,8 @@ import pandas as pd
 from calculate_data import year_rate_sliding
 from decision import decison_maker
 from fundholding import get_holdings
+from fundholding import stocker_prompt
+import pyperclip
 import csv
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
@@ -332,9 +334,9 @@ class ProjectCard(QFrame):
             visualize_action = QAction("转到图", self)
             visualize_action.triggered.connect(self._emit_visualize_request)
             
-            caculate_year_rate_sliding_action = QAction("计算滑动年化收益", self)
-            caculate_year_rate_sliding_action.triggered.connect(self.caculate_year_rate_sliding)
-            
+            export_single_ai_prompt_action = QAction("导出AI提示", self)
+            export_single_ai_prompt_action.triggered.connect(self.export_single_ai_prompt)
+
             current_is_flagged = isflagged(self.filename)#每一次右键触发检查
             if current_is_flagged:
                 unflag_action = QAction("取消标记", self)
@@ -356,12 +358,12 @@ class ProjectCard(QFrame):
             discard_action.setFont(QFont('微软雅黑', 11))
             info_action.setFont(QFont('微软雅黑', 11))
             visualize_action.setFont(QFont('微软雅黑', 11))
-            caculate_year_rate_sliding_action.setFont(QFont('微软雅黑', 11))
+            export_single_ai_prompt_action.setFont(QFont('微软雅黑', 11))
 
             menu.addAction(info_action)
             menu.addAction(holding_action)
             menu.addAction(visualize_action)
-            menu.addAction(caculate_year_rate_sliding_action)
+            menu.addAction(export_single_ai_prompt_action)
             menu.addAction(add_to_group_action)
             menu.addAction(discard_action)
             menu.exec_(event.globalPos())
@@ -382,10 +384,15 @@ class ProjectCard(QFrame):
         else:
             self.flag_label.hide()
 
-    def caculate_year_rate_sliding(self):
-        """计算年化收益率的滑动窗口"""
-        df=pd.read_csv(self.file_path)
-        year_rate_sliding(self.filename,df,base_date='2024-10-10',window_size_days=20,step_size_days=2)
+    def export_single_ai_prompt(self):
+        """导出单个基金的AI提示词"""
+        prompt=stocker_prompt(code=self.filename)
+        ai_prompt_text=prompt.prompt_text_single
+        if ai_prompt_text:
+            pyperclip.copy(ai_prompt_text)
+            QMessageBox.information(self,"导出成功",f"已成功生成 Prompt，并已复制到剪切板！\n",QMessageBox.Ok)
+        else:
+            pass
         
 
     def add_to_group(self,straight_group_path=None):

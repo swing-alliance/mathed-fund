@@ -3,16 +3,13 @@ import os
 import pandas as pd
 import numpy as np
 import akshare as ak
-import statsmodels.api as sm
-from numpy.polynomial.polynomial import Polynomial
 from typing import Optional, Tuple
-from datetime import datetime, timedelta,date
+from datetime import timedelta
 from typing import Optional, Tuple, List, Union
-from typing import Union, Dict, Callable
+from typing import Union
 from sklearn.linear_model import LinearRegression
-import math
 import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -419,22 +416,26 @@ def find_top_n_cycles(
 
 def get_lowest_point_by_period(df, period_days):
     """返回df最近period_days天的最低点的值和日期"""
-    df['净值日期'] = pd.to_datetime(df['净值日期'])  # 确保净值日期为datetime格式
-    # 将净值日期转换为周期内的日期
-    df['周期'] = (df['净值日期'] - df['净值日期'].min()).dt.days // period_days
-    lowest_point_value = df.loc[df['周期'] == df['周期'].max(), '累计净值'].min()
-    lowest_point_date = df.loc[df['累计净值'] == lowest_point_value, '净值日期'].iloc[0]
-    return lowest_point_value, lowest_point_date
+    df['净值日期'] = pd.to_datetime(df['净值日期'])
+    df = df.sort_values('净值日期')
+    cutoff_date = df['净值日期'].max() - pd.Timedelta(days=period_days)
+    recent_df = df[df['净值日期'] >= cutoff_date]
+    idx = recent_df['累计净值'].idxmin()
+    lowest_value = recent_df.loc[idx, '累计净值']
+    lowest_date = recent_df.loc[idx, '净值日期']
+    return lowest_value, lowest_date
 
 
 def get_highest_point_by_period(df, period_days):
     """返回df最近period_days天的最高点的值和日期"""
-    df['净值日期'] = pd.to_datetime(df['净值日期'])  # 确保净值日期为datetime格式
-    # 将净值日期转换为周期内的日期
-    df['周期'] = (df['净值日期'] - df['净值日期'].min()).dt.days // period_days
-    highest_point_value = df.loc[df['周期'] == df['周期'].max(), '累计净值'].max()
-    highest_point_date = df.loc[df['累计净值'] == highest_point_value, '净值日期'].iloc[0]
-    return highest_point_value, highest_point_date
+    df['净值日期'] = pd.to_datetime(df['净值日期'])
+    df = df.sort_values('净值日期')
+    cutoff_date = df['净值日期'].max() - pd.Timedelta(days=period_days)
+    recent_df = df[df['净值日期'] >= cutoff_date]
+    idx = recent_df['累计净值'].idxmax()
+    highest_value = recent_df.loc[idx, '累计净值']
+    highest_date = recent_df.loc[idx, '净值日期']
+    return highest_value, highest_date
 
 def get_lowest_point_after_high(df, period_days):
     highpoint_value, highpoint_date = get_highest_point_by_period(df, period_days)
@@ -451,18 +452,31 @@ def get_lowest_point_after_high(df, period_days):
     return lowest_point_value, lowest_point_date
 
 def get_lowest_point_before_high(df, period_days):
+    # 1. 获取最高点（建议先确保 df 已经按日期排序）
     highpoint_value, highpoint_date = get_highest_point_by_period(df, period_days)
-    df['净值日期'] = pd.to_datetime(df['净值日期'])
-    try:
-        df = df[df['净值日期'] < highpoint_date]
-        if df.empty:
-            return None, None
-    except Exception as e:
-        print(f"筛选高点前数据失败: {e}")
+    if highpoint_value is None:
         return None, None
-    lowest_point_value = df['累计净值'].min()
-    lowest_point_date = df.loc[df['累计净值'] == lowest_point_value, '净值日期'].iloc[0]
+    df['净值日期'] = pd.to_datetime(df['净值日期'])
+    cutoff_date = df['净值日期'].max() - pd.Timedelta(days=period_days)
+    mask = (df['净值日期'] >= cutoff_date) & (df['净值日期'] < highpoint_date)
+    pre_high_df = df.loc[mask]
+    if pre_high_df.empty:
+        return None, None
+    min_idx = pre_high_df['累计净值'].idxmin()
+    lowest_point_value = pre_high_df.at[min_idx, '累计净值']
+    lowest_point_date = pre_high_df.at[min_idx, '净值日期']
     return lowest_point_value, lowest_point_date
+
+def get_lowerthan_averge(df, period_days, threshold_ratio=0.95):
+    """返回df最近period_days天内，累计净值低于该期间平均值90%的所有点,是否跌破平均值"""
+    if df is None or df.empty or len(df) < 2:
+        return False
+    df = df.sort_values('净值日期')
+    recent_df = df.tail(period_days)
+    average_value = recent_df['累计净值'].mean()
+    last_nav = recent_df['累计净值'].iloc[-1]
+    threshold_value = average_value * threshold_ratio
+    return last_nav < threshold_value
 
 def fourier_worm_rolling(
     code: str,

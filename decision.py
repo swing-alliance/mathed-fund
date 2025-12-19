@@ -3,7 +3,7 @@ from calculate_data import (get_interpolated_fund_data, fourier_worm_rolling,
                             real_data_direction,fourier_worm_rolling_classic,
                             linear_regression_sliding_window,get_df,find_top_n_cycles, year_rate_sliding,yearly_return_since_start
                             ,how_long_since_start,get_annualized_volatility_for_period,get_lowest_point_by_period,get_highest_point_by_period,short_term_daily_return,get_lowest_point_after_high
-                            ,get_lowest_point_before_high)
+                            ,get_lowest_point_before_high,get_lowerthan_averge)
 import pandas as pd
 import akshare as ak
 from sklearn.linear_model import LinearRegression
@@ -129,10 +129,11 @@ class decison_maker:
         判断是否处于低点买入的考虑范围，基于严格的日期、回撤和波动率条件。
         """
         MINIMUM_DAYS_BETWEEN_PEAKS = 3  # 最低点必须在最高点之后至少 N 天
-        DRAWDOWN_PERCENTAGE_THRESHOLD = 0.1  # 回撤百分比阈值 (10%),40天
-        VOLATILITY_THRESHOLD = 0.12  # 年化波动率阈值 (12%)
+        DRAWDOWN_PERCENTAGE_THRESHOLD = 0.072  # 存在回撤百分比阈值 ,40天
+        VOLATILITY_THRESHOLD = 0.18  # 年化波动率阈值 
         # 1. 获取过去40天的极值和日期
         # 假设 these are already calculated and stored in self.*
+        
         self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_after_high(self.df, period_days=40)
         self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=40)
         if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
@@ -153,7 +154,9 @@ class decison_maker:
             has_high_volatility = current_annualized_volatility >= VOLATILITY_THRESHOLD
             if not has_high_volatility:
                 return False
-            if is_low_after_high and has_sufficient_drawdown and has_high_volatility:
+            if '000593' in self.path:
+                print(f"Debug Info for 000593: is_low_after_high={is_low_after_high}, has_sufficient_drawdown={has_sufficient_drawdown}, has_high_volatility={has_high_volatility},高点日期={self.highest_point_date},低点日期={self.lowest_point_date},高点值={self.highest_point_in_period_value},低点值={self.lowest_point_in_period_value},回撤={drawdown},年化波动率={current_annualized_volatility}")
+            if is_low_after_high and has_sufficient_drawdown and has_high_volatility and get_lowerthan_averge(self.df, period_days=20, threshold_ratio=0.99):
                 return True
         return False
 
