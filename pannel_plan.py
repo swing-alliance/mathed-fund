@@ -216,11 +216,14 @@ class ControlPanel(QWidget):
     def _perform_filtering(self):
         """实际的过滤逻辑。"""
         search_text = self.search_input.text().lower().strip()
-        visible_cards = [
-            card for card in self.loaded_cards.values()
-            if not search_text or search_text in card.fund_tittle or search_text in card.filename
-        ]
-        self.setUpdatesEnabled(False)
+        search_text = search_text.replace('（', '(').replace('）', ')')
+        visible_cards = []
+        for card in self.loaded_cards.values():
+            target_title = card.fund_tittle.lower().replace('（', '(').replace('）', ')')
+            target_fname = card.filename.lower().replace('（', '(').replace('）', ')')
+            if not search_text or search_text in target_title or search_text in target_fname:
+                visible_cards.append(card)
+            self.setUpdatesEnabled(False)
         try:
             for card in self.loaded_cards.values():
                 self.scroll_layout.removeWidget(card)

@@ -28,8 +28,8 @@ else:
     season = 'winter'
 pics = glob.glob(os.path.join(target_dir, f'{season}*.png'))
 if not pics:
-    pics = glob.glob(os.path.join(target_dir, 'infinite.png'))
-pic=pics[0]
+    picdefault = glob.glob(os.path.join(target_dir, 'infinite.png'))
+pic=pics[0] if pics else picdefault[0]
 balanced_path = os.path.join(os.getcwd(), 'my_types','Balanced')
 Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
