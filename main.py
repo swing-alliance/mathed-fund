@@ -42,10 +42,6 @@ if __name__ == "__main__":
     if pic:
         icon = QIcon(pic)
         main_window.setWindowIcon(icon)
-    else:
-        print("【调试】未找到任何图标文件")
-    if pic:
-        main_window.setWindowIcon(icon)
     main_window.show()
     sys.exit(app.exec_())
     

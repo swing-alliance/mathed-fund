@@ -17,6 +17,7 @@ from decision import decison_maker
 from fundholding import get_holdings
 from fundholding import stocker_prompt
 import pyperclip
+from stockrealtime import from_stock_data_for_codes_get_real_time_fluctuation
 import csv
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
@@ -217,9 +218,15 @@ class ProjectCard(QFrame):
     
     def show_fund_holding(self):
         """在线显示基金持仓对话框"""
-        hold_df,_,valider=get_holdings(self.filename)
-        if valider:
-            self.Holding_dialogue = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date)
+        try:
+            hold_df,_,valider=get_holdings(self.filename)
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"获取持仓数据失败: {e}")
+            return
+        if valider is True:
+            code_list = hold_df['股票代码'].tolist()
+            real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list)
+            self.Holding_dialogue = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date,real_time_fluctuations=real_time_fluctuations)  # 获取基金持仓并显示
             result = self.Holding_dialogue.exec_()
             if result == QDialog.Accepted:
                 print("对话框被接受。")

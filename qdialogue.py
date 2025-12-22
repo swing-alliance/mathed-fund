@@ -9,11 +9,22 @@ import akshare as ak
 from PyQt5.QtGui import QFont ,QIcon
 import os
 import glob
+import time
 target_dir = os.path.join(os.getcwd(), 'static')
-pics = glob.glob(os.path.join(target_dir, '*.png'))
-pic = next((p for p in pics if 'infinite.png' in p), None)
-if pic is None and pics:
-    pic = pics[0]
+timenow = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+current_month = int(time.strftime('%m', time.localtime(time.time())))  # 获取当前月份
+if 3 <= current_month <= 5:
+    season = 'spring'
+elif 6 <= current_month <= 8:
+    season = 'summer'
+elif 9 <= current_month <= 11:
+    season = 'autumn'
+else:
+    season = 'winter'
+pics = glob.glob(os.path.join(target_dir, f'{season}*.png'))
+if not pics:
+    picdefault = glob.glob(os.path.join(target_dir, 'infinite.png'))
+pic=pics[0] if pics else picdefault[0]
     
 
 
@@ -290,8 +301,9 @@ class FundHoldingDialog(QDialog):
     重仓持股展示对话框（极简纯净版）
     仅使用 微软雅黑 10号 普通字体
     无加粗、无颜色、无背景、无网格线
+    新增：实时涨跌幅列
     """
-    def __init__(self, df, fund_name="某基金", report_date="最新", parent=None):
+    def __init__(self, df, fund_name="某基金", report_date="最新", real_time_fluctuations=None, parent=None):
         super().__init__(parent)
         self.setWindowIcon(QIcon(pic))
         font = QFont("微软雅黑", 10)
@@ -300,34 +312,50 @@ class FundHoldingDialog(QDialog):
         self.df = df.reset_index(drop=True)
         self.fund_name = fund_name
         self.report_date = report_date
+        self.real_time_fluctuations = real_time_fluctuations or {}
         self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle(f"{self.fund_name} 前十大重仓股")
-        self.resize(760, 520)
+        self.resize(860, 520)  # 稍微加宽一点，容纳新列
+        
         layout = QVBoxLayout(self)
         title = QLabel(f"{self.fund_name} 重仓持股 ({self.report_date})")
-        title.setFont(QFont("微软雅黑", 13))  # 仅放大，不加粗
+        title.setFont(QFont("微软雅黑", 13))
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
         self.table = QTableWidget()
         self.table.setRowCount(len(self.df))
-        self.table.setColumnCount(6)
+        self.table.setColumnCount(7)  # 原6列 + 1列实时涨跌幅 = 7列
+        
         self.table.setHorizontalHeaderLabels([
-            "排名", "股票代码", "股票名称", "占净值比例", "持股数（股）", "持仓市值（元）"
+            "排名", "股票代码", "股票名称", "占净值比例", "持股数（股）", "持仓市值（元）", "实时涨跌幅"
         ])
+        
         for idx, row in self.df.iterrows():
+            code = row["股票代码"]
+            
             self.table.setItem(idx, 0, QTableWidgetItem(str(idx + 1)))
-            self.table.setItem(idx, 1, QTableWidgetItem(row["股票代码"]))
+            self.table.setItem(idx, 1, QTableWidgetItem(code))
             self.table.setItem(idx, 2, QTableWidgetItem(row["股票名称"]))
             self.table.setItem(idx, 3, QTableWidgetItem(f"{row['占净值比例']:.2f}%"))
             self.table.setItem(idx, 4, QTableWidgetItem(f"{row['持股数']:,.0f}"))
             self.table.setItem(idx, 5, QTableWidgetItem(f"{row['持仓市值']:,.2f}"))
+            fluctuation = self.real_time_fluctuations.get(code)
+            if fluctuation is not None:
+                fluct_str = f"{fluctuation:+.2f}%"
+            else:
+                fluct_str = "--"  # 无数据时显示 --
+            item = QTableWidgetItem(fluct_str)
+            self.table.setItem(idx, 6, item)
+        
+        # 极简设置
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setAlternatingRowColors(False)   # 连交替色都不用了
-        self.table.setShowGrid(False)                # 无网格线
-        self.table.verticalHeader().setVisible(False)  # 隐藏行号
+        self.table.setAlternatingRowColors(False)
+        self.table.setShowGrid(False)
+        self.table.verticalHeader().setVisible(False)
+        
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
@@ -335,11 +363,13 @@ class FundHoldingDialog(QDialog):
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # 实时涨跌幅列自适应
         layout.addWidget(self.table)
         total_ratio = self.df["占净值比例"].sum()
         footer = QLabel(f"前十大重仓股合计占净值比例：{total_ratio:.2f}%")
         footer.setAlignment(Qt.AlignRight)
         layout.addWidget(footer)
+        
         self.setLayout(layout)
 
 class GroupConfigDialog(QDialog):
