@@ -46,6 +46,7 @@ def get_stock_data(ticker, period="5d", interval="5m"):
         except Exception as e:
             print(f"yfinance 获取失败: {e}")
             return None
+        
 
 def clean_stock_reference(stockcode):
     """
@@ -80,7 +81,7 @@ def get_stock_data_for_codes(stock_codes, period="5d", interval="5m"):
     """
     if stock_codes:
         results = {}
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             future_to_code = {executor.submit(get_stock_data, code, period, interval): code for code in stock_codes}
             for future in as_completed(future_to_code):
                 code = future_to_code[future]
@@ -90,7 +91,10 @@ def get_stock_data_for_codes(stock_codes, period="5d", interval="5m"):
                 except Exception as e:
                     print(f"Error fetching data for {code}: {e}")
                     results[code] = None
+    os.environ.pop('HTTP_PROXY', None)
+    os.environ.pop('HTTPS_PROXY', None)
     return results
+
 
 
 def from_stock_data_for_codes_get_real_time_fluctuation(stock_codes):

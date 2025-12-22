@@ -1,7 +1,7 @@
 import akshare as ak
 import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+import os
 fund_code = "001877"
 codes=["000216","000043","501025","002834","018156"]
 
@@ -9,6 +9,8 @@ codes=["000216","000043","501025","002834","018156"]
 def get_holdings(fund_code, report_year=datetime.datetime.now().year):
     "得到今年最新的股票持仓情况"
     try:
+        os.environ.pop('HTTP_PROXY', None)
+        os.environ.pop('HTTPS_PROXY', None)
         holdings_df = ak.fund_portfolio_hold_em(symbol=fund_code, date=report_year)
         if not holdings_df.empty:
             latest_report_session = holdings_df['季度'].max()
@@ -27,6 +29,7 @@ def get_holdings(fund_code, report_year=datetime.datetime.now().year):
             valider=False
             return df ,fund_code,valider
     except Exception as e:
+        print(f"获取持仓数据失败: {e}")
         pass
 
 
