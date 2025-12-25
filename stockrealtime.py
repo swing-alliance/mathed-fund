@@ -155,4 +155,4 @@ def get_date_column(dataframe):
     return None
 
 if __name__ == "__main__":
-    print(get_china_stock_data("002594"))
+    print(get_stock_data("01347"))
