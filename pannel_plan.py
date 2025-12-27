@@ -14,6 +14,7 @@ from projectcard import ProjectCard
 from PyQt5.QtCore import QTimer
 from fundholding import stocker_prompt
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 import glob
 import time
 TO_WORKER = "to_worker"
@@ -250,12 +251,6 @@ class ControlPanel(QWidget):
             for card in visible_cards:
                 self.scroll_layout.addWidget(card)
         finally:
-            card_count = 0
-            for i in range(self.scroll_layout.count()):
-                widget = self.scroll_layout.itemAt(i).widget()
-                if isinstance(widget, ProjectCard):
-                    card_count += 1
-            print(f"当前布局中有 {card_count} 个卡片")
             self.setUpdatesEnabled(True)
             self.update()
 
@@ -287,7 +282,10 @@ class ControlPanel(QWidget):
 
     def resort_self(self):
         """重新排序项目卡片按照365天夏普比率从大到小"""
-        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().sharp_constant, reverse=True)
+        cards = list(self.loaded_cards.values())
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            ratios = list(executor.map(lambda c: c.return_decision().sharp_constant, cards))
+        sorted_cards_list = [c for _, c in sorted(zip(ratios, cards), key=lambda x: x[0], reverse=True)]
         new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
         self.loaded_cards = new_ordered_cards
         for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
