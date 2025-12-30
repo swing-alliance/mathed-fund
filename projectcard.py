@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont 
-from qdialogue import FundInfoDialog,List_group_dialog,FundHoldingDialog
+from qdialogue import FundInfoDialog,List_group_dialog,FundHoldingDialog,RankChartDialog
 import akshare as ak
 import json
 from signal_handler import signal_emitter
@@ -18,6 +18,7 @@ from fundholding import get_holdings
 from fundholding import stocker_prompt
 import pyperclip
 from stockrealtime import from_stock_data_for_codes_get_real_time_fluctuation
+from log.analysislog100 import analysis_log_single
 import csv
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
@@ -340,7 +341,8 @@ class ProjectCard(QFrame):
             holding_action.triggered.connect(self.show_fund_holding)
             visualize_action = QAction("转到图", self)
             visualize_action.triggered.connect(self._emit_visualize_request)
-            
+            export_log_analysis_action = QAction("夏普排名记录", self)
+            export_log_analysis_action.triggered.connect(self.export_log_analysis)
             export_single_ai_prompt_action = QAction("导出AI提示", self)
             export_single_ai_prompt_action.triggered.connect(self.export_single_ai_prompt)
 
@@ -365,11 +367,13 @@ class ProjectCard(QFrame):
             discard_action.setFont(QFont('微软雅黑', 11))
             info_action.setFont(QFont('微软雅黑', 11))
             visualize_action.setFont(QFont('微软雅黑', 11))
+            export_log_analysis_action.setFont(QFont('微软雅黑', 11))
             export_single_ai_prompt_action.setFont(QFont('微软雅黑', 11))
-
+            
             menu.addAction(info_action)
             menu.addAction(holding_action)
             menu.addAction(visualize_action)
+            menu.addAction(export_log_analysis_action)
             menu.addAction(export_single_ai_prompt_action)
             menu.addAction(add_to_group_action)
             menu.addAction(discard_action)
@@ -390,6 +394,15 @@ class ProjectCard(QFrame):
             self.flag_label.show()
         else:
             self.flag_label.hide()
+
+    def export_log_analysis(self):
+        """导出单个日志分析"""
+        ranking_history=analysis_log_single(self.fund_tittle,None)
+        if not ranking_history:
+            return
+        dialog = RankChartDialog(self.fund_tittle, ranking_history)
+        dialog.exec_()
+
 
     def export_single_ai_prompt(self):
         """导出单个基金的AI提示词"""

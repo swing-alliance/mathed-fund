@@ -3,11 +3,14 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QDialogButtonBox, QLineEdit, 
                              ,QScrollArea,QGroupBox,QFormLayout,QListWidget,QListWidgetItem,QDesktopWidget)
 from PyQt5.QtCore import Qt
 import re
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
 import sys
 import pandas as pd
 import akshare as ak
 from PyQt5.QtGui import QFont ,QIcon
 import os
+import mplcursors
 import glob
 import time
 target_dir = os.path.join(os.getcwd(), 'static')
@@ -508,6 +511,154 @@ class List_group_dialog(QDialog):
         self.resize(400, 300)  # 保持原有大小
 
 
+class RankChartDialog(QDialog):
+    def __init__(self, asset_name, ranking_history, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"排名追踪: {asset_name}")
+        self.resize(800, 600)
+        dates = [item[0] for item in ranking_history]
+        ranks = [item[1] for item in ranking_history]
+        layout = QVBoxLayout()
+        self.figure, self.ax = plt.subplots()
+        self.canvas = FigureCanvas(self.figure)
+        layout.addWidget(self.canvas)
+        self.ax.plot(dates, ranks, marker='o', linestyle='-', color='b', label='夏普比率排名')
+        self.ax.set_title(f"{asset_name} 60日夏普比排名趋势")
+        self.ax.set_xlabel("日期")
+        self.ax.set_ylabel("排名位置")
+        self.ax.invert_yaxis() 
+        self.ax.set_yticks(range(min(ranks)-1, max(ranks)+2))
+        self.ax.grid(True, linestyle='--', alpha=0.6)
+        self.ax.legend()
+        btn_close = QPushButton("关闭")
+        btn_close.clicked.connect(self.accept)
+        layout.addWidget(btn_close)
+        self.setLayout(layout)
+
+
+
+
+class MultiRankChartDialog(QDialog):
+    def __init__(self, ranking_result, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("多资产排名对比分析 (交互增强模式)")
+        self.resize(2000, 1200)
+        
+        # 拖动状态变量
+        self._is_dragging = False
+        self._last_mouse_pos = None
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.figure, self.ax = plt.subplots(facecolor='#1e1e2f') 
+        self.canvas = FigureCanvas(self.figure)
+        layout.addWidget(self.canvas)
+        self.ax.set_facecolor('#252538')
+
+        # --- 连接交互事件 ---
+        self.canvas.mpl_connect('scroll_event', self.on_zoom)
+        self.canvas.mpl_connect('button_press_event', self.on_press)
+        self.canvas.mpl_connect('button_release_event', self.on_release)
+        self.canvas.mpl_connect('motion_notify_event', self.on_motion)
+        
+        # 绘图逻辑
+        lines = []
+        for name, history in ranking_result:
+            if not history: continue
+            dates = [item[0] for item in history]
+            ranks = [item[1] for item in history]
+            line, = self.ax.plot(dates, ranks, marker='o', markersize=8, 
+                                 label=name, alpha=0.3, linewidth=1.5)
+            lines.append(line)
+
+        self.setup_interactions(lines)
+        self.setup_axes_style()
+
+        btn_close = QPushButton("退出分析视图")
+        btn_close.clicked.connect(self.accept)
+        layout.addWidget(btn_close)
+        self.setLayout(layout)
+
+    # --- 1. 修复后的缩放逻辑 ---
+    def on_zoom(self, event):
+        if event.inaxes != self.ax: return
+        
+        # 缩放系数：向上滚动放大(范围变小)，向下滚动缩小(范围变大)
+        # 逻辑：up -> < 1 (收缩), down -> > 1 (扩张)
+        scale_factor = 0.8 if event.button == 'up' else 1.2
+        
+        cur_xlim = self.ax.get_xlim()
+        cur_ylim = self.ax.get_ylim() # 注意此时 y_min > y_max 因为反转了
+
+        xdata, ydata = event.xdata, event.ydata
+
+        def calculate_new_lim(cur_lim, data, factor):
+            new_size = (cur_lim[1] - cur_lim[0]) * factor
+            rel_pos = (cur_lim[1] - data) / (cur_lim[1] - cur_lim[0])
+            return [data - new_size * (1 - rel_pos), data + new_size * rel_pos]
+
+        self.ax.set_xlim(calculate_new_lim(cur_xlim, xdata, scale_factor))
+        self.ax.set_ylim(calculate_new_lim(cur_ylim, ydata, scale_factor))
+        
+        self.canvas.draw()
+
+    # --- 2. 鼠标按住拖动逻辑 ---
+    def on_press(self, event):
+        if event.inaxes != self.ax: return
+        if event.button == 1: # 左键按住拖动
+            self._is_dragging = True
+            self._last_mouse_pos = (event.xdata, event.ydata)
+
+    def on_release(self, event):
+        self._is_dragging = False
+        self._last_mouse_pos = None
+
+    def on_motion(self, event):
+        if not self._is_dragging or event.inaxes != self.ax or self._last_mouse_pos is None:
+            return
+        
+        # 计算偏移量
+        dx = event.xdata - self._last_mouse_pos[0]
+        dy = event.ydata - self._last_mouse_pos[1]
+        
+        # 获取当前范围并应用偏移
+        cur_xlim = self.ax.get_xlim()
+        cur_ylim = self.ax.get_ylim()
+        
+        self.ax.set_xlim(cur_xlim[0] - dx, cur_xlim[1] - dx)
+        self.ax.set_ylim(cur_ylim[0] - dy, cur_ylim[1] - dy)
+        
+        self.canvas.draw()
+
+    def setup_interactions(self, lines):
+        """设置悬停交互"""
+        cursor = mplcursors.cursor(lines, hover=True)
+        @cursor.connect("add")
+        def on_add(sel):
+            sel.artist.set_alpha(1.0)
+            sel.artist.set_linewidth(3)
+            sel.artist.set_markersize(12)
+            sel.annotation.set_text(f"【{sel.artist.get_label()}】\n排名: {int(sel.target[1])}\n日期: {sel.target[0]}")
+            sel.annotation.get_bbox_patch().set(fc="#000000", alpha=0.8, boxstyle="round", ec="#ffffff")
+            sel.annotation.set_color("white")
+
+        @cursor.connect("remove")
+        def on_remove(sel):
+            sel.artist.set_alpha(0.3)
+            sel.artist.set_linewidth(1.5)
+            sel.artist.set_markersize(8)
+
+    def setup_axes_style(self):
+        """坐标轴样式美化"""
+        self.ax.set_title("Top 100 夏普比率排名追踪 (滚轮缩放 / 左键拖动)", color='white', fontsize=16, pad=20)
+        self.ax.invert_yaxis()
+        self.ax.set_ylabel("排名位置", color='#b0b0b0')
+        self.ax.grid(True, linestyle='--', color='#44445c', alpha=0.5)
+        self.ax.tick_params(axis='both', colors='#b0b0b0', labelsize=10)
+        plt.setp(self.ax.get_xticklabels(), rotation=30, ha='right')
+        self.figure.tight_layout()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

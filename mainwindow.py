@@ -130,6 +130,8 @@ class MainWindow(QMainWindow):
         group_fileter_lowpoint_action.triggered.connect(self.fileter_group_by_lowpoint)
         group_return_market_index_action = QAction("生成市场指数报告", self)
         group_return_market_index_action.triggered.connect(self.return_market_index)
+        group_export_batch_analysis_action = QAction("生成夏普排名分析", self)
+        group_export_batch_analysis_action.triggered.connect(self.export_batch_analysis)
 
         ai_prompt_action = QAction("组导出AI提示词", self)
         ai_prompt_action.triggered.connect(self.export_ai_prompt)
@@ -162,6 +164,7 @@ class MainWindow(QMainWindow):
         group_resort_14days_yearly_return_action.setFont(QFont('微软雅黑', 11))
         group_fileter_lowpoint_action.setFont(QFont('微软雅黑', 11))
         group_return_market_index_action.setFont(QFont('微软雅黑', 11))
+        group_export_batch_analysis_action.setFont(QFont('微软雅黑', 11))
         ai_prompt_action.setFont(QFont('微软雅黑', 11))
         ai_prompt_top50_action.setFont(QFont('微软雅黑', 11))
 
@@ -195,6 +198,7 @@ class MainWindow(QMainWindow):
         calculate_menu.addAction(group_resort_3days_yearly_return_action)
         calculate_menu.addAction(group_fileter_lowpoint_action)
         calculate_menu.addAction(group_return_market_index_action)
+        calculate_menu.addAction(group_export_batch_analysis_action)
     
         AI_menu.addAction(ai_prompt_action)
         AI_menu.addAction(ai_prompt_top50_action)
@@ -537,6 +541,7 @@ class MainWindow(QMainWindow):
 
 
     def load_widget_history(self):
+        """加载控件历史"""
         if not self._central_widget_history:
             return
         previous_widget = self._central_widget_history.pop()
@@ -548,7 +553,12 @@ class MainWindow(QMainWindow):
             current_widget.deleteLater()
 
 
-
+    def export_batch_analysis(self):
+        """导出夏普批量分析"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            
+            central_widget.export_batch_log_analysis()
 
 
 class FileUpdateWorker(QThread):

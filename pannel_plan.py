@@ -16,6 +16,9 @@ from fundholding import stocker_prompt
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import glob
+from qdialogue import MultiRankChartDialog
+from log.logsharp import save_to_log
+from log.analysislog100 import analysis_log_batch
 import time
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
@@ -306,6 +309,18 @@ class ControlPanel(QWidget):
             self.scroll_layout.removeWidget(card)
         for card in self.loaded_cards.values():
             self.scroll_layout.addWidget(card)
+        namelist=[]
+        showed_name={}
+        count=1
+        for card in self.loaded_cards.values():
+            if not showed_name.get(card.fund_tittle):
+                showed_name[card.fund_tittle]=1
+                namelist.append(card.fund_tittle)
+                count+=1
+            if count>100:
+                break
+            pass
+        save_to_log(namelist)
         if "组" in self.index_label.text():
             self.index_label.setText(f"当前组60天夏普比排序")
         else:
@@ -398,6 +413,23 @@ class ControlPanel(QWidget):
         self.scroll_layout.invalidate() 
         status_type = "组" if "组" in self.index_label.text() else "计划"
         self.index_label.setText(f"当前{status_type}过滤低点 ({len(filtered_cards)})")
+        
+    def export_batch_log_analysis(self):
+        if "夏普" in self.index_label.text():
+            batchlog=[]
+            count=1
+            showed_name={}
+            for card in self.loaded_cards.values():
+                if count>100:
+                    break
+                if not showed_name.get(card.fund_tittle):
+                    showed_name[card.fund_tittle]=1
+                    batchlog.append(card.fund_tittle)
+                    count+=1
+                pass
+            ranking_result=analysis_log_batch(batchlog)
+            dialog=MultiRankChartDialog(ranking_result,self)
+            dialog.exec_()
         
     
     def export_ai_prompt(self):
