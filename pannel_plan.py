@@ -320,7 +320,8 @@ class ControlPanel(QWidget):
             if count>100:
                 break
             pass
-        save_to_log(namelist)
+        if "股票" in self.index_label.text():
+            save_to_log(namelist)
         if "组" in self.index_label.text():
             self.index_label.setText(f"当前组60天夏普比排序")
         else:

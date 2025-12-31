@@ -543,26 +543,21 @@ class MultiRankChartDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("多资产排名对比分析 (交互增强模式)")
         self.resize(2000, 1200)
-        
         # 拖动状态变量
         self._is_dragging = False
         self._last_mouse_pos = None
-
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-
         self.figure, self.ax = plt.subplots(facecolor='#1e1e2f') 
         self.canvas = FigureCanvas(self.figure)
         layout.addWidget(self.canvas)
         self.ax.set_facecolor('#252538')
-
         # --- 连接交互事件 ---
         self.canvas.mpl_connect('scroll_event', self.on_zoom)
         self.canvas.mpl_connect('button_press_event', self.on_press)
         self.canvas.mpl_connect('button_release_event', self.on_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_motion)
-        
         # 绘图逻辑
         lines = []
         for name, history in ranking_result:
@@ -570,7 +565,7 @@ class MultiRankChartDialog(QDialog):
             dates = [item[0] for item in history]
             ranks = [item[1] for item in history]
             line, = self.ax.plot(dates, ranks, marker='o', markersize=8, 
-                                 label=name, alpha=0.3, linewidth=1.5)
+                                 label=name, alpha=0.3, linewidth=1.5, picker=True)  # Enable picking
             lines.append(line)
 
         self.setup_interactions(lines)
@@ -581,35 +576,32 @@ class MultiRankChartDialog(QDialog):
         layout.addWidget(btn_close)
         self.setLayout(layout)
 
-    # --- 1. 修复后的缩放逻辑 ---
     def on_zoom(self, event):
         if event.inaxes != self.ax: return
-        
-        # 缩放系数：向上滚动放大(范围变小)，向下滚动缩小(范围变大)
-        # 逻辑：up -> < 1 (收缩), down -> > 1 (扩张)
         scale_factor = 0.8 if event.button == 'up' else 1.2
-        
         cur_xlim = self.ax.get_xlim()
-        cur_ylim = self.ax.get_ylim() # 注意此时 y_min > y_max 因为反转了
-
+        cur_ylim = self.ax.get_ylim()  # 注意此时 y_min > y_max 因为反转了
         xdata, ydata = event.xdata, event.ydata
 
         def calculate_new_lim(cur_lim, data, factor):
             new_size = (cur_lim[1] - cur_lim[0]) * factor
             rel_pos = (cur_lim[1] - data) / (cur_lim[1] - cur_lim[0])
             return [data - new_size * (1 - rel_pos), data + new_size * rel_pos]
-
         self.ax.set_xlim(calculate_new_lim(cur_xlim, xdata, scale_factor))
         self.ax.set_ylim(calculate_new_lim(cur_ylim, ydata, scale_factor))
-        
         self.canvas.draw()
 
-    # --- 2. 鼠标按住拖动逻辑 ---
     def on_press(self, event):
         if event.inaxes != self.ax: return
-        if event.button == 1: # 左键按住拖动
+        if event.button == 1:  # 左键按住拖动
             self._is_dragging = True
             self._last_mouse_pos = (event.xdata, event.ydata)
+        # Double-click event (double-click to toggle line highlight)
+        if event.dblclick:
+            # Find the line closest to the mouse click
+            closest_line = self.get_closest_line(event)
+            if closest_line:
+                self.toggle_highlight(closest_line)
 
     def on_release(self, event):
         self._is_dragging = False
@@ -618,41 +610,66 @@ class MultiRankChartDialog(QDialog):
     def on_motion(self, event):
         if not self._is_dragging or event.inaxes != self.ax or self._last_mouse_pos is None:
             return
-        
-        # 计算偏移量
         dx = event.xdata - self._last_mouse_pos[0]
         dy = event.ydata - self._last_mouse_pos[1]
-        
-        # 获取当前范围并应用偏移
         cur_xlim = self.ax.get_xlim()
         cur_ylim = self.ax.get_ylim()
-        
         self.ax.set_xlim(cur_xlim[0] - dx, cur_xlim[1] - dx)
         self.ax.set_ylim(cur_ylim[0] - dy, cur_ylim[1] - dy)
-        
         self.canvas.draw()
 
     def setup_interactions(self, lines):
-        """设置悬停交互"""
+        """设置悬停交互 - 兼容旧版 mplcursors（无 pickup_radius）"""
+        for line in lines:
+            line.set_pickradius(10)  # 默认是5，加大到10~15能明显改善命中率
         cursor = mplcursors.cursor(lines, hover=True)
+        
         @cursor.connect("add")
         def on_add(sel):
             sel.artist.set_alpha(1.0)
             sel.artist.set_linewidth(3)
             sel.artist.set_markersize(12)
-            sel.annotation.set_text(f"【{sel.artist.get_label()}】\n排名: {int(sel.target[1])}\n日期: {sel.target[0]}")
-            sel.annotation.get_bbox_patch().set(fc="#000000", alpha=0.8, boxstyle="round", ec="#ffffff")
+            label = sel.artist.get_label()
+            rank = int(sel.target[1])
+            date = sel.target[0]
+            date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+            sel.annotation.set_text(f"【{label}】\n排名: {rank}\n日期: {date_str}")
+            sel.annotation.get_bbox_patch().set(
+                fc="#000000", alpha=0.9, boxstyle="round,pad=0.5", ec="#ffffff"
+            )
             sel.annotation.set_color("white")
+            sel.annotation.set_fontsize(11)
 
+        cursor.timed_remove = False  # Prevent automatic removal of annotations
+        
         @cursor.connect("remove")
         def on_remove(sel):
             sel.artist.set_alpha(0.3)
             sel.artist.set_linewidth(1.5)
             sel.artist.set_markersize(8)
 
+    def get_closest_line(self, event):
+        """Find the closest line to the mouse click"""
+        for line in self.ax.get_lines():
+            if line.contains(event)[0]:  # Check if mouse is on the line
+                return line
+        return None
+
+    def toggle_highlight(self, line):
+        """Toggle highlight state of the line (highlight or reset)"""
+        if line.get_alpha() == 1.0:  # If already highlighted, reset
+            line.set_alpha(0.3)
+            line.set_linewidth(1.5)
+            line.set_markersize(8)
+        else:  # Otherwise, highlight the line
+            line.set_alpha(1.0)
+            line.set_linewidth(3)
+            line.set_markersize(12)
+        self.canvas.draw()
+
     def setup_axes_style(self):
         """坐标轴样式美化"""
-        self.ax.set_title("Top 100 夏普比率排名追踪 (滚轮缩放 / 左键拖动)", color='white', fontsize=16, pad=20)
+        self.ax.set_title("夏普追踪Top100", color='white', fontsize=16, pad=20)
         self.ax.invert_yaxis()
         self.ax.set_ylabel("排名位置", color='#b0b0b0')
         self.ax.grid(True, linestyle='--', color='#44445c', alpha=0.5)
