@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QDialogButtonBox, QLineEdit, QLabel, QMessageBox, QPushButton, 
                              QHBoxLayout, QSpinBox,QApplication, QDoubleSpinBox, QCheckBox, QComboBox,QHeaderView,QTableWidget,QTableWidgetItem
-                             ,QScrollArea,QGroupBox,QFormLayout,QListWidget,QListWidgetItem,QDesktopWidget)
+                             ,QScrollArea,QGroupBox,QFormLayout,QListWidget,QListWidgetItem,QDesktopWidget,QSizePolicy)
 from PyQt5.QtCore import Qt
 import re
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -543,21 +543,31 @@ class MultiRankChartDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("多资产排名对比分析 (交互增强模式)")
         self.resize(2000, 1200)
+        
         # 拖动状态变量
         self._is_dragging = False
         self._last_mouse_pos = None
+
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+
+        # 创建绘图区域
         self.figure, self.ax = plt.subplots(facecolor='#1e1e2f') 
         self.canvas = FigureCanvas(self.figure)
-        layout.addWidget(self.canvas)
+        
+        # 设置 canvas 使其填充整个布局
+        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # 设置为可扩展
+        layout.addWidget(self.canvas, stretch=1)  # 使canvas在布局中占满可用空间
+
         self.ax.set_facecolor('#252538')
+
         # --- 连接交互事件 ---
         self.canvas.mpl_connect('scroll_event', self.on_zoom)
         self.canvas.mpl_connect('button_press_event', self.on_press)
         self.canvas.mpl_connect('button_release_event', self.on_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_motion)
+
         # 绘图逻辑
         lines = []
         for name, history in ranking_result:
@@ -574,6 +584,8 @@ class MultiRankChartDialog(QDialog):
         btn_close = QPushButton("退出分析视图")
         btn_close.clicked.connect(self.accept)
         layout.addWidget(btn_close)
+        
+        # 将布局应用到 QDialog
         self.setLayout(layout)
 
     def on_zoom(self, event):
@@ -587,6 +599,7 @@ class MultiRankChartDialog(QDialog):
             new_size = (cur_lim[1] - cur_lim[0]) * factor
             rel_pos = (cur_lim[1] - data) / (cur_lim[1] - cur_lim[0])
             return [data - new_size * (1 - rel_pos), data + new_size * rel_pos]
+        
         self.ax.set_xlim(calculate_new_lim(cur_xlim, xdata, scale_factor))
         self.ax.set_ylim(calculate_new_lim(cur_ylim, ydata, scale_factor))
         self.canvas.draw()
