@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QDialogButtonBox, QLineEdit, QLabel, QMessageBox, QPushButton, 
                              QHBoxLayout, QSpinBox,QApplication, QDoubleSpinBox, QCheckBox, QComboBox,QHeaderView,QTableWidget,QTableWidgetItem
-                             ,QScrollArea,QGroupBox,QFormLayout,QListWidget,QListWidgetItem,QDesktopWidget,QSizePolicy)
+                             ,QScrollArea,QGroupBox,QFormLayout,QListWidget,QListWidgetItem,QDesktopWidget,QSizePolicy,QWidget)
 from PyQt5.QtCore import Qt
 import re
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -538,12 +538,16 @@ class RankChartDialog(QDialog):
 
 
 
-class MultiRankChartDialog(QDialog):
+class MultiRankChartWidget(QWidget):
     def __init__(self, ranking_result, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("多资产排名对比分析 (交互增强模式)")
+        self.setWindowFlags(Qt.Window)
+        self.setWindowTitle("多资产夏普动量追踪")
         self.resize(2000, 1200)
         
+        # 3. 关键属性：关闭时自动销毁对象，释放内存（防止内存泄漏）
+        self.setAttribute(Qt.WA_DeleteOnClose)
+
         # 拖动状态变量
         self._is_dragging = False
         self._last_mouse_pos = None
@@ -557,8 +561,8 @@ class MultiRankChartDialog(QDialog):
         self.canvas = FigureCanvas(self.figure)
         
         # 设置 canvas 使其填充整个布局
-        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # 设置为可扩展
-        layout.addWidget(self.canvas, stretch=1)  # 使canvas在布局中占满可用空间
+        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout.addWidget(self.canvas, stretch=1)
 
         self.ax.set_facecolor('#252538')
 
@@ -575,24 +579,25 @@ class MultiRankChartDialog(QDialog):
             dates = [item[0] for item in history]
             ranks = [item[1] for item in history]
             line, = self.ax.plot(dates, ranks, marker='o', markersize=8, 
-                                 label=name, alpha=0.3, linewidth=1.5, picker=True)  # Enable picking
+                                 label=name, alpha=0.3, linewidth=1.5, picker=True)
             lines.append(line)
 
         self.setup_interactions(lines)
         self.setup_axes_style()
 
         btn_close = QPushButton("退出分析视图")
-        btn_close.clicked.connect(self.accept)
+        # 4. QWidget 使用 close() 而不是 QDialog 的 accept()
+        btn_close.clicked.connect(self.close)
+        btn_close.setFixedHeight(40) # 设置一个固定高度防止被拉伸
         layout.addWidget(btn_close)
         
-        # 将布局应用到 QDialog
         self.setLayout(layout)
 
     def on_zoom(self, event):
         if event.inaxes != self.ax: return
         scale_factor = 0.8 if event.button == 'up' else 1.2
         cur_xlim = self.ax.get_xlim()
-        cur_ylim = self.ax.get_ylim()  # 注意此时 y_min > y_max 因为反转了
+        cur_ylim = self.ax.get_ylim()
         xdata, ydata = event.xdata, event.ydata
 
         def calculate_new_lim(cur_lim, data, factor):
@@ -604,14 +609,14 @@ class MultiRankChartDialog(QDialog):
         self.ax.set_ylim(calculate_new_lim(cur_ylim, ydata, scale_factor))
         self.canvas.draw()
 
+
+
     def on_press(self, event):
         if event.inaxes != self.ax: return
-        if event.button == 1:  # 左键按住拖动
+        if event.button == 1:
             self._is_dragging = True
             self._last_mouse_pos = (event.xdata, event.ydata)
-        # Double-click event (double-click to toggle line highlight)
         if event.dblclick:
-            # Find the line closest to the mouse click
             closest_line = self.get_closest_line(event)
             if closest_line:
                 self.toggle_highlight(closest_line)
@@ -632,9 +637,8 @@ class MultiRankChartDialog(QDialog):
         self.canvas.draw()
 
     def setup_interactions(self, lines):
-        """设置悬停交互 - 兼容旧版 mplcursors（无 pickup_radius）"""
         for line in lines:
-            line.set_pickradius(10)  # 默认是5，加大到10~15能明显改善命中率
+            line.set_pickradius(10)
         cursor = mplcursors.cursor(lines, hover=True)
         
         @cursor.connect("add")
@@ -653,7 +657,7 @@ class MultiRankChartDialog(QDialog):
             sel.annotation.set_color("white")
             sel.annotation.set_fontsize(11)
 
-        cursor.timed_remove = False  # Prevent automatic removal of annotations
+        cursor.timed_remove = False 
         
         @cursor.connect("remove")
         def on_remove(sel):
@@ -662,34 +666,40 @@ class MultiRankChartDialog(QDialog):
             sel.artist.set_markersize(8)
 
     def get_closest_line(self, event):
-        """Find the closest line to the mouse click"""
         for line in self.ax.get_lines():
-            if line.contains(event)[0]:  # Check if mouse is on the line
+            if line.contains(event)[0]:
                 return line
         return None
 
     def toggle_highlight(self, line):
-        """Toggle highlight state of the line (highlight or reset)"""
-        if line.get_alpha() == 1.0:  # If already highlighted, reset
+        if line.get_alpha() == 1.0:
             line.set_alpha(0.3)
             line.set_linewidth(1.5)
             line.set_markersize(8)
-        else:  # Otherwise, highlight the line
+        else:
             line.set_alpha(1.0)
             line.set_linewidth(3)
             line.set_markersize(12)
         self.canvas.draw()
 
     def setup_axes_style(self):
-        """坐标轴样式美化"""
         self.ax.set_title("夏普追踪Top100", color='white', fontsize=16, pad=20)
         self.ax.invert_yaxis()
         self.ax.set_ylabel("排名位置", color='#b0b0b0')
         self.ax.grid(True, linestyle='--', color='#44445c', alpha=0.5)
         self.ax.tick_params(axis='both', colors='#b0b0b0', labelsize=10)
         plt.setp(self.ax.get_xticklabels(), rotation=30, ha='right')
-        self.figure.tight_layout()
-
+        
+        # --- 核心修改：手动强制设置极小的边距 ---
+        # left: 左边距（0.05 已经很小了，如果还嫌宽可以改到 0.03）
+        # right: 右边距（0.98 几乎贴边）
+        # top/bottom: 上下边距
+        self.figure.subplots_adjust(left=0.04, right=0.98, top=0.92, bottom=0.1)
+        
+        # 不要使用 tight_layout()，因为它会自动重新计算并覆盖 subplots_adjust 的设置
+        # self.figure.tight_layout() 
+        
+        self.canvas.draw()
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     dialog = advance_pulldata_dialog()

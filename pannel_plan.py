@@ -16,7 +16,7 @@ from fundholding import stocker_prompt
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import glob
-from qdialogue import MultiRankChartDialog
+from qdialogue import MultiRankChartWidget
 from log.logsharp import save_to_log
 from log.analysislog100 import analysis_log_batch
 import time
@@ -50,7 +50,7 @@ class ControlPanel(QWidget):
     def __init__(self, parent=None,base_path=None):
         super().__init__(parent)
         self.hidden_storage = QWidget()
-        self.card_to_show=[]
+        self.filtered_card_to_show=[]
         self.loaded_cards = {}#用于缓存已加载的卡片
         self.base_path = base_path # 当前所关注的文件夹路径
         self.file_nums = len(os.listdir(base_path))
@@ -245,7 +245,7 @@ class ControlPanel(QWidget):
                 card.hide()
             for card in visible_cards:#写两个for比一个for快十倍
                 if "过滤低点" in self.index_label.text():
-                    if card.filename in self.card_to_show:
+                    if card.filename in self.filtered_card_to_show:
                         card.show()
                     else:
                         continue
@@ -320,7 +320,7 @@ class ControlPanel(QWidget):
             if count>100:
                 break
             pass
-        if "股票" in self.index_label.text():
+        if "股票" in self.index_label.text() and is_daytime():
             save_to_log(namelist)
         if "组" in self.index_label.text():
             self.index_label.setText(f"当前组60天夏普比排序")
@@ -407,7 +407,7 @@ class ControlPanel(QWidget):
                 self.scroll_layout.removeWidget(card)
                 card.hide()
         for card in filtered_cards:
-            self.card_to_show.append(card.filename)
+            self.filtered_card_to_show.append(card.filename)
             card.show()
         for card in filtered_cards:
             self.scroll_layout.addWidget(card)
@@ -429,8 +429,8 @@ class ControlPanel(QWidget):
                     count+=1
                 pass
             ranking_result=analysis_log_batch(batchlog)
-            dialog=MultiRankChartDialog(ranking_result,self)
-            dialog.exec_()
+            dialog=MultiRankChartWidget(ranking_result,self)
+            dialog.show()
         
     
     def export_ai_prompt(self):
@@ -818,6 +818,17 @@ class containerwidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+
+
+def is_daytime():
+    from datetime import datetime
+    now = datetime.now().time()
+    start = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    end = now.replace(hour=18, minute=0, second=0, microsecond=0)
+    if start <= now < end:
+        return True
+    return False
 
 if __name__ == "__main__":
     pass
