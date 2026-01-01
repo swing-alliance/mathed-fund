@@ -1,6 +1,10 @@
+目的:
+此程序主要目的是针对市面上股票基金产品的业绩用金融指标量化，得出市场的情绪和经济情况反馈，可以捕捉优势的龙头又能捕捉价值低估
+
+程序结构:
 \mapping\mapping_latestdate.csv是基金净值csv路径和最新日期的映射
 \mapping\mapping.csv是基金代码和基金名称的映射
 \groups\group_cache.csv是基金净值csv路径和组名的映射
 \track\flagged.json是标记的基金代码记录
-
-程序通过阅读my_type下各类型的基金路径并通过映射索引加载卡片
+通过阅读my_type下各类型的基金路径并通过映射索引加载卡片
+主体框架在mainwindow.py  由此及彼可以得到项目各结构分支
