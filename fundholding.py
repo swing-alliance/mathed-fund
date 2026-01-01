@@ -12,6 +12,8 @@ def get_holdings(fund_code, report_year=datetime.datetime.now().year):
         os.environ.pop('HTTP_PROXY', None)
         os.environ.pop('HTTPS_PROXY', None)
         holdings_df = ak.fund_portfolio_hold_em(symbol=fund_code, date=report_year)
+        if holdings_df.empty:
+            holdings_df = ak.fund_portfolio_hold_em(symbol=fund_code, date=report_year-1)
         if not holdings_df.empty:
             latest_report_session = holdings_df['季度'].max()
             latest_holdings = holdings_df[holdings_df['季度'] == latest_report_session]
@@ -23,8 +25,10 @@ def get_holdings(fund_code, report_year=datetime.datetime.now().year):
                 '持仓市值'
             ]].sort_values(by='占净值比例', ascending=False).head(10)
             valider=True
+            print("有了")
             return latest_holdings_sorted, fund_code,valider
         else:
+            print("无持仓")
             df=None
             valider=False
             return df ,fund_code,valider

@@ -2,3 +2,5 @@
 \mapping\mapping.csv是基金代码和基金名称的映射
 \groups\group_cache.csv是基金净值csv路径和组名的映射
 \track\flagged.json是标记的基金代码记录
+
+程序通过阅读my_type下各类型的基金路径并通过映射索引加载卡片

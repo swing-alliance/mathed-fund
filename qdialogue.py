@@ -9,6 +9,8 @@ import sys
 import pandas as pd
 import akshare as ak
 from PyQt5.QtGui import QFont ,QIcon
+import matplotlib.dates as mdates
+from datetime import datetime, date
 import os
 import mplcursors
 import glob
@@ -536,19 +538,14 @@ class RankChartDialog(QDialog):
         self.setLayout(layout)
 
 
-
-
 class MultiRankChartWidget(QWidget):
     def __init__(self, ranking_result, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.Window)
         self.setWindowTitle("多资产夏普动量追踪")
         self.resize(2000, 1200)
-        
-        # 3. 关键属性：关闭时自动销毁对象，释放内存（防止内存泄漏）
         self.setAttribute(Qt.WA_DeleteOnClose)
 
-        # 拖动状态变量
         self._is_dragging = False
         self._last_mouse_pos = None
 
@@ -556,60 +553,124 @@ class MultiRankChartWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 创建绘图区域
-        self.figure, self.ax = plt.subplots(facecolor='#1e1e2f') 
+        self.figure, self.ax = plt.subplots(facecolor='#1e1e2f')
         self.canvas = FigureCanvas(self.figure)
-        
-        # 设置 canvas 使其填充整个布局
         self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self.canvas, stretch=1)
-
         self.ax.set_facecolor('#252538')
 
-        # --- 连接交互事件 ---
         self.canvas.mpl_connect('scroll_event', self.on_zoom)
         self.canvas.mpl_connect('button_press_event', self.on_press)
         self.canvas.mpl_connect('button_release_event', self.on_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_motion)
 
-        # 绘图逻辑
+        # ================== 关键修复：统一处理日期格式 ==================
+        all_dates = set()
+        for _, history in ranking_result:
+            for item in history:
+                all_dates.add(item[0])
+
+        # 统一转换为 datetime.date 对象
+        def to_date(d):
+            if isinstance(d, date):
+                return d
+            elif isinstance(d, datetime):
+                return d.date()
+            elif isinstance(d, str):
+                # 支持常见格式：2025-12-30 或 2025/12/30
+                return datetime.strptime(d.strip(), '%Y-%m-%d').date()
+            else:
+                raise ValueError(f"不支持的日期类型: {type(d)} - {d}")
+
+        date_objs = [to_date(d) for d in all_dates]
+        sorted_date_objs = sorted(date_objs)
+        self.global_date_nums = mdates.date2num(sorted_date_objs)
+
         lines = []
         for name, history in ranking_result:
-            if not history: continue
-            dates = [item[0] for item in history]
-            ranks = [item[1] for item in history]
-            line, = self.ax.plot(dates, ranks, marker='o', markersize=8, 
+            if not history:
+                continue
+
+            history.sort(key=lambda x: to_date(x[0]))  # 排序也用统一函数
+
+            # 转换为数值日期
+            x_nums = [mdates.date2num(to_date(item[0])) for item in history]
+            y_data = [item[1] for item in history]
+
+            line, = self.ax.plot(x_nums, y_data, marker='o', markersize=8,
                                  label=name, alpha=0.3, linewidth=1.5, picker=True)
             lines.append(line)
+
+        # ==========================================================
 
         self.setup_interactions(lines)
         self.setup_axes_style()
 
         btn_close = QPushButton("退出分析视图")
-        # 4. QWidget 使用 close() 而不是 QDialog 的 accept()
         btn_close.clicked.connect(self.close)
-        btn_close.setFixedHeight(40) # 设置一个固定高度防止被拉伸
+        btn_close.setFixedHeight(40)
         layout.addWidget(btn_close)
-        
         self.setLayout(layout)
 
+    def setup_axes_style(self):
+        self.ax.set_title("夏普追踪Top100", color='white', fontsize=16, pad=20)
+
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        self.ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=15))
+        self.figure.autofmt_xdate(rotation=30, ha='right')
+
+        self.ax.invert_yaxis()
+        self.ax.set_ylabel("排名位置", color='#b0b0b0')
+        self.ax.grid(True, linestyle='--', color='#44445c', alpha=0.5)
+        self.ax.tick_params(axis='both', colors='#b0b0b0', labelsize=10)
+
+        self.figure.subplots_adjust(left=0.06, right=0.98, top=0.92, bottom=0.15)
+        self.canvas.draw()
+
+    def setup_interactions(self, lines):
+        for line in lines:
+            line.set_pickradius(10)
+
+        cursor = mplcursors.cursor(lines, hover=True)
+
+        @cursor.connect("add")
+        def on_add(sel):
+            sel.artist.set_alpha(1.0)
+            sel.artist.set_linewidth(3)
+            sel.artist.set_markersize(12)
+
+            label = sel.artist.get_label()
+            rank = int(sel.target[1])
+            date_num = sel.target[0]
+            date_str = mdates.num2date(date_num).strftime('%Y-%m-%d')
+
+            sel.annotation.set_text(f"【{label}】\n排名: {rank}\n日期: {date_str}")
+            sel.annotation.get_bbox_patch().set(fc="#000000", alpha=0.9,
+                                                boxstyle="round,pad=0.5", ec="#ffffff")
+            sel.annotation.set_color("white")
+            sel.annotation.set_fontsize(11)
+
+        @cursor.connect("remove")
+        def on_remove(sel):
+            sel.artist.set_alpha(0.3)
+            sel.artist.set_linewidth(1.5)
+            sel.artist.set_markersize(8)
+
+    # 以下交互函数保持不变
     def on_zoom(self, event):
         if event.inaxes != self.ax: return
         scale_factor = 0.8 if event.button == 'up' else 1.2
         cur_xlim = self.ax.get_xlim()
         cur_ylim = self.ax.get_ylim()
-        xdata, ydata = event.xdata, event.ydata
 
-        def calculate_new_lim(cur_lim, data, factor):
-            new_size = (cur_lim[1] - cur_lim[0]) * factor
+        def calc_new_lim(cur_lim, data, factor):
+            size = (cur_lim[1] - cur_lim[0]) * factor
             rel_pos = (cur_lim[1] - data) / (cur_lim[1] - cur_lim[0])
-            return [data - new_size * (1 - rel_pos), data + new_size * rel_pos]
-        
-        self.ax.set_xlim(calculate_new_lim(cur_xlim, xdata, scale_factor))
-        self.ax.set_ylim(calculate_new_lim(cur_ylim, ydata, scale_factor))
+            return [data - size * (1 - rel_pos), data + size * rel_pos]
+
+        self.ax.set_xlim(calc_new_lim(cur_xlim, event.xdata, scale_factor))
+        self.ax.set_ylim(calc_new_lim(cur_ylim, event.ydata, scale_factor))
         self.canvas.draw()
-
-
 
     def on_press(self, event):
         if event.inaxes != self.ax: return
@@ -617,53 +678,22 @@ class MultiRankChartWidget(QWidget):
             self._is_dragging = True
             self._last_mouse_pos = (event.xdata, event.ydata)
         if event.dblclick:
-            closest_line = self.get_closest_line(event)
-            if closest_line:
-                self.toggle_highlight(closest_line)
+            line = self.get_closest_line(event)
+            if line: self.toggle_highlight(line)
 
     def on_release(self, event):
         self._is_dragging = False
         self._last_mouse_pos = None
 
     def on_motion(self, event):
-        if not self._is_dragging or event.inaxes != self.ax or self._last_mouse_pos is None:
+        if not self._is_dragging or event.inaxes != self.ax or not self._last_mouse_pos:
             return
         dx = event.xdata - self._last_mouse_pos[0]
         dy = event.ydata - self._last_mouse_pos[1]
-        cur_xlim = self.ax.get_xlim()
-        cur_ylim = self.ax.get_ylim()
+        cur_xlim, cur_ylim = self.ax.get_xlim(), self.ax.get_ylim()
         self.ax.set_xlim(cur_xlim[0] - dx, cur_xlim[1] - dx)
         self.ax.set_ylim(cur_ylim[0] - dy, cur_ylim[1] - dy)
         self.canvas.draw()
-
-    def setup_interactions(self, lines):
-        for line in lines:
-            line.set_pickradius(10)
-        cursor = mplcursors.cursor(lines, hover=True)
-        
-        @cursor.connect("add")
-        def on_add(sel):
-            sel.artist.set_alpha(1.0)
-            sel.artist.set_linewidth(3)
-            sel.artist.set_markersize(12)
-            label = sel.artist.get_label()
-            rank = int(sel.target[1])
-            date = sel.target[0]
-            date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
-            sel.annotation.set_text(f"【{label}】\n排名: {rank}\n日期: {date_str}")
-            sel.annotation.get_bbox_patch().set(
-                fc="#000000", alpha=0.9, boxstyle="round,pad=0.5", ec="#ffffff"
-            )
-            sel.annotation.set_color("white")
-            sel.annotation.set_fontsize(11)
-
-        cursor.timed_remove = False 
-        
-        @cursor.connect("remove")
-        def on_remove(sel):
-            sel.artist.set_alpha(0.3)
-            sel.artist.set_linewidth(1.5)
-            sel.artist.set_markersize(8)
 
     def get_closest_line(self, event):
         for line in self.ax.get_lines():
@@ -672,34 +702,13 @@ class MultiRankChartWidget(QWidget):
         return None
 
     def toggle_highlight(self, line):
-        if line.get_alpha() == 1.0:
-            line.set_alpha(0.3)
-            line.set_linewidth(1.5)
-            line.set_markersize(8)
-        else:
-            line.set_alpha(1.0)
-            line.set_linewidth(3)
-            line.set_markersize(12)
+        is_highlighted = line.get_alpha() == 1.0
+        line.set_alpha(0.3 if is_highlighted else 1.0)
+        line.set_linewidth(1.5 if is_highlighted else 3.0)
+        line.set_markersize(8 if is_highlighted else 12)
         self.canvas.draw()
 
-    def setup_axes_style(self):
-        self.ax.set_title("夏普追踪Top100", color='white', fontsize=16, pad=20)
-        self.ax.invert_yaxis()
-        self.ax.set_ylabel("排名位置", color='#b0b0b0')
-        self.ax.grid(True, linestyle='--', color='#44445c', alpha=0.5)
-        self.ax.tick_params(axis='both', colors='#b0b0b0', labelsize=10)
-        plt.setp(self.ax.get_xticklabels(), rotation=30, ha='right')
         
-        # --- 核心修改：手动强制设置极小的边距 ---
-        # left: 左边距（0.05 已经很小了，如果还嫌宽可以改到 0.03）
-        # right: 右边距（0.98 几乎贴边）
-        # top/bottom: 上下边距
-        self.figure.subplots_adjust(left=0.04, right=0.98, top=0.92, bottom=0.1)
-        
-        # 不要使用 tight_layout()，因为它会自动重新计算并覆盖 subplots_adjust 的设置
-        # self.figure.tight_layout() 
-        
-        self.canvas.draw()
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     dialog = advance_pulldata_dialog()
