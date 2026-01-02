@@ -1914,6 +1914,7 @@
   ('colorsys',
    'C:\\Users\\zhou\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\colorsys.py',
    'PYMODULE'),
+  ('conclusion', 'A:\\projects\\money2\\conclusion.py', 'PYMODULE'),
   ('concurrent',
    'C:\\Users\\zhou\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\__init__.py',
    'PYMODULE'),

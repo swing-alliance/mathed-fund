@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 log_path = os.path.join(os.getcwd(), 'log','log100.json')
 def analysis_log_single(singlelog,inputlogdata):
+    """用于记录单个记录在top100中的排名历史"""
     with open(log_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
         if inputlogdata:
@@ -21,6 +22,7 @@ def analysis_log_single(singlelog,inputlogdata):
 
 
 def analysis_log_batch(batchlog):
+    """用于记录多个记录在top100中的排名历史"""
     with open(log_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     ranking_result = []
