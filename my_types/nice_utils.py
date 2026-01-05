@@ -54,6 +54,26 @@ def where_to_go(code):
         print(f"没有找到或失败 {code}: {e}")
         return
 
+def stock_where_to_go(code):
+    """专供股票型基金使用"""
+    try:
+        fund_info_df = ak.fund_individual_basic_info_xq(symbol=code)
+    except Exception as e:
+        print(f"失败 {code}: {e}")
+        return
+    fund_type = fund_info_df[fund_info_df['item'] == '基金类型']['value'].iloc[0]
+    df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+    df['净值日期'] = pd.to_datetime(df['净值日期'])
+    latest_date = df['净值日期'].max()
+    target_date = pd.Timestamp('2025-12-01')
+    is_greater = latest_date > target_date
+    if is_greater:
+        if "股票" in fund_type or "偏股" in fund_type:
+            file_name = f"{code}.csv"
+            print(f"开始处理{code}，{fund_type}成功")
+            save_to_folder(df, Equity_path, file_name)
+            return
+    print(f"{code}处理错误")
 
 
 def update_files(path, cache_path, progress_callback=None):
@@ -335,10 +355,42 @@ def flush_outdated_fund(path):
             print(f"处理文件失败: {file_path}，错误: {e}")
 
 
+def get_fund_name(code):
+        try:
+            fund_info_df = ak.fund_individual_basic_info_xq(symbol=code)
+            fund_name = fund_info_df[fund_info_df['item'] == '基金全称']['value'].iloc[0]
+            return fund_name
+        except:
+            return None
+
+
+def flush_rigid_longterm_stock(path):
+    """清除路径下csv代表的基金名称中有持有期限制的基金"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    codelist= [code.split(".")[0] for code in os.listdir(path)]
+    def get_to_del_name(code):
+        name=get_fund_name(code)
+        if "持有期" in name:
+            return code
+        return None
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        futures = [executor.submit(get_to_del_name, str(i)) for i in codelist]
+        results = [future.result() for future in as_completed(futures)]
+        print(results)
+        for i in results:
+            if i:
+                try:
+                    print(f"删除{i}")
+                    os.remove(os.path.join(path,i+".csv"))
+                except:
+                    print(f"删除失败{i}")
+    
+
+
 if __name__ == "__main__":
-       #截至110000到119999
-    #    for code in range(501000,600000):
-    #         zfilledcode=str(code).zfill(6)
-    #         where_to_go(zfilledcode)
-        flush_outdated_fund(balanced_path)
+    # from concurrent.futures import ThreadPoolExecutor, as_completed
+    # with ThreadPoolExecutor(max_workers=8) as executor:
+    #     futures = [executor.submit(stock_where_to_go, str(i).zfill(6)) for i in range(30000)]
+    #     results = [future.result() for future in as_completed(futures)]
+    flush_rigid_longterm_stock(Equity_path)
         
