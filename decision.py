@@ -81,7 +81,7 @@ class decison_maker:
         self.df['净值日期']=pd.to_datetime(self.df['净值日期'])
         self.newest_date=self.df['净值日期'].max().strftime('%Y-%m-%d')
         self.max_annualized_volatility,_,_,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)#365天最大年化波动率
-        self.sharp_constant = self.year_rate_since_start_this() / self.max_annualized_volatility if self.max_annualized_volatility != 0 else 0
+        self.sharp_constant = self.year_rate_since_start_this() / self.max_annualized_volatility if self.max_annualized_volatility is not None else -0.001
         self.total_days=how_long_since_start(self.fund_code,self.df)
 
     def year_rate_since_start_this(self,expected_interval_days=None):
@@ -174,7 +174,9 @@ class decison_maker:
     def max_sharp_ratio_for_days(self,period_days=60):
         "默认计算60天内的最大夏普比率"
         period_volatility,_,_,_= get_annualized_volatility_for_period(code=None,df=self.df,period_days=period_days)
-        return self.year_rate_since_start_this(expected_interval_days=period_days)/period_volatility if period_volatility!=0 else 0
+        if period_volatility is None:
+            print (f"{self.path}错误")
+        return self.year_rate_since_start_this(expected_interval_days=period_days)/period_volatility if period_volatility is not None else -0.001
 
 
 class buy_tracker:

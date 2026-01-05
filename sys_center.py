@@ -88,7 +88,7 @@ class SysCentral(QWidget):
         inner_scroll_layout = QVBoxLayout(scroll_content)
         inner_scroll_layout.setContentsMargins(50, 250, 50, 50) 
 
-        self.welcome_label = QLabel("欢迎, 这是系统主页")
+        self.welcome_label = QLabel("系统建议")
         self.welcome_label.setFont(QFont("微软雅黑", 24))
         self.welcome_label.setAlignment(Qt.AlignCenter)
         inner_scroll_layout.addWidget(self.welcome_label)
@@ -100,7 +100,7 @@ class SysCentral(QWidget):
         
         # 初始化按钮
         self.mix_button = QPushButton("从混合型开始")
-        self.stock_button = QPushButton("从股票型开始")
+        self.stock_button = QPushButton("从股票型开始(推荐)")
         self.index_button = QPushButton("从指数型开始")
         self.alternative_button = QPushButton("从Qdii或另类开始")
         

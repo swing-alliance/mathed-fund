@@ -314,14 +314,11 @@ def get_annualized_volatility_for_period(
     try:
         # 提取净值序列
         nav_series = period_data['累计净值']
-        
         # 计算收益率
         returns = nav_series.pct_change().dropna()
-        
         # 过滤零收益率
         if exclude_zero_returns:
             returns = returns[returns.abs() > 1e-8]
-        
         # 检查是否有足够收益率数据
         if len(returns) < 1:
             print(f"[{code}] 无有效收益率数据")

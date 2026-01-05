@@ -538,6 +538,7 @@ class RankChartDialog(QDialog):
         self.setLayout(layout)
 
 
+
 class MultiRankChartWidget(QWidget):
     def __init__(self, ranking_result, parent=None):
         super().__init__(parent)
@@ -546,169 +547,225 @@ class MultiRankChartWidget(QWidget):
         self.resize(2000, 1200)
         self.setAttribute(Qt.WA_DeleteOnClose)
 
+        # 全局字体
+        self.main_font_name = "Microsoft YaHei"
+        self.setFont(QFont(self.main_font_name, 10))
+
+        # 状态
         self._is_dragging = False
         self._last_mouse_pos = None
+        self.all_lines = []
+        self.current_annotation = None
+        self.background = None
 
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        # 布局
+        main_layout = QVBoxLayout(self)
+        
+        # 顶部栏
+        top_bar = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("输入名称搜索...")
+        self.search_input.setFixedWidth(400)
+        self.search_input.textChanged.connect(self.on_search_text_changed)
+        top_bar.addWidget(QLabel("资产搜索:"))
+        top_bar.addWidget(self.search_input)
+        top_bar.addStretch()
+        btn_close = QPushButton("退出分析")
+        btn_close.clicked.connect(self.close)
+        top_bar.addWidget(btn_close)
+        main_layout.addLayout(top_bar)
 
-        self.figure, self.ax = plt.subplots(facecolor='#1e1e2f')
+        # 图表配置
+        plt.rcParams['font.sans-serif'] = [self.main_font_name]
+        plt.rcParams['axes.unicode_minus'] = False
+        self.figure = plt.figure(facecolor='#1e1e2f')
+        self.ax = self.figure.add_subplot(111, facecolor='#252538')
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        layout.addWidget(self.canvas, stretch=1)
-        self.ax.set_facecolor('#252538')
+        main_layout.addWidget(self.canvas)
 
+        # 绑定事件
         self.canvas.mpl_connect('scroll_event', self.on_zoom)
         self.canvas.mpl_connect('button_press_event', self.on_press)
         self.canvas.mpl_connect('button_release_event', self.on_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_motion)
+        # 注意：不再使用 on_draw 自动缓存，改为在平移和高亮逻辑中精准控制
 
-        # ================== 关键修复：统一处理日期格式 ==================
-        all_dates = set()
-        for _, history in ranking_result:
-            for item in history:
-                all_dates.add(item[0])
-
-        # 统一转换为 datetime.date 对象
-        def to_date(d):
-            if isinstance(d, date):
-                return d
-            elif isinstance(d, datetime):
-                return d.date()
-            elif isinstance(d, str):
-                # 支持常见格式：2025-12-30 或 2025/12/30
-                return datetime.strptime(d.strip(), '%Y-%m-%d').date()
-            else:
-                raise ValueError(f"不支持的日期类型: {type(d)} - {d}")
-
-        date_objs = [to_date(d) for d in all_dates]
-        sorted_date_objs = sorted(date_objs)
-        self.global_date_nums = mdates.date2num(sorted_date_objs)
-
-        lines = []
-        for name, history in ranking_result:
-            if not history:
-                continue
-
-            history.sort(key=lambda x: to_date(x[0]))  # 排序也用统一函数
-
-            # 转换为数值日期
-            x_nums = [mdates.date2num(to_date(item[0])) for item in history]
-            y_data = [item[1] for item in history]
-
-            line, = self.ax.plot(x_nums, y_data, marker='o', markersize=8,
-                                 label=name, alpha=0.3, linewidth=1.5, picker=True)
-            lines.append(line)
-
-        # ==========================================================
-
-        self.setup_interactions(lines)
+        self.process_data_and_plot(ranking_result)
         self.setup_axes_style()
+        self.canvas.draw_idle()
 
-        btn_close = QPushButton("退出分析视图")
-        btn_close.clicked.connect(self.close)
-        btn_close.setFixedHeight(40)
-        layout.addWidget(btn_close)
-        self.setLayout(layout)
+    def to_date(self, d):
+        if isinstance(d, (date, datetime)): return d if isinstance(d, date) else d.date()
+        if isinstance(d, str): 
+            try: return datetime.strptime(d.strip(), '%Y-%m-%d').date()
+            except: return d
+        return d
+
+    def process_data_and_plot(self, ranking_result):
+        self.all_lines = []
+        for name, history in ranking_result:
+            if not history: continue
+            history.sort(key=lambda x: self.to_date(x[0]))
+            x = [mdates.date2num(self.to_date(i[0])) for i in history]
+            y = [i[1] for i in history]
+            # picker=True 必须保留，否则 contains 判定会失效
+            line, = self.ax.plot(x, y, marker='o', markersize=4, label=name, 
+                                 alpha=0.3, linewidth=1.5, zorder=2, picker=True)
+            line._manual_highlight = False
+            self.all_lines.append(line)
 
     def setup_axes_style(self):
-        self.ax.set_title("夏普追踪Top100", color='white', fontsize=16, pad=20)
-
+        self.ax.set_title("资产夏普排名追踪 (Top 100)", color='white', fontsize=16, pad=20)
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        self.ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=15))
-        self.figure.autofmt_xdate(rotation=30, ha='right')
-
         self.ax.invert_yaxis()
-        self.ax.set_ylabel("排名位置", color='#b0b0b0')
         self.ax.grid(True, linestyle='--', color='#44445c', alpha=0.5)
-        self.ax.tick_params(axis='both', colors='#b0b0b0', labelsize=10)
+        self.ax.tick_params(axis='both', colors='#b0b0b0')
+        self.figure.tight_layout()
 
-        self.figure.subplots_adjust(left=0.06, right=0.98, top=0.92, bottom=0.15)
-        self.canvas.draw()
+    def handle_precision_pick(self, event):
+        """像素级精准匹配最近的一条线"""
+        best_line = None
+        min_dist = 25 
+        
+        for line in self.all_lines:
+            cont, ind = line.contains(event)
+            if cont:
+                x_data, y_data = line.get_data()
+                for idx in ind["ind"]:
+                    px, py = self.ax.transData.transform((x_data[idx], y_data[idx]))
+                    dist = ((event.x - px)**2 + (event.y - py)**2)**0.5
+                    if dist < min_dist:
+                        min_dist = dist
+                        best_line = line
+        
+        if best_line:
+            # 切换状态
+            best_line._manual_highlight = not best_line._manual_highlight
+            self.update_line_appearance(best_line)
+            
+            # 【关键修复】：高亮状态改变后，必须清空背景缓存，否则移动鼠标会闪回到旧状态
+            self.background = None 
+            self.canvas.draw() # 强制全图完整刷新
 
-    def setup_interactions(self, lines):
-        for line in lines:
-            line.set_pickradius(10)
-
-        cursor = mplcursors.cursor(lines, hover=True)
-
-        @cursor.connect("add")
-        def on_add(sel):
-            sel.artist.set_alpha(1.0)
-            sel.artist.set_linewidth(3)
-            sel.artist.set_markersize(12)
-
-            label = sel.artist.get_label()
-            rank = int(sel.target[1])
-            date_num = sel.target[0]
-            date_str = mdates.num2date(date_num).strftime('%Y-%m-%d')
-
-            sel.annotation.set_text(f"【{label}】\n排名: {rank}\n日期: {date_str}")
-            sel.annotation.get_bbox_patch().set(fc="#000000", alpha=0.9,
-                                                boxstyle="round,pad=0.5", ec="#ffffff")
-            sel.annotation.set_color("white")
-            sel.annotation.set_fontsize(11)
-
-        @cursor.connect("remove")
-        def on_remove(sel):
-            sel.artist.set_alpha(0.3)
-            sel.artist.set_linewidth(1.5)
-            sel.artist.set_markersize(8)
-
-    # 以下交互函数保持不变
-    def on_zoom(self, event):
-        if event.inaxes != self.ax: return
-        scale_factor = 0.8 if event.button == 'up' else 1.2
-        cur_xlim = self.ax.get_xlim()
-        cur_ylim = self.ax.get_ylim()
-
-        def calc_new_lim(cur_lim, data, factor):
-            size = (cur_lim[1] - cur_lim[0]) * factor
-            rel_pos = (cur_lim[1] - data) / (cur_lim[1] - cur_lim[0])
-            return [data - size * (1 - rel_pos), data + size * rel_pos]
-
-        self.ax.set_xlim(calc_new_lim(cur_xlim, event.xdata, scale_factor))
-        self.ax.set_ylim(calc_new_lim(cur_ylim, event.ydata, scale_factor))
-        self.canvas.draw()
+    def update_line_appearance(self, line):
+        if line._manual_highlight:
+            line.set_alpha(1.0)
+            line.set_linewidth(4.0)
+            line.set_zorder(10) # 提到最上层
+        else:
+            # 检查是否有搜索词，恢复对应的透明度
+            search_term = self.search_input.text().strip().lower()
+            if search_term and search_term in line.get_label().lower():
+                line.set_alpha(1.0)
+                line.set_linewidth(3.0)
+                line.set_zorder(10)
+            else:
+                line.set_alpha(0.3)
+                line.set_linewidth(1.5)
+                line.set_zorder(2)
 
     def on_press(self, event):
-        if event.inaxes != self.ax: return
-        if event.button == 1:
-            self._is_dragging = True
-            self._last_mouse_pos = (event.xdata, event.ydata)
+        if event.inaxes != self.ax or event.button != 1: return
+        
         if event.dblclick:
-            line = self.get_closest_line(event)
-            if line: self.toggle_highlight(line)
+            self.handle_precision_pick(event)
+            return
+
+        self._is_dragging = True
+        self._last_mouse_pos = (event.x, event.y)
+        
+        # 拖动前清理
+        if self.current_annotation:
+            self.current_annotation.set_visible(False)
+            self.canvas.draw_idle()
+
+    def on_motion(self, event):
+        if event.inaxes != self.ax:
+            if self.current_annotation and self.current_annotation.get_visible():
+                self.current_annotation.set_visible(False)
+                self.canvas.draw_idle()
+            return
+
+        if self._is_dragging:
+            # 平移逻辑：使用 draw_idle 以保证刻度刷新，避免消失
+            dx_pix = event.x - self._last_mouse_pos[0]
+            dy_pix = event.y - self._last_mouse_pos[1]
+            inv = self.ax.transData.inverted()
+            p0, p1 = inv.transform((0, 0)), inv.transform((dx_pix, dy_pix))
+            dx, dy = p1[0]-p0[0], p1[1]-p0[1]
+
+            self.ax.set_xlim(self.ax.get_xlim()[0]-dx, self.ax.get_xlim()[1]-dx)
+            self.ax.set_ylim(self.ax.get_ylim()[0]-dy, self.ax.get_ylim()[1]-dy)
+            self._last_mouse_pos = (event.x, event.y)
+            
+            self.background = None # 移动时缓存失效
+            self.canvas.draw_idle()
+        else:
+            # 正常悬停提示
+            self.on_hover(event)
+
+    def on_hover(self, event):
+        if self._is_dragging: return
+        best_line, best_xy = None, None
+        min_d = 400 # 20像素平方
+        
+        for line in self.all_lines:
+            cont, ind = line.contains(event)
+            if cont:
+                idx = ind["ind"][0]
+                x, y = line.get_data()[0][idx], line.get_data()[1][idx]
+                px, py = self.ax.transData.transform((x, y))
+                d = (event.x - px)**2 + (event.y - py)**2
+                if d < min_d:
+                    min_d, best_line, best_xy = d, line, (x, y)
+
+        if best_line:
+            if not self.current_annotation:
+                self.current_annotation = self.ax.annotate("", xy=(0,0), xytext=(15,15),
+                    textcoords="offset points", color="white", family=self.main_font_name,
+                    bbox=dict(boxstyle="round", fc="black", alpha=0.8, ec="white"),
+                    arrowprops=dict(arrowstyle="->", color="white"))
+            
+            self.current_annotation.set_text(f"【{best_line.get_label()}】\n排名: {int(best_xy[1])}")
+            self.current_annotation.xy = best_xy
+            
+            if not self.current_annotation.get_visible():
+                self.current_annotation.set_visible(True)
+                self.canvas.draw_idle()
+        else:
+            if self.current_annotation and self.current_annotation.get_visible():
+                self.current_annotation.set_visible(False)
+                self.canvas.draw_idle()
 
     def on_release(self, event):
         self._is_dragging = False
-        self._last_mouse_pos = None
+        self.background = None 
+        self.canvas.draw_idle()
 
-    def on_motion(self, event):
-        if not self._is_dragging or event.inaxes != self.ax or not self._last_mouse_pos:
-            return
-        dx = event.xdata - self._last_mouse_pos[0]
-        dy = event.ydata - self._last_mouse_pos[1]
-        cur_xlim, cur_ylim = self.ax.get_xlim(), self.ax.get_ylim()
-        self.ax.set_xlim(cur_xlim[0] - dx, cur_xlim[1] - dx)
-        self.ax.set_ylim(cur_ylim[0] - dy, cur_ylim[1] - dy)
-        self.canvas.draw()
+    def on_zoom(self, event):
+        if event.inaxes != self.ax: return
+        f = 0.8 if event.button == 'up' else 1.2
+        xlim, ylim = self.ax.get_xlim(), self.ax.get_ylim()
+        self.ax.set_xlim([event.xdata - (event.xdata-xlim[0])*f, event.xdata + (xlim[1]-event.xdata)*f])
+        self.ax.set_ylim([event.ydata - (event.ydata-ylim[0])*f, event.ydata + (ylim[1]-event.ydata)*f])
+        self.background = None
+        self.canvas.draw_idle()
 
-    def get_closest_line(self, event):
-        for line in self.ax.get_lines():
-            if line.contains(event)[0]:
-                return line
-        return None
-
-    def toggle_highlight(self, line):
-        is_highlighted = line.get_alpha() == 1.0
-        line.set_alpha(0.3 if is_highlighted else 1.0)
-        line.set_linewidth(1.5 if is_highlighted else 3.0)
-        line.set_markersize(8 if is_highlighted else 12)
-        self.canvas.draw()
-
+    def on_search_text_changed(self, text):
+        t = text.strip().lower()
+        for line in self.all_lines:
+            if t and t in line.get_label().lower():
+                line.set_alpha(1.0)
+                line.set_linewidth(3.0)
+                line.set_zorder(10)
+            elif not line._manual_highlight: # 只有非手动高亮的线才会被搜索结果覆盖状态
+                line.set_alpha(0.3)
+                line.set_linewidth(1.5)
+                line.set_zorder(2)
         
+        self.background = None
+        self.canvas.draw_idle()
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     dialog = advance_pulldata_dialog()

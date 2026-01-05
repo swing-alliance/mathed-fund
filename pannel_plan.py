@@ -303,30 +303,37 @@ class ControlPanel(QWidget):
 
     def resort_self_by_largest_sharpe_60days(self):
         """重新排序项目卡片按照60天夏普比率从大到小"""
-        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().max_sharp_ratio_for_days(period_days=60), reverse=True)
-        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
-        self.loaded_cards = new_ordered_cards
-        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
-            self.scroll_layout.removeWidget(card)
-        for card in self.loaded_cards.values():
-            self.scroll_layout.addWidget(card)
-        namelist=[]
-        showed_name={}
-        count=1
-        for card in self.loaded_cards.values():
-            if not showed_name.get(card.fund_tittle):
-                showed_name[card.fund_tittle]=1
-                namelist.append(card.fund_tittle)
-                count+=1
-            if count>100:
-                break
-            pass
-        if "股票" in self.index_label.text() and is_daytime():
-            save_to_log(namelist)
-        if "组" in self.index_label.text():
-            self.index_label.setText(f"当前组60天夏普比排序")
-        else:
-            self.index_label.setText(f"当前计划60天夏普比排序")    
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self)
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort)
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            namelist = []
+            showed_name = {}
+            count = 1
+            for card in sorted_cards_list:
+                if not showed_name.get(card.fund_tittle):
+                    showed_name[card.fund_tittle] = 1
+                    namelist.append(card.fund_tittle)
+                    count += 1
+                if count > 100: break
+            if "股票" in self.index_label.text() and is_daytime():
+                save_to_log(namelist)
+                
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组60天夏普比排序")
+            else:
+                self.index_label.setText("当前计划60天夏普比排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
         
 
     def resort_self_by_80days_yearly_return(self):
