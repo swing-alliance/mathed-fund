@@ -78,7 +78,7 @@ class AssumingWorkerSignals(QObject):
 
 from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject, pyqtSlot
 class AssumingManager(QObject):
-    card_finished = pyqtSignal(object)   # 每完成一个 card
+    card_finished = pyqtSignal(object,dict)   # 每完成一个 card
     all_finished = pyqtSignal(int)       # 全部完成
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -108,10 +108,10 @@ class AssumingManager(QObject):
             self.threadpool.start(worker)
         
 
-    def on_one_card_finished(self, card):
+    def on_one_card_finished(self, card,result):
         """每个 card 完成后调用"""
         self.completed += 1
-        self.card_finished.emit(card)        # 通过实例发射！
+        self.card_finished.emit(card,result)        # 通过实例发射！
         if self.completed >= self.total:
             self.all_finished.emit(self.completed)
 
@@ -126,8 +126,8 @@ class CardWorker(QRunnable):
 
     @pyqtSlot()
     def run(self):
-        self.card.show_fund_holding(only_assuming_required=True)
-        self.manager.on_one_card_finished(self.card)
+        result=self.card.show_fund_holding(only_assuming_required=True)
+        self.manager.on_one_card_finished(self.card,result)
 
 
 

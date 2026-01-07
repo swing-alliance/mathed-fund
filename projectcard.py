@@ -230,14 +230,10 @@ class ProjectCard(QFrame):
                 real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list)
                 self.assuming_return = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date,real_time_fluctuations=real_time_fluctuations).get_assuming_return()  # 获取基金持仓并显示
                 if self.assuming_return == "--" or self.assuming_return is None:
-                    self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date} (预测：--)")
-                    return
-                self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date}  (预测:{self.assuming_return:+.2f}%)")
-                QApplication.processEvents()
-                return
+                    return  {"success": False, "value": self.assuming_return}
+                return  {"success": True, "value": self.assuming_return}
             else:
-                self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date} (预测：--)")
-                return
+                return  {"success": False}
         try:
             hold_df,_,valider=get_holdings(self.filename)
         except Exception as e:
@@ -254,6 +250,14 @@ class ProjectCard(QFrame):
                 print("对话框被拒绝或关闭。")
         else:
             pass
+
+    def update_assuming_return_ui(self,result):
+        if result["success"] is True:
+            self.assuming_return = result["value"]
+            self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益{self.assuming_return:+.2f}%)")
+        else:
+            self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益：--)")
+
 
     def discard(self):
         """丢弃操作：删除路径下的文件并刷新卡片（清理缓存索引）"""

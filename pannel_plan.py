@@ -595,7 +595,12 @@ class ControlPanel(QWidget):
         def process_batch():
             self.assuming_manager = AssumingManager()
             self.assuming_manager.start_batch(cards_to_process, max_count=200)
-        QTimer.singleShot(200, process_batch)
+            self.assuming_manager.card_finished.connect(self.update_assuming_ui)
+        QTimer.singleShot(100, process_batch)
+
+        
+    def update_assuming_ui(self,card, result):
+        card.update_assuming_return_ui(result)
 
 
 
