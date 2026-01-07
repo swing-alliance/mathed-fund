@@ -371,11 +371,47 @@ class FundHoldingDialog(QDialog):
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # 实时涨跌幅列自适应
         layout.addWidget(self.table)
         total_ratio = self.df["占净值比例"].sum()
-        footer = QLabel(f"前十大重仓股合计占净值比例：{total_ratio:.2f}%")
-        footer.setAlignment(Qt.AlignRight)
-        layout.addWidget(footer)
-        
-        self.setLayout(layout)
+        self.assuming_return = self.get_assuming_return()
+        if self.assuming_return != "--":
+            footer = QLabel(f"前十大重仓股合计占净值比例{total_ratio:.2f}%  预测实时涨跌幅：{self.assuming_return:.2f}%")
+            footer.setAlignment(Qt.AlignRight)
+            layout.addWidget(footer)
+            
+            self.setLayout(layout)
+
+
+    def get_assuming_return(self):
+        """获取实时预测收益率"""
+        rows = self.table.rowCount()
+        cols = self.table.columnCount()
+        headers = [self.table.horizontalHeaderItem(i).text() for i in range(cols)]
+        all_data = []
+        for row in range(rows):
+            row_dict = {}
+            for col in range(cols):
+                item = self.table.item(row, col)
+                cell_text = item.text() if item is not None else ""
+                row_dict[headers[col]] = cell_text
+            all_data.append(row_dict)
+        total_assuming_return = 0
+        total_volume = 0
+        for data in all_data:
+            if data["实时涨跌幅"] != "--":
+                ratio_str=data["占净值比例"].replace("%","")
+                total_volume += float(ratio_str)
+        if total_volume == 0:
+            return "--"
+        for data in all_data:
+            if data["实时涨跌幅"] != "--":
+                ratio_str=data["占净值比例"].replace("%","")
+                change_str=data["实时涨跌幅"] = data["实时涨跌幅"].replace("%", "")
+                weight_ratio = float(ratio_str) / total_volume
+
+                change = float(change_str)
+                single_assuming_return = weight_ratio * change
+                total_assuming_return += single_assuming_return
+        return total_assuming_return
+
 
 class GroupConfigDialog(QDialog):
     """对话框输入组名，描述，用于创建分组"""
@@ -514,6 +550,7 @@ class List_group_dialog(QDialog):
 
 
 class RankChartDialog(QDialog):
+    """单个资产的历史夏普比排名趋势图"""
     def __init__(self, asset_name, ranking_history, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"排名追踪: {asset_name}")
@@ -540,6 +577,7 @@ class RankChartDialog(QDialog):
 
 
 class MultiRankChartWidget(QWidget):
+    """多个资产夏普动量追踪图"""
     def __init__(self, ranking_result, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.Window)

@@ -2,7 +2,7 @@ import os
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
      QLabel, QFrame, QMessageBox,
-    QDialog,QMenu,QAction,QMessageBox
+    QDialog,QMenu,QAction,QApplication
 )
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
@@ -202,10 +202,10 @@ class ProjectCard(QFrame):
         layout.addLayout(title_row_layout)
         # 第二层
         row_layout = QHBoxLayout()
-        file_label = QLabel(f"基金代码:{self.filename}  {self.latest_date} ") 
-        file_label.setFont(QFont('微软雅黑', 10))
-        file_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        row_layout.addWidget(file_label, 1)
+        self.file_label = QLabel(f"基金代码:{self.filename}  {self.latest_date} ") 
+        self.file_label.setFont(QFont('微软雅黑', 10))
+        self.file_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        row_layout.addWidget(self.file_label, 1)
         layout.addLayout(row_layout)
 
     def show_fund_info(self):
@@ -217,8 +217,27 @@ class ProjectCard(QFrame):
         else:
             print("对话框被拒绝或关闭。")
     
-    def show_fund_holding(self):
+    def show_fund_holding(self,only_assuming_required=False):
         """在线显示基金持仓对话框"""
+        if only_assuming_required:
+            try:
+                hold_df,_,valider=get_holdings(self.filename)
+            except Exception as e:
+                QMessageBox.warning(self, "错误", f"获取持仓数据失败: {e}")
+                return
+            if valider is True:
+                code_list = hold_df['股票代码'].tolist()
+                real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list)
+                self.assuming_return = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date,real_time_fluctuations=real_time_fluctuations).get_assuming_return()  # 获取基金持仓并显示
+                if self.assuming_return == "--" or self.assuming_return is None:
+                    self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date} (预测：--)")
+                    return
+                self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date}  (预测:{self.assuming_return:.2f}%)")
+                QApplication.processEvents()
+                return
+            else:
+                self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date} (预测：--)")
+                return
         try:
             hold_df,_,valider=get_holdings(self.filename)
         except Exception as e:
@@ -495,7 +514,10 @@ class ProjectCard(QFrame):
 
            
 
-    def return_decision(self):
+    def return_decision(self,df=None):
+        if df:
+            self.decision_maker=decison_maker(fund_code=None,path=None,df=df)
+            return self.decision_maker
         self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None)
         return self.decision_maker
 

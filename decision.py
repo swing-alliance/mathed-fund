@@ -80,9 +80,7 @@ class decison_maker:
             self.fund_code=os.path.basename(path).split('.')[0]
         self.df['净值日期']=pd.to_datetime(self.df['净值日期'])
         self.newest_date=self.df['净值日期'].max().strftime('%Y-%m-%d')
-        self.max_annualized_volatility,_,_,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)#365天最大年化波动率
-        self.sharp_constant = self.year_rate_since_start_this() / self.max_annualized_volatility if self.max_annualized_volatility is not None else -0.001
-        self.total_days=how_long_since_start(self.fund_code,self.df)
+
 
     def year_rate_since_start_this(self,expected_interval_days=None):
         """计算成立以来或者指定天数的年化收益率"""
@@ -105,9 +103,17 @@ class decison_maker:
         self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=30)
         if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
             time_difference = self.lowest_point_date - self.highest_point_date
-            if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS) and self.lowest_point_in_period_value < self.highest_point_in_period_value * 0.9 and self.max_annualized_volatility >= VOLATILITY_THRESHOLD:
+            if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS) and self.lowest_point_in_period_value < self.highest_point_in_period_value * 0.9 and self.get_max_annualized_volatility() >= VOLATILITY_THRESHOLD:
                 return True
         return False
+    
+    def get_max_annualized_volatility(self):
+        self.max_annualized_volatility,_,_,_=get_annualized_volatility_for_period(code=None,df=self.df,period_days=365)
+        return self.max_annualized_volatility
+    
+    def get_365_sharp(self):
+        self.sharp_constant = self.year_rate_since_start_this() / self.get_max_annualized_volatility() if self.get_max_annualized_volatility() is not None else -0.001
+        return self.sharp_constant
 
     def one_month_up_over_10percent(self):
         """判断最近一个月是否有大于10%的上涨"""
@@ -117,7 +123,7 @@ class decison_maker:
         self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=30)
         if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
             time_difference = self.highest_point_date - self.lowest_point_date
-            if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_TROUGHS) and self.highest_point_in_period_value > self.lowest_point_in_period_value * 1.1 and self.max_annualized_volatility <= VOLATILITY_THRESHOLD:
+            if time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_TROUGHS) and self.highest_point_in_period_value > self.lowest_point_in_period_value * 1.1 and self.get_max_annualized_volatility() <= VOLATILITY_THRESHOLD:
                 return True
         return False
 
@@ -139,7 +145,7 @@ class decison_maker:
         if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
             if self.df.empty:
                 return False
-            current_annualized_volatility = self.max_annualized_volatility # 已经计算了最大年化波动率
+            current_annualized_volatility = self.get_max_annualized_volatility() # 计算了最大年化波动率
             time_difference = self.lowest_point_date - self.highest_point_date
             is_low_after_high = time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS)
 

@@ -132,6 +132,8 @@ class MainWindow(QMainWindow):
         group_return_market_index_action.triggered.connect(self.return_market_index)
         group_export_batch_analysis_action = QAction("生成夏普追踪图", self)
         group_export_batch_analysis_action.triggered.connect(self.export_batch_analysis)
+        group_show_assuming_return_action = QAction("显示预测收益", self)
+        group_show_assuming_return_action.triggered.connect(self.show_assuming_return)
 
         ai_prompt_action = QAction("组导出AI提示词", self)
         ai_prompt_action.triggered.connect(self.export_ai_prompt)
@@ -165,6 +167,7 @@ class MainWindow(QMainWindow):
         group_fileter_lowpoint_action.setFont(QFont('微软雅黑', 11))
         group_return_market_index_action.setFont(QFont('微软雅黑', 11))
         group_export_batch_analysis_action.setFont(QFont('微软雅黑', 11))
+        group_show_assuming_return_action.setFont(QFont('微软雅黑', 11))
         ai_prompt_action.setFont(QFont('微软雅黑', 11))
         ai_prompt_top50_action.setFont(QFont('微软雅黑', 11))
 
@@ -199,6 +202,7 @@ class MainWindow(QMainWindow):
         calculate_menu.addAction(group_fileter_lowpoint_action)
         calculate_menu.addAction(group_return_market_index_action)
         calculate_menu.addAction(group_export_batch_analysis_action)
+        calculate_menu.addAction(group_show_assuming_return_action)
     
         AI_menu.addAction(ai_prompt_action)
         AI_menu.addAction(ai_prompt_top50_action)
@@ -557,8 +561,14 @@ class MainWindow(QMainWindow):
         """导出夏普批量分析"""
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
-            
             central_widget.export_batch_log_analysis()
+
+    def show_assuming_return(self):
+        """卡片显示预期收益"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.show_assuming_return(
+    )
 
 
 class FileUpdateWorker(QThread):

@@ -16,6 +16,7 @@ from fundholding import stocker_prompt
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import glob
+from threadworker import AssumingManager,multithread_read_file,calculate_sharp
 from conclusion import generate_market_conclusion
 from qdialogue import MultiRankChartWidget
 from log.logsharp import save_to_log
@@ -286,27 +287,32 @@ class ControlPanel(QWidget):
 
     def resort_self(self):
         """重新排序项目卡片按照365天夏普比率从大到小"""
-        cards = list(self.loaded_cards.values())
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            ratios = list(executor.map(lambda c: c.return_decision().sharp_constant, cards))
-        sorted_cards_list = [c for _, c in sorted(zip(ratios, cards), key=lambda x: x[0], reverse=True)]
-        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
-        self.loaded_cards = new_ordered_cards
-        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
-            self.scroll_layout.removeWidget(card)
-        for card in self.loaded_cards.values():
-            self.scroll_layout.addWidget(card)
-        if "组" in self.index_label.text():
-            self.index_label.setText(f"当前组365天夏普比排序")
-        else:
-            self.index_label.setText(f"当前365天夏普比排序")
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="365天夏普比率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="365天夏普比率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组365天夏普比率排序")
+            else:
+                self.index_label.setText("当前计划365天夏普比率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
 
     def resort_self_by_largest_sharpe_60days(self):
-        """重新排序项目卡片按照60天夏普比率从大到小"""
+        """重新排序项目卡片按照60天夏普比率从大到小,重点关注,有log功能记录"""
         from threadworker import LoadingDialog, SortWorker
-        dialog = LoadingDialog(self)
+        dialog = LoadingDialog(self,job="60天夏普比率")
         cards_to_sort = list(self.loaded_cards.values())
-        self.worker = SortWorker(cards_to_sort)
+        self.worker = SortWorker(cards_to_sort,job="60天夏普比率")
         def on_finished(sorted_cards_list):
             dialog.accept() # 关闭弹窗
             for card in self.loaded_cards.values():
@@ -338,90 +344,161 @@ class ControlPanel(QWidget):
 
     def resort_self_by_80days_yearly_return(self):
         """重新排序项目卡片按照80天年化收益率从大到小"""
-        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=80), reverse=True)
-        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
-        self.loaded_cards = new_ordered_cards
-        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
-            self.scroll_layout.removeWidget(card)
-        for card in self.loaded_cards.values():
-            self.scroll_layout.addWidget(card)
-        if "组" in self.index_label.text():
-            self.index_label.setText(f"当前组80天年化收益率排序")
-        else:
-            self.index_label.setText(f"当前计划80天年化收益率排序")
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="80天年化收益率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="80天年化收益率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组80天年化收益率排序")
+            else:
+                self.index_label.setText("当前计划80天年化收益率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
 
     def resort_self_by_30days_yearly_return(self):
         """重新排序项目卡片按照30天年化收益率从大到小"""
-        sorted_cards_list = sorted(self.loaded_cards.values(), 
-                                   key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=30), 
-                                   reverse=True)
-        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
-        self.loaded_cards = new_ordered_cards
-        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
-            self.scroll_layout.removeWidget(card)
-        for card in self.loaded_cards.values():
-            self.scroll_layout.addWidget(card)
-        if "组" in self.index_label.text():
-            self.index_label.setText(f"当前组30天年化收益率排序")
-        else:
-            self.index_label.setText(f"当前计划30天年化收益率排序")
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="30天年化收益率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="30天年化收益率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组30天年化收益率排序")
+            else:
+                self.index_label.setText("当前计划30天年化收益率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
 
     def resort_self_by_14days_yearly_return(self):
         """重新排序项目卡片按照14天年化收益率从大到小"""
-        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=14), reverse=True)
-        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
-        self.loaded_cards = new_ordered_cards
-        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
-            self.scroll_layout.removeWidget(card)
-        for card in self.loaded_cards.values():
-            self.scroll_layout.addWidget(card)
-        if "组" in self.index_label.text():
-            self.index_label.setText(f"当前组14天年化收益率排序")
-        else:
-            self.index_label.setText(f"当前计划14天年化收益率排序")
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="14天年化收益率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="14天年化收益率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组14天年化收益率排序")
+            else:
+                self.index_label.setText("当前计划14天年化收益率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
 
     def resort_self_by_3days_yearly_return(self):
         """重新排序项目卡片按照3天年化收益率从大到小"""
-        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().year_rate_since_start_this(expected_interval_days=3), reverse=True)
-        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
-        self.loaded_cards = new_ordered_cards
-        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
-            self.scroll_layout.removeWidget(card)
-        for card in self.loaded_cards.values():
-            self.scroll_layout.addWidget(card)
-        if "组" in self.index_label.text():
-            self.index_label.setText(f"当前组3天年化收益率排序")
-        else:
-            self.index_label.setText(f"当前计划3天年化收益率排序")
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="3天年化收益率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="3天年化收益率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组3天年化收益率排序")
+            else:
+                self.index_label.setText("当前计划3天年化收益率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
+
+    def resort_self_by_largest_yearly_return(self):
+        """重新排序项目卡片按照365天年化收益率从大到小"""
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="365天年化收益率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="365天年化收益率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组365天年化收益率排序")
+            else:
+                self.index_label.setText("当前计划365天年化收益率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
+
 
     def resort_self_by_largest_votolity(self):
         """重新排序项目卡片按照波动率从大到小"""
-        sorted_cards_list = sorted(self.loaded_cards.values(), key=lambda card: card.return_decision().max_annualized_volatility, reverse=True)
-        new_ordered_cards = {card.filename: card for card in sorted_cards_list} # 假设卡片有 card_id 属性作为键
-        self.loaded_cards = new_ordered_cards
-        for card in list(self.loaded_cards.values()): # 使用 list() 复制值，确保移除时不会干扰迭代
-            self.scroll_layout.removeWidget(card)
-        for card in self.loaded_cards.values():
-            self.scroll_layout.addWidget(card)
-        if "组" in self.index_label.text():
-            self.index_label.setText(f"当前组做波动率排序")
-        else:    
-            self.index_label.setText(f"当前计划做波动率排序")
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="波动率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="波动率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组波动率排序")
+            else:
+                self.index_label.setText("当前波动率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
 
     def filter_self_by_consider_lowpoint(self):
         """过滤项目卡片只显示考虑低点的 (通过控制可见性实现，无重叠Bug)"""
-        filtered_cards = [card for card in self.loaded_cards.values() if card.return_decision().is_consider_lowpoint() is True]
-        for card in self.loaded_cards.values():
+        # filtered_cards = [card for card in self.loaded_cards.values() if card.return_decision().is_consider_lowpoint() is True]
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="过滤低点")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="过滤低点")
+        def on_finished(filtered_cards):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
                 self.scroll_layout.removeWidget(card)
                 card.hide()
-        for card in filtered_cards:
-            self.filtered_card_to_show.append(card.filename)
-            card.show()
-        for card in filtered_cards:
-            self.scroll_layout.addWidget(card)
-        self.scroll_layout.invalidate() 
-        status_type = "组" if "组" in self.index_label.text() else "计划"
-        self.index_label.setText(f"当前{status_type}过滤低点 ({len(filtered_cards)})")
+            for card in filtered_cards:
+                self.filtered_card_to_show.append(card.filename)
+                card.show()
+            for card in filtered_cards:
+                self.scroll_layout.addWidget(card)
+            self.scroll_layout.invalidate() 
+            status_type = "组" if "组" in self.index_label.text() else "计划"
+            self.index_label.setText(f"当前{status_type}过滤低点 ({len(filtered_cards)})")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
         
     def export_batch_log_analysis(self):
         if "夏普" in self.index_label.text():
@@ -509,8 +586,16 @@ class ControlPanel(QWidget):
             QMessageBox.warning(self, "导出失败", f"错误：{e}",QMessageBox.Ok)
     
 
+    def show_assuming_return(self):
+        """卡片显示预期收益"""
+        cards_to_process = list(self.loaded_cards.values())[:100]
+        if not cards_to_process:
+            return
+        self.assuming_manager = AssumingManager()
+        self.assuming_manager.start_batch(cards_to_process, max_count=100)
 
-            
+        # calculate_sharp(self.loaded_cards.values())
+
 
 
     def return_market_general_index(self):
