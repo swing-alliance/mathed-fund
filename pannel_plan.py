@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QFileDialog, QLabel, QFrame, QMessageBox,
     QSpacerItem, QSizePolicy, QScrollArea,QLineEdit, QComboBox,QDialog,QApplication,QMenu,QAction,QProgressDialog
 )
+from PyQt5.QtCore import QTimer
 import pyperclip
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
@@ -20,6 +21,7 @@ from threadworker import AssumingManager,multithread_read_file,calculate_sharp
 from conclusion import generate_market_conclusion
 from qdialogue import MultiRankChartWidget
 from log.logsharp import save_to_log
+import socket
 from log.analysislog100 import analysis_log_batch
 import time
 TO_WORKER = "to_worker"
@@ -591,16 +593,29 @@ class ControlPanel(QWidget):
         cards_to_process = list(self.loaded_cards.values())[:200]
         if not cards_to_process:
             return
-        from PyQt5.QtCore import QTimer
+        while not check_proxy_alive():  # 注意：调用方法要加 self. 和 ()
+            ret = QMessageBox.warning(
+                self,
+                "网络问题",
+                "无法连接到数据源，本功能需要代理环境才能正常运行。\n\n"
+                "请开启代理软件后点击“重试”，或点击“取消”放弃本次操作。",
+                QMessageBox.Retry | QMessageBox.Cancel,
+                QMessageBox.Retry
+            )
+            if ret == QMessageBox.Cancel:
+                return  # 用户取消，直接退出
         def process_batch():
             self.assuming_manager = AssumingManager()
             self.assuming_manager.start_batch(cards_to_process, max_count=200)
             self.assuming_manager.card_finished.connect(self.update_assuming_ui)
-        QTimer.singleShot(100, process_batch)
+        QTimer.singleShot(200, process_batch)
 
         
     def update_assuming_ui(self,card, result):
         card.update_assuming_return_ui(result)
+
+
+
 
 
 
@@ -780,6 +795,21 @@ def is_daytime():
     if start <= now < end:
         return True
     return False
+
+
+def check_proxy_alive(host="127.0.0.1", port=10809):
+    """
+    极速探测代理端口是否开放
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.5)  # 只给 0.5 秒探测时间，不阻塞主线程
+    try:
+        s.connect((host, port))
+        s.close()
+        return True
+    except (socket.timeout, ConnectionRefusedError, Exception):
+        return False
+
 
 if __name__ == "__main__":
     pass

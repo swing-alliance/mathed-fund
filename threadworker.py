@@ -70,65 +70,78 @@ class LoadingDialog(QDialog):
 
 
 
-class AssumingWorkerSignals(QObject):
-    """专门用于线程间通信的信号"""
-    progress = pyqtSignal(object)      # 每处理完一个 card 发射（传 card 本身）
-    finished = pyqtSignal(int)         # 全部完成，传处理的数量
-
 
 from PyQt5.QtCore import QThreadPool, QRunnable, pyqtSignal, QObject, pyqtSlot
+class WorkerSignals(QObject):
+    finished = pyqtSignal(object, dict)
+
+class CardWorker(QRunnable):
+    def __init__(self, card):
+        super().__init__()
+        self.card = card
+        self.signals = WorkerSignals(parent=None)  # parent=None 即可
+
+        # 不要加这行！保持默认 True
+        # self.setAutoDelete(False)
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            result = self.card.show_fund_holding(only_assuming_required=True)
+            self.signals.finished.emit(self.card, result)
+        except Exception as e:
+            import traceback
+            print(f"Worker error: {traceback.format_exc()}")
+
 class AssumingManager(QObject):
-    card_finished = pyqtSignal(object,dict)   # 每完成一个 card
-    all_finished = pyqtSignal(int)       # 全部完成
+    card_finished = pyqtSignal(object, dict)
+    all_finished = pyqtSignal(int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.threadpool = QThreadPool.globalInstance()
-        self.threadpool.setMaxThreadCount(4)  # 并行线程数自行调整
+        self.threadpool.setMaxThreadCount(8)
         self.completed = 0
         self.total = 0
         self.all_finished.connect(self._show_done_message)
-        
-    def _show_done_message(self, count):
-        """在主线程中执行的弹窗"""
-        from PyQt5.QtWidgets import QMessageBox
-        QMessageBox.information(None, "任务完成", f"实时涨跌幅预测！\n卡片:{count} 张")
 
     def start_batch(self, cards, max_count=500):
-        """批量处理卡片"""
-        self._is_canceled = False
         cards_to_process = list(cards)[:max_count]
         self.total = len(cards_to_process)
         self.completed = 0
+        
         if self.total == 0:
             self.all_finished.emit(0)
             return
 
-        for card in cards_to_process:
-            worker = CardWorker(card, self)  # 把 manager 实例传给 worker
-            self.threadpool.start(worker)
-        
+        self.remaining_cards = cards_to_process
+        self.submit_timer = QTimer(self)
+        self.submit_timer.timeout.connect(self._submit_next_worker)
+        self.submit_timer.start(1000)
 
-    def on_one_card_finished(self, card,result):
-        """每个 card 完成后调用"""
+    def _submit_next_worker(self):
+        if not self.remaining_cards:
+            self.submit_timer.stop()
+            return
+            
+        card = self.remaining_cards.pop(0)
+        worker = CardWorker(card)
+        worker.signals.finished.connect(self.on_one_card_finished)
+        self.threadpool.start(worker)
+
+
+
+    @pyqtSlot(object, dict)
+    def on_one_card_finished(self, card, result):
+        # 此时这个方法会在 AssumingManager 所属的线程（主线程）中安全执行
         self.completed += 1
-        self.card_finished.emit(card,result)        # 通过实例发射！
+        self.card_finished.emit(card, result)
         if self.completed >= self.total:
             self.all_finished.emit(self.completed)
 
-    def stop_batch(self):
-        self._is_canceled = True
-
-class CardWorker(QRunnable):
-    def __init__(self, card, manager):  # 新增 manager 参数
-        super().__init__()
-        self.card = card
-        self.manager = manager                  # 保存实例引用
-
-    @pyqtSlot()
-    def run(self):
-        result=self.card.show_fund_holding(only_assuming_required=True)
-        self.manager.on_one_card_finished(self.card,result)
-
+    def _show_done_message(self, count):
+        from PyQt5.QtWidgets import QMessageBox
+        QMessageBox.information(None, "任务完成", f"任务已结束！\n处理数量:{count}")
 
 
 from concurrent.futures import ThreadPoolExecutor, as_completed

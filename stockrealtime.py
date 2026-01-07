@@ -3,50 +3,96 @@ import yfinance as yf
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import socket
+import io
+import contextlib
 import pandas as pd
-def get_china_stock_data(symbol, period="5", adjust="qfq"):
-    """
-    获取中国股票数据的函数
-    :param symbol: 股票代码
-    :param period: 数据周期
-    :param adjust: 复权方式
-    :return: 股票历史数据 DataFrame
-    """
-    try:
-        return ak.stock_zh_a_hist_min_em(symbol=symbol, period=period, adjust=adjust)
-    except Exception as e:
-        print(f"Error fetching China stock data: {e}")
-        return None
+
 
 
 def get_stock_data(ticker, period="5d", interval="5m"):
     """
-    获取国外股票数据的函数
+    获取股票数据的函数
     :param ticker: 股票代码
     :param period: 数据周期
     :param interval: 数据间隔
     :return: 股票历史数据 DataFrame
     """
-    stock_refer=clean_stock_reference(ticker)
-    if stock_refer == "cn":
-        os.environ.pop('HTTP_PROXY', None)
-        os.environ.pop('HTTPS_PROXY', None)
-        try:
-            return ak.stock_zh_a_hist_min_em(symbol=ticker, period=5, adjust="qfq")
-        except Exception as e:
-            print(f"Akshare 获取失败: {e}")
-            return None
-    else:
-        os.environ['HTTP_PROXY'] = "http://127.0.0.1:10809"
-        os.environ['HTTPS_PROXY'] = "http://127.0.0.1:10809"
-        try:
-            stock = yf.Ticker(stock_refer)
-            df = stock.history(period=period, interval=interval)
-            return df
-        except Exception as e:
-            print(f"yfinance 获取失败: {e}")
+    if check_proxy_alive:
+        stock_refer=clean_stock_reference(ticker)
+        if stock_refer == "cn":
+            os.environ.pop('HTTP_PROXY', None)
+            os.environ.pop('HTTPS_PROXY', None)
+            try:
+                return ak.stock_zh_a_hist_min_em(symbol=ticker, period=5, adjust="qfq")
+            except Exception as e:
+                print(f"Akshare 获取失败: {e}")
+                return None
+        else:
+            try:
+                df=get_stock_data_final(stock_refer, period="5d", interval="1d")
+                return df
+            except Exception as e:
+                print(f"yfinance 采集异常 [{stock_refer}]: {e}")
+                return None
+    if not check_proxy_alive:
+        stock_refer=clean_stock_reference(ticker)
+        if stock_refer == "cn":
+            os.environ.pop('HTTP_PROXY', None)
+            os.environ.pop('HTTPS_PROXY', None)
+            try:
+                return ak.stock_zh_a_hist_min_em(symbol=ticker, period=5, adjust="qfq")
+            except Exception as e:
+                print(f"Akshare 获取失败: {e}")
+                return None
+        else:
             return None
         
+
+def get_stock_data_final(stock_refer, period="5d", interval="1d"):
+    # 1. 强制设定环境变量，让底层所有库都走 10809
+    # 即使代理断了，它也只会报 Timeout，而不会乱撞
+    proxy_url = "http://127.0.0.1:10809"
+    os.environ['HTTP_PROXY'] = proxy_url
+    os.environ['HTTPS_PROXY'] = proxy_url
+    
+    # 2. 屏蔽 stderr，拦截 QObject::setParent 警告喷涌
+    f = io.StringIO()
+    with contextlib.redirect_stderr(f):
+        try:
+            # 3. 彻底禁用缓存，减少对象残留
+            stock = yf.Ticker(stock_refer)
+            
+            # 增加 timeout，让它死得“干脆”一点，不要反复重试触发计时器
+            df = stock.history(
+                period=period, 
+                interval=interval, 
+                timeout=3, # 缩短超时，快速失败
+                proxy=proxy_url
+            )
+            
+            if df is not None and not df.empty:
+                return df.copy()
+        except Exception as e:
+            # 这里的 e 会被捕获，不会传给 Qt 导致崩溃
+            print(f"[{stock_refer}] 捕获到预期内的网络失败，避开了 Qt 报错")
+    return None
+
+
+
+
+def check_proxy_alive(host="127.0.0.1", port=10809):
+    """
+    极速探测代理端口是否开放
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.5)  # 只给 0.5 秒探测时间，不阻塞主线程
+    try:
+        s.connect((host, port))
+        s.close()
+        return True
+    except (socket.timeout, ConnectionRefusedError, Exception):
+        return False
 
 def clean_stock_reference(stockcode):
     """
@@ -112,17 +158,14 @@ def from_stock_data_for_codes_get_real_time_fluctuation(stock_codes):
     try:
         for code, dataframe in stock_data.items():
             if dataframe is None:
-                print(f"代码: {code} 的数据为空，跳过计算。")
                 continue
             if not dataframe.empty and len(dataframe) > 0:
                 df = dataframe.reset_index().copy()
             else:
-                print(f"代码: {code} 的数据为空，跳过计算。")
                 continue
             time_col_name = get_date_column(df)
             temp_dates = pd.to_datetime(df[time_col_name], utc=True).dt.tz_localize(None).dt.date
             df[time_col_name] = temp_dates
-            print(f"处理代码: {code} 的数据，时间列: {time_col_name}")
             close_col_name = get_close_column(df)
             col = df[time_col_name]
             last_date = col.iloc[-1]
@@ -135,7 +178,6 @@ def from_stock_data_for_codes_get_real_time_fluctuation(stock_codes):
                 last_val = df[df[time_col_name] == last_date][close_col_name].iloc[-1]
                 prev_val = df[df[time_col_name] == previous_date][close_col_name].iloc[-1]
                 fluctuation = (last_val - prev_val) / prev_val * 100
-                print(f"代码: {code}, 日期: {last_date}, 涨跌: {fluctuation:.2f}%, 前值: {prev_val}, 当前值: {last_val}, last_date: {last_date}, previous_date: {previous_date}")
                 fluctuations[code] = fluctuation
     except Exception as e:
         print(f"计算涨跌幅时出错: {e}")
@@ -155,4 +197,4 @@ def get_date_column(dataframe):
     return None
 
 if __name__ == "__main__":
-    print(get_stock_data("01347"))
+    get_stock_data_final("AAPL")

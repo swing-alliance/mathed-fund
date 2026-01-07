@@ -256,7 +256,7 @@ class ProjectCard(QFrame):
             self.assuming_return = result["value"]
             self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益{self.assuming_return:+.2f}%)")
         else:
-            self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益：--)")
+            self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益：-- )")
 
 
     def discard(self):
