@@ -232,7 +232,7 @@ class ProjectCard(QFrame):
                 if self.assuming_return == "--" or self.assuming_return is None:
                     self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date} (预测：--)")
                     return
-                self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date}  (预测:{self.assuming_return:.2f}%)")
+                self.file_label.setText(f"基金代码:{self.filename}  {self.latest_date}  (预测:{self.assuming_return:+.2f}%)")
                 QApplication.processEvents()
                 return
             else:

@@ -83,10 +83,15 @@ class AssumingManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.threadpool = QThreadPool.globalInstance()
-        self.threadpool.setMaxThreadCount(3)  # 并行线程数自行调整
+        self.threadpool.setMaxThreadCount(4)  # 并行线程数自行调整
         self.completed = 0
         self.total = 0
+        self.all_finished.connect(self._show_done_message)
         
+    def _show_done_message(self, count):
+        """在主线程中执行的弹窗"""
+        from PyQt5.QtWidgets import QMessageBox
+        QMessageBox.information(None, "任务完成", f"实时涨跌幅预测！\n卡片:{count} 张")
 
     def start_batch(self, cards, max_count=500):
         """批量处理卡片"""
@@ -101,6 +106,7 @@ class AssumingManager(QObject):
         for card in cards_to_process:
             worker = CardWorker(card, self)  # 把 manager 实例传给 worker
             self.threadpool.start(worker)
+        
 
     def on_one_card_finished(self, card):
         """每个 card 完成后调用"""

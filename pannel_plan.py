@@ -588,13 +588,15 @@ class ControlPanel(QWidget):
 
     def show_assuming_return(self):
         """卡片显示预期收益"""
-        cards_to_process = list(self.loaded_cards.values())[:100]
+        cards_to_process = list(self.loaded_cards.values())[:200]
         if not cards_to_process:
             return
-        self.assuming_manager = AssumingManager()
-        self.assuming_manager.start_batch(cards_to_process, max_count=100)
+        from PyQt5.QtCore import QTimer
+        def process_batch():
+            self.assuming_manager = AssumingManager()
+            self.assuming_manager.start_batch(cards_to_process, max_count=200)
+        QTimer.singleShot(200, process_batch)
 
-        # calculate_sharp(self.loaded_cards.values())
 
 
 
