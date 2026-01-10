@@ -876,6 +876,7 @@ class ConfigDialog(QDialog):
         """恢复默认逻辑"""
         default_conf = {
             "considerlower": {
+                "PERIOD_DAYS": 40,
                 "MINIMUM_DAYS_BETWEEN_PEAKS": 3,
                 "DRAWDOWN_PERCENTAGE_THRESHOLD": 0.072,
                 "VOLATILITY_THRESHOLD": 0.18,
@@ -899,7 +900,14 @@ class ConfigDialog(QDialog):
         """保存当前界面上的所有配置"""
         for section, items in self.edit_widgets.items():
             for key, edit_widget in items.items():
-                self.config[section][key] = edit_widget.text()
+                val = edit_widget.text()
+                try:
+                    if '.' in val:
+                        self.config[section][key] = float(val)
+                    else:
+                        self.config[section][key] = int(val)
+                except ValueError:
+                    self.config[section][key] = val
         write_config(self.config)
 
 

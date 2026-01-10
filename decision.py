@@ -136,6 +136,7 @@ class decison_maker:
         """
         if self.config:
             try:
+                PERIOD_DAYS=self.config["considerlower"]['PERIOD_DAYS']#拿多少天作为计算范围
                 MINIMUM_DAYS_BETWEEN_PEAKS=self.config["considerlower"]['MINIMUM_DAYS_BETWEEN_PEAKS']#最低点必须在最高点之后至少 N 天
                 DRAWDOWN_PERCENTAGE_THRESHOLD=self.config["considerlower"]['DRAWDOWN_PERCENTAGE_THRESHOLD']#回撤阈值,(最高-最低)/最高
                 VOLATILITY_THRESHOLD=self.config["considerlower"]['VOLATILITY_THRESHOLD']#年化波动率阈值
