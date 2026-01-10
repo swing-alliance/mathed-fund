@@ -4,12 +4,13 @@ from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWid
 from PyQt5.QtGui import QFont 
 from PyQt5.QtCore import QSize,QThread, pyqtSignal
 from csvqwidget import CsvGraphWidget
-from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog
+from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog,ConfigDialog
 from utils.pull import fetch_and_save_fund_csv
 from my_types.nice_utils import update_files
 from pannel_plan import ControlPanel
 from PyQt5.QtGui import QIcon
 from sys_center import SysCentral
+from config.get_config import get_config
 from signal_handler import history_signal_emitter
 import shutil
 import glob
@@ -66,6 +67,7 @@ class MainWindow(QMainWindow):
         data_menu = menu_bar.addMenu("数据")
         calculate_menu = menu_bar.addMenu("计算")
         AI_menu = menu_bar.addMenu("AI")
+        config_menu = menu_bar.addMenu("设置")
         
         load_action = QAction("加载文件", self)
         load_action.triggered.connect(self.show_graph_for_file)
@@ -80,8 +82,6 @@ class MainWindow(QMainWindow):
 
         pull_action = QAction("拉取数据入库", self)
         pull_action.triggered.connect(self.pull_data)
-        
-
         advanced_pull_action = QAction("拉取数据入库(高级)", self)
         advanced_pull_action.triggered.connect(self.advanced_pull_data)
         
@@ -135,6 +135,10 @@ class MainWindow(QMainWindow):
         group_show_assuming_return_action = QAction("显示预测收益", self)
         group_show_assuming_return_action.triggered.connect(self.show_assuming_return)
 
+        config_action = QAction("计算参数配置", self)
+        config_action.triggered.connect(self.change_config)
+
+
         ai_prompt_action = QAction("组导出AI提示词", self)
         ai_prompt_action.triggered.connect(self.export_ai_prompt)
         ai_prompt_top50_action = QAction("计划导出AI提示词top50", self)
@@ -170,7 +174,7 @@ class MainWindow(QMainWindow):
         group_show_assuming_return_action.setFont(QFont('微软雅黑', 11))
         ai_prompt_action.setFont(QFont('微软雅黑', 11))
         ai_prompt_top50_action.setFont(QFont('微软雅黑', 11))
-
+        config_action.setFont(QFont('微软雅黑', 11))
 
         
         plan_menu.addAction(planpage_action)
@@ -206,6 +210,8 @@ class MainWindow(QMainWindow):
     
         AI_menu.addAction(ai_prompt_action)
         AI_menu.addAction(ai_prompt_top50_action)
+
+        config_menu.addAction(config_action)
 
 
         
@@ -491,6 +497,14 @@ class MainWindow(QMainWindow):
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
             central_widget.return_market_general_index()
+
+
+    def change_config(self):
+        """"更改配置文件"""
+        config=get_config()
+        dialog=ConfigDialog(config)
+        dialog.exec()
+
 
 
     def start_file_update(self,file_path,cache_path):

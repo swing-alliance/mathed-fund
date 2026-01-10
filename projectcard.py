@@ -518,11 +518,11 @@ class ProjectCard(QFrame):
 
            
 
-    def return_decision(self,df=None):
+    def return_decision(self,df=None,config=None):
         if df:
-            self.decision_maker=decison_maker(fund_code=None,path=None,df=df)
+            self.decision_maker=decison_maker(fund_code=None,path=None,df=df,config=config)
             return self.decision_maker
-        self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None)
+        self.decision_maker=decison_maker(fund_code=None,path=self.file_path,df=None,config=config)
         return self.decision_maker
 
 

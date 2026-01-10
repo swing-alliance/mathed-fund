@@ -11,6 +11,7 @@ import akshare as ak
 from PyQt5.QtGui import QFont ,QIcon
 import matplotlib.dates as mdates
 from datetime import datetime, date
+from config.get_config import write_config
 import os
 import mplcursors
 import glob
@@ -803,6 +804,105 @@ class MultiRankChartWidget(QWidget):
         
         self.background = None
         self.canvas.draw_idle()
+
+
+
+
+class ConfigDialog(QDialog):
+    """用于改变配置的对话框"""
+    def __init__(self, config):
+        super().__init__()
+        Font=QFont("微软雅黑",10)
+        self.config = config  #格式为 { "组名": { "键": "值" } }
+        self.setWindowTitle("计算参数配置详情")
+        self.resize(500, 500)
+        self.main_layout = QVBoxLayout(self)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.content_widget = QWidget()
+        self.content_layout = QVBoxLayout(self.content_widget)
+        self.edit_widgets = {section: {} for section in self.config.keys()}
+        self.setup_ui()
+        
+
+        # 5. 组装
+        self.scroll.setWidget(self.content_widget)
+        self.main_layout.addWidget(self.scroll)
+        self.add_bottom_buttons()
+        self.setFont(Font)
+        
+
+    def setup_ui(self):
+        for section, items in self.config.items():
+            group_box = QGroupBox(section)
+            group_layout = QVBoxLayout()
+            # 遍历内层字典 (具体配置项)
+            if isinstance(items, dict):
+                for key, value in items.items():
+                    row_container = QHBoxLayout()
+                    key_label = QLabel(f"<b>{key}:</b>")
+                    value_edit = QLineEdit()
+                    value_edit.setText(str(value))
+                    self.edit_widgets[section][key] = value_edit
+                    row_container.addWidget(key_label)
+                    row_container.addWidget(value_edit)
+                    row_container.addStretch()
+                    group_layout.addLayout(row_container)
+            else:
+                group_layout.addWidget(QLabel(str(items)))
+            group_box.setLayout(group_layout)
+            self.content_layout.addWidget(group_box)
+        self.content_layout.addStretch()
+
+    def add_bottom_buttons(self):
+        """添加底部的保存、取消和默认按钮"""
+        button_layout = QHBoxLayout()
+        # 1. 恢复默认按钮
+        default_btn = QPushButton("恢复默认")
+        default_btn.setFixedHeight(40)
+        default_btn.clicked.connect(self.handle_default) # 绑定默认逻辑
+        # 2. 保存按钮
+        save_btn = QPushButton("保存配置")
+        save_btn.setFixedHeight(40)
+        save_btn.clicked.connect(self.handle_save)
+
+        # 布局顺序：默认 --- 弹簧 --- 保存
+        button_layout.addWidget(default_btn)
+        button_layout.addStretch()
+        button_layout.addWidget(save_btn)
+        self.main_layout.addLayout(button_layout)
+
+    def handle_default(self):
+        """恢复默认逻辑"""
+        default_conf = {
+            "considerlower": {
+                "MINIMUM_DAYS_BETWEEN_PEAKS": 3,
+                "DRAWDOWN_PERCENTAGE_THRESHOLD": 0.072,
+                "VOLATILITY_THRESHOLD": 0.18,
+                "LOWER_AVG_REFER_DAYS": 20,
+                "LOWER_AVG_REFER_RATIO": 0.99,
+                "ISLOOSE": "false"
+            }
+        }
+        for section, items in default_conf.items():
+            if section in self.edit_widgets:
+                for key, value in items.items():
+                    if key in self.edit_widgets[section]:
+                        self.edit_widgets[section][key].setText(str(value))
+        for section, items in default_conf.items():
+            if section in self.config:
+                self.config[section].update(items)
+                
+        print("界面已重置为默认参数，请点击保存以生效")
+
+    def handle_save(self):
+        """保存当前界面上的所有配置"""
+        for section, items in self.edit_widgets.items():
+            for key, edit_widget in items.items():
+                self.config[section][key] = edit_widget.text()
+        write_config(self.config)
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

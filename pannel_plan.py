@@ -17,11 +17,12 @@ from fundholding import stocker_prompt
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import glob
-from threadworker import AssumingManager,multithread_read_file,calculate_sharp
+from threadworker import AssumingManager
 from conclusion import generate_market_conclusion
 from qdialogue import MultiRankChartWidget
 from log.logsharp import save_to_log
 import socket
+from config.get_config import get_config
 from log.analysislog100 import analysis_log_batch
 import time
 TO_WORKER = "to_worker"
@@ -481,9 +482,10 @@ class ControlPanel(QWidget):
         """过滤项目卡片只显示考虑低点的 (通过控制可见性实现，无重叠Bug)"""
         # filtered_cards = [card for card in self.loaded_cards.values() if card.return_decision().is_consider_lowpoint() is True]
         from threadworker import LoadingDialog, SortWorker
+        config=get_config()
         dialog = LoadingDialog(self,job="过滤低点")
         cards_to_sort = list(self.loaded_cards.values())
-        self.worker = SortWorker(cards_to_sort,job="过滤低点")
+        self.worker = SortWorker(cards_to_sort,job="过滤低点",config=config)
         def on_finished(filtered_cards):
             dialog.accept() # 关闭弹窗
             for card in self.loaded_cards.values():
@@ -590,7 +592,12 @@ class ControlPanel(QWidget):
 
     def show_assuming_return(self):
         """卡片显示预期收益"""
-        cards_to_process = list(self.loaded_cards.values())[:200]
+        # cards_to_process = list(self.loaded_cards.values())[:200]
+        cards_to_process = [
+        self.scroll_layout.itemAt(i).widget() 
+        for i in range(min(self.scroll_layout.count(), 200))
+        if self.scroll_layout.itemAt(i).widget() is not None
+        ]
         if not cards_to_process:
             return
         while not check_proxy_alive():  # 注意：调用方法要加 self. 和 ()

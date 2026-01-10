@@ -435,6 +435,7 @@ def get_highest_point_by_period(df, period_days):
     return highest_value, highest_date
 
 def get_lowest_point_after_high(df, period_days):
+    """找出最高点后的最低点"""
     highpoint_value, highpoint_date = get_highest_point_by_period(df, period_days)
     df['净值日期'] = pd.to_datetime(df['净值日期'])
     try:
@@ -449,6 +450,7 @@ def get_lowest_point_after_high(df, period_days):
     return lowest_point_value, lowest_point_date
 
 def get_lowest_point_before_high(df, period_days):
+    """找出最低点前的最高点"""
     # 1. 获取最高点（建议先确保 df 已经按日期排序）
     highpoint_value, highpoint_date = get_highest_point_by_period(df, period_days)
     if highpoint_value is None:
