@@ -50,10 +50,10 @@ def auto_submit(main_window: QMainWindow):
                 main_window.cal_sharpe = True
                 return
             if "当前计划60天夏普" in central.index_label.text() and main_window.cal_sharpe:
+                main_window.auto_timer.stop()
                 main_window.auto_locker = True
                 main_window.export_batch_analysis()
                 main_window.return_market_index()
-                main_window.auto_timer.stop()
                 print("--- 任务圆满完成 ---")
 
     main_window.auto_timer.timeout.connect(monitor_loop)
