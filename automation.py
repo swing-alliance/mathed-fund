@@ -24,11 +24,8 @@ def auto_submit(main_window: QMainWindow):
         # 如果锁是 True，直接跳过本次循环
         if main_window.auto_locker:
             return
-
         central = main_window.centralWidget()
         if not central: return
-
-        # --- 场景 1: 需要更新数据 ---
         if not main_window.ischecked:
             print("检测到数据过旧，启动更新器...")
             main_window.auto_locker = True # 锁定
@@ -55,23 +52,26 @@ def auto_submit(main_window: QMainWindow):
                 main_window.export_batch_analysis()
                 main_window.return_market_index()
                 print("--- 任务圆满完成 ---")
-
     main_window.auto_timer.timeout.connect(monitor_loop)
-    main_window.auto_timer.start(3000)
+    main_window.auto_timer.start(4000)
+
+
+
 
 def run_external_job(main_window):
     """运行独立的更新器窗口并绑定解锁信号"""
-    if not hasattr(main_window, 'update_win'):
+    if not hasattr(main_window, 'update_win') or main_window.update_win is None:
+        from PyQt5.QtCore import Qt
         main_window.update_win = Update_MainWindow()
-        # [cite: 2025-12-23]
-        main_window.update_win.account_id = getattr(main_window, 'account_id', 'Admin')
-        
-        # 核心：当更新器窗口彻底关闭时，才允许 monitor_loop 继续工作
-        main_window.update_win.destroyed.connect(lambda: setattr(main_window, 'auto_locker', False))
-
+        main_window.update_win.setAttribute(Qt.WA_DeleteOnClose)
+        def on_update_finished():
+            print("更新窗口已关闭，正在解锁...")
+            main_window.auto_locker = False
+            main_window.ischecked = True # 更新状态位，让 monitor_loop 下次进入新场景
+            main_window.update_win = None # 清空引用
+        main_window.update_win.destroyed.connect(on_update_finished)
     main_window.update_win.show()
     QTimer.singleShot(1000, main_window.update_win.start_auto_logic)
-
 
 
 def check_update():
@@ -81,7 +81,7 @@ def check_update():
             file_path = os.path.join(equity_path, file)
             modified_time = os.path.getmtime(file_path)
             current_time = time.time()
-            if current_time - modified_time > 6*3600:
+            if current_time - modified_time > 5*3600:
                 return False
     return True
 

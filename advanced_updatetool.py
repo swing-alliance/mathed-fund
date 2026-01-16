@@ -432,14 +432,6 @@ if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
     window = Update_MainWindow()
-    
-    # 模拟从全局变量或 JSON 加载 Account ID [cite: 2025-12-23]
-    window.account_id = "Global_User_01" 
-    
     window.show()
-
-    # 关键：不要直接调用，要等事件循环启动后再触发
-    # 这样可以保证窗口已经完全渲染出来
     QTimer.singleShot(1000, window.start_auto_logic) 
-    
     sys.exit(app.exec_())
