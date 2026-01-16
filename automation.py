@@ -12,51 +12,64 @@ import time
 equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 
 def auto_submit(main_window: QMainWindow):
-    """自动化提交逻辑函数"""
     print("--- 自动化执行器已启动 ---")
-    # 1. 识别中心组件（只在启动时打印一次，用于调试）
-    central = main_window.centralWidget()
-    main_window.ischecked = check_update()
-    if central:
-        print(f"当前监控中心组件类型: {central.__class__.__name__}")
     main_window.auto_timer = QTimer(main_window)
+    if not hasattr(main_window, 'ischecked'):
+        main_window.ischecked = check_update()
+    if not hasattr(main_window, 'auto_locker'):
+        main_window.auto_locker = False
+    if not hasattr(main_window, 'cal_sharpe'):
+        main_window.cal_sharpe = False
     def monitor_loop():
+        # 如果锁是 True，直接跳过本次循环
+        if main_window.auto_locker:
+            return
+
         central = main_window.centralWidget()
-        if not central:
-            "跳过，未找到中心组件"
-            return
+        if not central: return
+
+        # --- 场景 1: 需要更新数据 ---
         if not main_window.ischecked:
+            print("检测到数据过旧，启动更新器...")
+            main_window.auto_locker = True # 锁定
             run_external_job(main_window)
-            main_window.reload_mapping()
-            main_window.ischecked = True
+            
+            # 注意：不要在这里设 auto_locker = False！
+            # 必须等更新器窗口关闭后，通过信号来解锁。
             return
-        if isinstance(central,SysCentral):
-            print(f"从系统中心开始自动化")
-            time.sleep(1)
-            central.stock_button.click()
+        if isinstance(central, SysCentral):
+            main_window.auto_locker = True
+            QTimer.singleShot(1000, lambda: (central.stock_button.click(), setattr(main_window, 'auto_locker', False)))
+            return
         if isinstance(central, ControlPanel):
-            print(f"控制面板")
-            if "股票" in central.index_label.text():
-                QTimer.singleShot(500,main_window.group_sort_by_largest_sharpe_60days)
+            if "股票" in central.index_label.text() and not getattr(main_window, 'cal_sharpe', False):
+                main_window.auto_locker = True # 锁定，防止重复弹窗
+                print("准备排序...")
+                QTimer.singleShot(500, main_window.group_sort_by_largest_sharpe_60days)
+                QTimer.singleShot(10000, lambda: setattr(main_window, 'auto_locker', False))
                 main_window.cal_sharpe = True
                 return
             if "当前计划60天夏普" in central.index_label.text() and main_window.cal_sharpe:
+                main_window.auto_locker = True
                 main_window.export_batch_analysis()
                 main_window.return_market_index()
                 main_window.auto_timer.stop()
-                print("--- 自动化执行器已完成任务并停止 ---")
-        return
-    main_window.auto_timer.timeout.connect(monitor_loop)
-    main_window.auto_timer.start(4000)  # 每4秒检查一次
+                print("--- 任务圆满完成 ---")
 
+    main_window.auto_timer.timeout.connect(monitor_loop)
+    main_window.auto_timer.start(3000)
 
 def run_external_job(main_window):
-    """运行独立的更新器窗口"""
+    """运行独立的更新器窗口并绑定解锁信号"""
     if not hasattr(main_window, 'update_win'):
         main_window.update_win = Update_MainWindow()
+        # [cite: 2025-12-23]
+        main_window.update_win.account_id = getattr(main_window, 'account_id', 'Admin')
+        
+        # 核心：当更新器窗口彻底关闭时，才允许 monitor_loop 继续工作
+        main_window.update_win.destroyed.connect(lambda: setattr(main_window, 'auto_locker', False))
 
     main_window.update_win.show()
-    # 触发你之前写的代码层面的自动化（勾选并开始）
     QTimer.singleShot(1000, main_window.update_win.start_auto_logic)
 
 

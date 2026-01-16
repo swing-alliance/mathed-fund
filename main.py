@@ -37,6 +37,8 @@ else:
     pic = None # 如果都没找到，QIcon(None) 不会报错，只是没图标
 
 if __name__ == "__main__":
+    from multiprocessing import freeze_support
+    freeze_support()
     app = QApplication(sys.argv)
     main_window = MainWindow()
     if pic:
