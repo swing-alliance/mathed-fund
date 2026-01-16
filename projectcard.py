@@ -43,7 +43,28 @@ if os.path.exists(mapping_latestdate_path ):
         for line in f:
             path, latestdate = line.strip().split(',')
             mapping_latestdate[path] = latestdate
-            
+
+def reload_mapping():
+    """重新加载mapping文件内容到内存字典"""
+    global mapping
+    mapping = {}
+    if os.path.exists(mapping_path):
+        with open(mapping_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                code, full_name = line.strip().split(',')
+                mapping[code] = full_name
+def reload_mapping_latestdate():
+    """重新加载mapping_latestdate文件内容到内存字典"""
+    global mapping_latestdate
+    mapping_latestdate = {}
+    if os.path.exists(mapping_latestdate_path ):
+        with open(mapping_latestdate_path , 'r', encoding='utf-8') as f:
+            for line in f:
+                path, latestdate = line.strip().split(',')
+                mapping_latestdate[path] = latestdate
+
+
+
 def save_new_mapping(code, full_name):
     """将新的映射保存到文件中"""
     with open(mapping_path, 'a', encoding='utf-8') as f:

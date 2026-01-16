@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (QApplication, QPushButton, QProgressDialog, 
                              QVBoxLayout, QWidget, QCheckBox, QHBoxLayout, 
                              QGroupBox, QLabel, QMessageBox)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal,QTimer
 from PyQt5.QtGui import QFont ,QIcon
 from PyQt5.QtWidgets import QDesktopWidget
 import time
@@ -37,6 +37,7 @@ balanced_path = os.path.join(os.getcwd(), 'my_types', 'Balanced')
 mapping_latestdate_path = os.path.join(os.getcwd(), 'mapping', 'mapping_latestdate.csv')
 
 class FastWorkerThread(QThread):
+    """多线程的文件更新器"""
     progress = pyqtSignal(int, int, str)  # 当前, 总数, 当前处理的基金类型
     finished = pyqtSignal()
     def __init__(self, paths, max_workers=10):
@@ -167,7 +168,7 @@ class FastWorkerThread(QThread):
         self.terminate()
         self.wait(2000)  # 等待2秒
 
-class MainWindow(QWidget):
+class Update_MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowIcon(QIcon(pic))
@@ -389,14 +390,56 @@ class MainWindow(QWidget):
         else:
             event.accept()
 
-if __name__ == '__main__':
+    def start_auto_logic(self):
+        """代码层面的自动化入口"""
+
+        # 2. 勾选股票基金 (Equity)
+        if 'equity' in self.checkboxes:
+            cb = self.checkboxes['equity']
+            if cb.isEnabled():
+                cb.setChecked(True)
+            else:
+                print("Equity 路径不存在，无法处理")
+                return
+        QTimer.singleShot(500, self.btn_start.click)
+
+    def task_finished(self):
+        """
+        任务完成后的处理逻辑：显式等待 IO 落地再关闭
+        """
+        # 1. 关闭进度条界面
+        if hasattr(self, 'progress_dialog') and self.progress_dialog:
+            self.progress_dialog.close()
+        
+        # 2. 【核心修复】显式阻塞主线程，直到子线程完全退出
+        # 这会确保 run() 方法里的最后一次 save_cache() 彻底执行完毕
+        if hasattr(self, 'worker'):
+            print("正在确保缓存数据完全写入磁盘...")
+            self.worker.wait()  # 等待子线程彻底结束
+        
+        # 3. 更新界面状态
+        self.btn_start.setEnabled(True)
+        self.btn_stop.setEnabled(False)
+        for checkbox in self.checkboxes.values():
+            checkbox.setEnabled(True)
+            
+        self.status_label.setText("✅ 任务完成 & 数据已安全落盘")
+        
+
+        # 5. 最后再给操作系统 5 秒的缓冲区刷新时间（Flush）
+        QTimer.singleShot(5000, self.close)
+if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    ret = app.exec_()
-
-    if hasattr(window, 'worker') and window.worker.isRunning():
-        window.worker.stop()
+    window = Update_MainWindow()
     
-    sys.exit(ret)
+    # 模拟从全局变量或 JSON 加载 Account ID [cite: 2025-12-23]
+    window.account_id = "Global_User_01" 
+    
+    window.show()
+
+    # 关键：不要直接调用，要等事件循环启动后再触发
+    # 这样可以保证窗口已经完全渲染出来
+    QTimer.singleShot(1000, window.start_auto_logic) 
+    
+    sys.exit(app.exec_())

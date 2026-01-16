@@ -17,30 +17,7 @@ class CustomScrollArea(QScrollArea):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-# --- 新增：计划面板占位符 (模拟 ControlPanel) ---
-class PlanPannel(QWidget):
-    """用于替换 SysCentral 的新界面占位符 (模拟 ControlPanel)"""
-    def __init__(self, path, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet("background-color: #E6E6E6;") # 浅灰色背景以便区分
-        layout = QVBoxLayout(self)
-        
-        # 记录实例ID，用于演示复用
-        self.instance_id = id(self) 
-        
-        self.label = QLabel("")
-        self.label.setFont(QFont("微软雅黑", 20))
-        self.label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.label)
 
-        # 初始设置路径
-        self.set_path(path)
-
-    def set_path(self, path):
-        """复用实例时，更新其显示内容和状态"""
-        self.path = path
-        # 标签内容现在包含实例ID，证明它是同一个对象
-        self.label.setText(f"计划面板已加载 (ID: {self.instance_id}):\n路径参数: {path}\n（此面板已被复用，未删除）")
 
 # --- 2. 滚动内容区域 ---
 class SysCentral(QWidget):

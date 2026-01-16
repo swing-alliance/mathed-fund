@@ -17,6 +17,7 @@ from fundholding import stocker_prompt
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import glob
+import json
 from threadworker import AssumingManager
 from conclusion import generate_market_conclusion
 from qdialogue import MultiRankChartWidget
@@ -47,13 +48,15 @@ Equity_path = os.path.join(os.getcwd(), 'my_types','Equity')
 index_path = os.path.join(os.getcwd(), 'my_types','Index')
 Qdii_path = os.path.join(os.getcwd(), 'my_types','Qdii')
 groups_path = os.path.join(os.getcwd(), 'groups')
+flagged_tracking_path = os.path.join(os.getcwd(), 'track',"flagged.json")
 
 
 class ControlPanel(QWidget):
     """控制面板（QWidget），带滚动区域"""
     visualize_requested = pyqtSignal(str)
-    def __init__(self, parent=None,base_path=None):
+    def __init__(self, parent=None,base_path=None,load_required_from=None):
         super().__init__(parent)
+        self.load_required_from=load_required_from
         self.hidden_storage = QWidget()
         self.filtered_card_to_show=[]
         self.loaded_cards = {}#用于缓存已加载的卡片
@@ -178,11 +181,12 @@ class ControlPanel(QWidget):
                 progress_dialog.close()
 
             def load_projects_from_groups( this_group_path=None):
+                """从组中加载项目卡片，并将实例缓存起来。"""
                 csv_path = os.path.join(groups_path, 'group_cache.csv')
                 df=pd.read_csv(csv_path,dtype=str)
                 this_group_name=os.path.basename(this_group_path)
                 selected_paths_series = df.loc[df['group_name'] == str(this_group_name), 'path']
-                selected_paths = selected_paths_series.tolist()
+                selected_paths = selected_paths_series.tolist()#缓存中读取后加载
                 if not selected_paths:
                     print(f"分组 {this_group_name} 中没有项目！")
                     return
@@ -212,6 +216,32 @@ class ControlPanel(QWidget):
                 progress_dialog.setValue(self.file_nums)
                 QApplication.processEvents()
                 progress_dialog.close()
+            def load_project_from_goup_sys_manage(flag):
+                """后面带(系统)的组"""
+                if "标记的股票型(系统)" in self.base_path and flag == "系统":
+                    paths=[]
+                    try:
+                        with open(flagged_tracking_path, 'r', encoding='utf-8') as f:
+                            datas = json.load(f)
+                        files=[file.split(".")[0] for file in os.listdir(Equity_path) if file.endswith(".csv")]
+                        for data in datas:
+                            if data in files:
+                                path=Equity_path+"/"+data+".csv"
+                                paths.append(path)
+                        for everypath in paths:
+                            if everypath not in self.loaded_cards:
+                                try:
+                                    card = ProjectCard(everypath,parent=self)
+                                    card.visualize_requested.connect(self.visualize_requested.emit)
+                                    self.scroll_layout.addWidget(card)
+                                    self.loaded_cards[everypath] = card
+                                except Exception as e:
+                                    print(f"创建 ProjectCard 失败 ({everypath}): {e}")
+                    except Exception as e:
+                        print(f"读取标记股票型文件失败：{e}")
+                        return
+
+
             if path == balanced_path:
                 load_files_from_path(balanced_path)
             elif path == Equity_path:
@@ -220,8 +250,13 @@ class ControlPanel(QWidget):
                 load_files_from_path(index_path)
             elif path == Qdii_path:
                 load_files_from_path(Qdii_path)
+            elif self.load_required_from == "groups":
+                if "标记的股票型(系统)" in self.base_path:
+                    load_project_from_goup_sys_manage("系统")
+                else:
+                    load_projects_from_groups(this_group_path=self.base_path)
             else:
-                load_projects_from_groups(this_group_path=self.base_path)
+                print("错误")
 
 
 
@@ -278,6 +313,15 @@ class ControlPanel(QWidget):
         elif self.base_path == Qdii_path:
             qlabel.setText(f"QDII或另类{self.file_nums}个")
         elif "groups" in self.base_path:
+            if "标记的股票型(系统)" in self.base_path:
+                try:
+                    with open(flagged_tracking_path, 'r', encoding='utf-8') as f:
+                        data=json.load(f)
+                        qlabel.setText(f"当前组策略:标记的股票型(系统)   {len(data)}个记录")
+                        return qlabel
+                except Exception as e:
+                    print("系统失败")
+                    return
             df=pd.read_csv(os.path.join(groups_path, 'group_cache.csv'),dtype=str)
             group_name=os.path.basename(self.base_path)
             matching_row = df[df['group_name'] == group_name]
@@ -498,13 +542,17 @@ class ControlPanel(QWidget):
                 self.scroll_layout.addWidget(card)
             self.scroll_layout.invalidate() 
             status_type = "组" if "组" in self.index_label.text() else "计划"
-            self.index_label.setText(f"当前{status_type}过滤低点 ({len(filtered_cards)})")
+            if "夏普" in self.index_label.text():
+                self.index_label.setText(f"当前{status_type}60天夏普过滤低点 ({len(filtered_cards)})")
+            else:
+                self.index_label.setText(f"当前{status_type}过滤低点 ({len(filtered_cards)})")
         self.worker.finished_signal.connect(on_finished)
         dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
         self.worker.start()
         dialog.exec()
         
     def export_batch_log_analysis(self):
+        """导出批量log100的夏普分析结果"""
         if "夏普" in self.index_label.text():
             batchlog=[]
             count=1
@@ -523,6 +571,7 @@ class ControlPanel(QWidget):
         
     
     def export_ai_prompt(self):
+        """导出当前组策略下的所有股票基金 Prompt 到剪切板"""
         if "组" in self.index_label.text():
             codes = []
             num_children = self.scroll_layout.count()
@@ -550,7 +599,7 @@ class ControlPanel(QWidget):
     def export_top_50(self):
         """
         遍历 self.scroll_layout 中的前 50 个组件，提取它们的 'filename' 属性，
-        并将这些文件名列表打印出来。
+        并将这些文件名列表打印出来。ai_prompt 
         """
         file_names = []
         latest_datememory=[]

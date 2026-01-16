@@ -2,11 +2,13 @@ import os
 import pandas as pd
 from PyQt5.QtWidgets import QMainWindow, QAction, QFileDialog, QMessageBox, QWidget, QDialog, QProgressDialog
 from PyQt5.QtGui import QFont 
-from PyQt5.QtCore import QSize,QThread, pyqtSignal
+from PyQt5.QtCore import QSize,QThread, pyqtSignal,QTimer
 from csvqwidget import CsvGraphWidget
 from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog,ConfigDialog
 from utils.pull import fetch_and_save_fund_csv
 from my_types.nice_utils import update_files
+from projectcard import reload_mapping_latestdate,reload_mapping
+from automation import auto_submit
 from pannel_plan import ControlPanel
 from PyQt5.QtGui import QIcon
 from sys_center import SysCentral
@@ -58,6 +60,9 @@ class MainWindow(QMainWindow):
         self.attention_path=None#当前关注的csv路径
         self.last_loaded_group=None
         self.load_sys_central()
+        self.config=get_config()
+        if self.config["automation"]["AUTO_SUBMIT_ENABLED"] == "true":
+            QTimer.singleShot(1000, lambda: auto_submit(self))  # 延迟1秒后执行自动化逻辑
         
     def _create_menu_bar(self):
         menu_bar = self.menuBar()
@@ -107,6 +112,8 @@ class MainWindow(QMainWindow):
         updateindex_action.triggered.connect(lambda: self.start_file_update(index_path, cache_path))
         updateQdii_action = QAction("更新Qdii或另类数据", self)
         updateQdii_action.triggered.connect(lambda: self.start_file_update(Qdii_path, cache_path))
+        reload_every_mapping_action = QAction("重载映射", self)
+        reload_every_mapping_action.triggered.connect(self.reload_mapping)
 
         batch_redirect_action = QAction("批量转到组(bug)", self)
         batch_redirect_action.triggered.connect(self.batch_redirect)
@@ -158,6 +165,7 @@ class MainWindow(QMainWindow):
         updateBalanced_action.setFont(QFont('微软雅黑', 11))
         updateEquity_action.setFont(QFont('微软雅黑', 11))
         updateindex_action.setFont(QFont('微软雅黑', 11))
+        reload_every_mapping_action.setFont(QFont('微软雅黑', 11))
         planpage_action.setFont(QFont('微软雅黑', 11))
         batch_redirect_action.setFont(QFont('微软雅黑', 11))
         group_resort_action.setFont(QFont('微软雅黑', 11))
@@ -193,6 +201,7 @@ class MainWindow(QMainWindow):
         data_menu.addAction(updateEquity_action)
         data_menu.addAction(updateindex_action)
         data_menu.addAction(updateQdii_action)
+        data_menu.addAction(reload_every_mapping_action)
         calculate_menu.addAction(batch_redirect_action)
         calculate_menu.addAction(group_resort_action)
         calculate_menu.addAction(group_resort_60days_sharpe_action)
@@ -289,7 +298,7 @@ class MainWindow(QMainWindow):
             except TypeError:
                 pass  
             current_control_panel.deleteLater()
-        self.control_panel = ControlPanel(base_path=base_path)
+        self.control_panel = ControlPanel(base_path=base_path,load_required_from="groups")
         self.control_panel.visualize_requested.connect(self.show_graph_for_file)
         self.setCentralWidget(self.control_panel)
 
@@ -374,12 +383,14 @@ class MainWindow(QMainWindow):
         """加载分组"""
         try:
             if last_group_path:
+                """回到上一次选的分组"""
                 self.load_plan_pannel(base_path=last_group_path)
                 return
             List_group_dialog_instance = List_group_dialog(groups__path=path,title="选择要加载的分组",parent=self)
             if List_group_dialog_instance.exec_() == QDialog.Accepted:
                 selected_group_path = List_group_dialog_instance.get_selected_group_path()
                 if selected_group_path:
+                    print("选的组是",selected_group_path)
                     self.load_plan_pannel(base_path=selected_group_path)
                     self.last_loaded_group=selected_group_path
                 else:
@@ -485,6 +496,8 @@ class MainWindow(QMainWindow):
         if isinstance(central_widget, ControlPanel):
             central_widget.resort_self_by_3days_yearly_return()
 
+
+
     def fileter_group_by_lowpoint(self):
         """分组重排, 按低点过滤"""
         print("正在过滤低点")
@@ -504,6 +517,15 @@ class MainWindow(QMainWindow):
         config=get_config()
         dialog=ConfigDialog(config)
         dialog.exec()
+
+
+    def reload_mapping(self):
+        """重载映射文件"""
+        try:
+            reload_mapping()
+            reload_mapping_latestdate()
+        except Exception as e:
+            pass
 
 
 
