@@ -138,6 +138,7 @@ class decison_maker:
             try:
                 PERIOD_DAYS=self.config["considerlower"]['PERIOD_DAYS']#拿多少天作为计算范围
                 MINIMUM_DAYS_BETWEEN_PEAKS=self.config["considerlower"]['MINIMUM_DAYS_BETWEEN_PEAKS']#最低点必须在最高点之后至少 N 天
+                YEARLY_RETURN_RATIO_THRESHOLD=self.config["considerlower"]['YEARLY_RETURN_RATIO_THRESHOLD']#年化收益率阈值,保证最基本的收益趋势向上
                 DRAWDOWN_PERCENTAGE_THRESHOLD=self.config["considerlower"]['DRAWDOWN_PERCENTAGE_THRESHOLD']#回撤阈值,(最高-最低)/最高
                 VOLATILITY_THRESHOLD=self.config["considerlower"]['VOLATILITY_THRESHOLD']#年化波动率阈值
                 LOWER_AVG_REFER_DAYS=self.config["considerlower"]['LOWER_AVG_REFER_DAYS']#低于多少天的平均值
@@ -163,8 +164,8 @@ class decison_maker:
                     return is_consider_low
                 return False
             
-            self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_after_high(self.df, period_days=40)
-            self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=40)
+            self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_after_high(self.df, period_days=PERIOD_DAYS)
+            self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=PERIOD_DAYS)
             if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
                 if self.df.empty:
                     return False
@@ -185,7 +186,7 @@ class decison_maker:
                     return False
                 if '000593' in self.path:
                     print(f"Debug Info for 000593: is_low_after_high={is_low_after_high}, has_sufficient_drawdown={has_sufficient_drawdown}, has_high_volatility={has_high_volatility},高点日期={self.highest_point_date},低点日期={self.lowest_point_date},高点值={self.highest_point_in_period_value},低点值={self.lowest_point_in_period_value},回撤={drawdown},年化波动率={current_annualized_volatility}")
-                if is_low_after_high and has_sufficient_drawdown and has_high_volatility and get_lowerthan_averge(self.df, period_days=LOWER_AVG_REFER_DAYS, threshold_ratio=LOWER_AVG_REFER_RATIO):
+                if is_low_after_high and has_sufficient_drawdown and has_high_volatility and get_lowerthan_averge(self.df, period_days=LOWER_AVG_REFER_DAYS, threshold_ratio=LOWER_AVG_REFER_RATIO) and self.year_rate_since_start_this() > YEARLY_RETURN_RATIO_THRESHOLD:
                     return True
         return False
 

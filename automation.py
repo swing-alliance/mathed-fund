@@ -35,8 +35,9 @@ def auto_submit(main_window: QMainWindow):
             # 必须等更新器窗口关闭后，通过信号来解锁。
             return
         if isinstance(central, SysCentral):
+            main_window.reload_mapping()
             main_window.auto_locker = True
-            QTimer.singleShot(1000, lambda: (central.stock_button.click(), setattr(main_window, 'auto_locker', False)))
+            QTimer.singleShot(3000, lambda: (central.stock_button.click(), setattr(main_window, 'auto_locker', False)))
             return
         if isinstance(central, ControlPanel):
             if "股票" in central.index_label.text() and not getattr(main_window, 'cal_sharpe', False):

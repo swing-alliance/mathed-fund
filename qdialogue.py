@@ -874,17 +874,7 @@ class ConfigDialog(QDialog):
 
     def handle_default(self):
         """恢复默认逻辑"""
-        default_conf = {
-            "considerlower": {
-                "PERIOD_DAYS": 40,
-                "MINIMUM_DAYS_BETWEEN_PEAKS": 3,
-                "DRAWDOWN_PERCENTAGE_THRESHOLD": 0.072,
-                "VOLATILITY_THRESHOLD": 0.18,
-                "LOWER_AVG_REFER_DAYS": 20,
-                "LOWER_AVG_REFER_RATIO": 0.99,
-                "ISLOOSE": "false"
-            }
-        }
+        default_conf = {"considerlower": {"PERIOD_DAYS": 40, "MINIMUM_DAYS_BETWEEN_PEAKS": 3, "YEARLY_RETURN_RATIO_THRESHOLD": 0.1, "DRAWDOWN_PERCENTAGE_THRESHOLD": 0.072, "VOLATILITY_THRESHOLD": 0.18, "LOWER_AVG_REFER_DAYS": 20, "LOWER_AVG_REFER_RATIO": 0.99, "ISLOOSE": "false"}, "automation": {"AUTO_SUBMIT_ENABLED": "false"}}
         for section, items in default_conf.items():
             if section in self.edit_widgets:
                 for key, value in items.items():
