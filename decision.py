@@ -143,7 +143,7 @@ class decison_maker:
                 VOLATILITY_THRESHOLD=self.config["considerlower"]['VOLATILITY_THRESHOLD']#年化波动率阈值
                 LOWER_AVG_REFER_DAYS=self.config["considerlower"]['LOWER_AVG_REFER_DAYS']#低于多少天的平均值
                 LOWER_AVG_REFER_RATIO=self.config["considerlower"]['LOWER_AVG_REFER_RATIO']#低于多少天的平均值百分比
-                ISLOOSE=self.config["considerlower"]['ISLOOSE']#是否宽松抓取,递归前推4天存在即返回,可能存在早已净值反弹,找到高位的错误
+                ISLOOSE=self.config["considerlower"]['ISLOOSE']#是否宽松抓取,递归前推7天存在即返回,可能存在早已净值反弹,找到高位的错误
             except:
                 print("配置文件错误,{exception}")
                 return False
@@ -153,7 +153,7 @@ class decison_maker:
                 """递归时收敛套娃"""
                 ISLOOSE=False
             if ISLOOSE:
-                for i in range(1,4):
+                for i in range(1,7):
                     try:
                         self.df = self.df.iloc[:-i]
                         if self.df.empty:
@@ -163,7 +163,6 @@ class decison_maker:
                     is_consider_low=decison_maker(fund_code=None,path="whatever",df=self.df,config=self.config).is_consider_lowpoint(isrecursion=True)
                     return is_consider_low
                 return False
-            
             self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_after_high(self.df, period_days=PERIOD_DAYS)
             self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=PERIOD_DAYS)
             if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:

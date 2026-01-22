@@ -273,6 +273,7 @@ class ProjectCard(QFrame):
             pass
 
     def update_assuming_return_ui(self,result):
+        """根据计算结果更新UI显示预期收益"""
         if result["success"] is True:
             self.assuming_return = result["value"]
             self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益{self.assuming_return:+.2f}%)")

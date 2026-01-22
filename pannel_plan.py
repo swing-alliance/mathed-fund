@@ -552,7 +552,7 @@ class ControlPanel(QWidget):
         dialog.exec()
         
     def export_batch_log_analysis(self):
-        """导出批量log100的夏普分析结果"""
+        """展示批量log100的夏普分析结果"""
         if "夏普" in self.index_label.text():
             batchlog=[]
             count=1

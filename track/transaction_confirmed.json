@@ -9,6 +9,16 @@
             "buy_price": 500,
             "confirmed_date": "2025-10-21",
             "single_value": 3.4283
+        },
+        {
+            "buy_price": 500,
+            "confirmed_date": "2025-10-21",
+            "single_value": 3.4283
+        },
+        {
+            "buy_price": 500,
+            "confirmed_date": "2025-10-21",
+            "single_value": 3.4283
         }
     ]
 }

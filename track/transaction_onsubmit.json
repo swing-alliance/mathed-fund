@@ -9,6 +9,16 @@
             "buy_date": "2025-10-20",
             "buy_price": 500,
             "status": "checked"
+        },
+        {
+            "buy_date": "2025-10-20",
+            "buy_price": 500,
+            "status": "checked"
+        },
+        {
+            "buy_date": "2025-10-20",
+            "buy_price": 500,
+            "status": "checked"
         }
     ]
 }

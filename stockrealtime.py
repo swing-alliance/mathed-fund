@@ -50,6 +50,7 @@ def get_stock_data(ticker, period="5d", interval="5m"):
         
 
 def get_stock_data_final(stock_refer, period="5d", interval="1d"):
+    """得到外国股票的数据，带代理和异常处理"""
     # 1. 强制设定环境变量，让底层所有库都走 10809
     # 即使代理断了，它也只会报 Timeout，而不会乱撞
     proxy_url = "http://127.0.0.1:10809"
@@ -127,7 +128,7 @@ def get_stock_data_for_codes(stock_codes, period="5d", interval="5m"):
     """
     if stock_codes:
         results = {}
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             future_to_code = {executor.submit(get_stock_data, code, period, interval): code for code in stock_codes}
             for future in as_completed(future_to_code):
                 code = future_to_code[future]
@@ -197,4 +198,4 @@ def get_date_column(dataframe):
     return None
 
 if __name__ == "__main__":
-    get_stock_data_final("AAPL")
+    print(get_stock_data_for_codes(["300342"],period="5d",interval="1d"))

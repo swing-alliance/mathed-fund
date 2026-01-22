@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: 调试当前文件",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",  // 如果选这个，必须先点开你的 .py 再按 F5
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Python: 固定启动主程序",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "A:\\projects\\money2\\main.py", // 建议把这里改成你项目的入口文件名
+            "console": "integratedTerminal",
+            "subProcess": true,
+            "justMyCode": true
+        }
+    ]
+}

@@ -1,9 +1,7 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
 from PyQt5.QtCore import QThread, Signal, Qt,pyqtSignal,QObject,QTimer
 from PyQt5.QtGui import QFont
-import pandas as pd
-from decision import decison_maker
-import os
+
 class SortWorker(QThread):
     """工作线程，实际计算的任务"""
     finished_signal = Signal(list)
@@ -134,6 +132,7 @@ class AssumingManager(QObject):
 
     @pyqtSlot(object, dict)
     def on_one_card_finished(self, card, result):
+        """处理一个卡片的结果交给主线程"""
         # 此时这个方法会在 AssumingManager 所属的线程（主线程）中安全执行
         self.completed += 1
         self.card_finished.emit(card, result)
