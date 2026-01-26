@@ -668,6 +668,7 @@ class ControlPanel(QWidget):
 
         
     def update_assuming_ui(self,card, result):
+        """显示预测收益时通知card更新UI显示预期收益和基金行业"""
         card.update_assuming_return_ui(result)
 
 

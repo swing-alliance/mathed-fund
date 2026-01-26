@@ -17,7 +17,7 @@ from decision import decison_maker
 from fundholding import get_holdings
 from fundholding import stocker_prompt
 import pyperclip
-from stockrealtime import from_stock_data_for_codes_get_real_time_fluctuation
+from stockrealtime import from_stock_data_for_codes_get_real_time_fluctuation,get_stock_industry_for_codes
 from log.analysislog100 import analysis_log_single
 import csv
 TO_WORKER = "to_worker"
@@ -239,7 +239,7 @@ class ProjectCard(QFrame):
             print("对话框被拒绝或关闭。")
     
     def show_fund_holding(self,only_assuming_required=False):
-        """在线显示基金持仓对话框"""
+        """在线显示基金持仓对话框,也可仅返回预期收益值而不显示对话框"""
         if only_assuming_required:
             try:
                 hold_df,_,valider=get_holdings(self.filename)
@@ -249,10 +249,11 @@ class ProjectCard(QFrame):
             if valider is True:
                 code_list = hold_df['股票代码'].tolist()
                 real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list)
+                industries_result = get_stock_industry_for_codes(code_list)
                 self.assuming_return = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date,real_time_fluctuations=real_time_fluctuations).get_assuming_return()  # 获取基金持仓并显示
                 if self.assuming_return == "--" or self.assuming_return is None:
-                    return  {"success": False, "value": self.assuming_return}
-                return  {"success": True, "value": self.assuming_return}
+                    return  {"success": False, "assuming_return_value": self.assuming_return,"industrys": industries_result}
+                return  {"success": True, "assuming_return_value": self.assuming_return,"industrys": industries_result}
             else:
                 return  {"success": False}
         try:
@@ -274,11 +275,17 @@ class ProjectCard(QFrame):
 
     def update_assuming_return_ui(self,result):
         """根据计算结果更新UI显示预期收益"""
-        if result["success"] is True:
-            self.assuming_return = result["value"]
-            self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益{self.assuming_return:+.2f}%)")
-        else:
-            self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益：-- )")
+        try:
+            if result["success"] is True:
+                self.assuming_return = result["assuming_return_value"]
+                self.industrys = result["industrys"]
+                self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益{self.assuming_return:+.2f}%) 行业：{self.industrys} )")
+            else:
+                print("无法获取预期收益，保持原有显示")
+                self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益：-- )  (行业：{result['industrys']})")
+        except Exception as e:
+            print(f"更新预期收益UI时出错: {e}")
+            return
 
 
     def discard(self):

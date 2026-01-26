@@ -197,5 +197,43 @@ def get_date_column(dataframe):
             return col
     return None
 
+def get_stock_industry_for_codes(stock_codes):
+    """
+    获取多个股票所属行业
+    :param stock_codes: 股票代码列表
+    :return: 股票所属行业字符串
+    """
+    if stock_codes is None or len(stock_codes) == 0:
+        return None
+    industry_result = ""
+    try:
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            future_to_code = {executor.submit(ak.stock_individual_info_em, symbol=code): code for code in stock_codes}
+            industry_list = []
+            for future in as_completed(future_to_code):
+                code = future_to_code[future]
+                try:
+                    stock_info = future.result()
+                    industry = stock_info[stock_info["item"] == "行业"]["value"].values[0]
+                    industry_list.append(industry)
+                except Exception as e:
+                    print(f"获取行业信息失败 [{code}]: {e}")
+                    industry_list.append(None)
+            industry_list = list(dict.fromkeys(industry_list))  # 去重
+            for industry in industry_list:
+                if industry is not None:
+                    industry_result += industry + " "
+        return industry_result
+    except Exception as e:
+        print(f"获取基金行业信息失败: {e}")
+        return None
+
+
 if __name__ == "__main__":
-    print(get_stock_data_for_codes(["300342"],period="5d",interval="1d"))
+    # print(get_stock_industry_for_codes(["600118","600879","002149","002565"]))
+    current_market_df = ak.stock_zh_a_spot_em()
+
+    # 筛选特定股票 (例如：600519)
+    # 核心字段：振幅, 涨跌幅, 最高, 最低, 现价
+    target_stock = current_market_df[current_market_df["代码"] == "600519"]
+    print(target_stock[["名称", "最新价", "涨跌幅", "振幅", "最高", "最低"]])

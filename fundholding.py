@@ -1,6 +1,7 @@
 import akshare as ak
 import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from stockrealtime import get_stock_industry_for_codes
 import os
 fund_code = "001877"
 codes=["000216","000043","501025","002834","018156"]
