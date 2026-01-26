@@ -117,7 +117,7 @@ class AssumingManager(QObject):
         self.remaining_cards = cards_to_process
         self.submit_timer = QTimer(self)
         self.submit_timer.timeout.connect(self._submit_next_worker)
-        self.submit_timer.start(1000)
+        self.submit_timer.start(1500)
 
     def _submit_next_worker(self):
         """提交下一个卡片的工作线程"""

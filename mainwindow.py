@@ -7,7 +7,7 @@ from csvqwidget import CsvGraphWidget
 from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog,ConfigDialog
 from utils.pull import fetch_and_save_fund_csv
 from my_types.nice_utils import update_files
-from projectcard import reload_mapping_latestdate,reload_mapping
+from projectcard import reload_mapping_latestdate,reload_mapping,reload_mapping_industry
 from automation import auto_submit
 from pannel_plan import ControlPanel
 from PyQt5.QtGui import QIcon
@@ -524,6 +524,7 @@ class MainWindow(QMainWindow):
         try:
             reload_mapping()
             reload_mapping_latestdate()
+            reload_mapping_industry()
         except Exception as e:
             pass
 

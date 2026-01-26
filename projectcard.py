@@ -1,8 +1,8 @@
 import os
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout,
+     QVBoxLayout, QHBoxLayout,
      QLabel, QFrame, QMessageBox,
-    QDialog,QMenu,QAction,QApplication
+    QDialog,QMenu,QAction
 )
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
@@ -12,12 +12,12 @@ import akshare as ak
 import json
 from signal_handler import signal_emitter
 import pandas as pd 
-from calculate_data import year_rate_sliding
 from decision import decison_maker
 from fundholding import get_holdings
 from fundholding import stocker_prompt
 import pyperclip
-from stockrealtime import from_stock_data_for_codes_get_real_time_fluctuation,get_stock_industry_for_codes
+from replaceakshare.yfinanceworker import get_universal_pct_change
+# from replaceakshare.baostockworker import get_today_change_percent_group
 from log.analysislog100 import analysis_log_single
 import csv
 TO_WORKER = "to_worker"
@@ -27,10 +27,24 @@ Track_Json_Path = "track"
 
 mapping = {}
 mapping_latestdate = {}
+mapping_industry = {}
 mapping_path = os.path.join('mapping', 'mapping.csv')
 mapping_latestdate_path = os.path.join('mapping', 'mapping_latestdate.csv')
 groups_path = os.path.join(os.getcwd(), 'groups')
 group_cache_path = os.path.join(groups_path, 'group_cache.csv')
+mapping_industry_path = os.path.join('mapping', 'mapping_fundindustry.csv')
+
+if os.path.exists(mapping_industry_path):
+    with open(mapping_industry_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('fund_code'):
+                continue
+            parts = line.split(',', 1) 
+            if len(parts) == 2:
+                code_raw, industrys = parts
+                code = code_raw.strip().zfill(6)
+                mapping_industry[code] = industrys.strip()
 
 if os.path.exists(mapping_path):
     with open(mapping_path, 'r', encoding='utf-8') as f:
@@ -62,6 +76,21 @@ def reload_mapping_latestdate():
             for line in f:
                 path, latestdate = line.strip().split(',')
                 mapping_latestdate[path] = latestdate
+def reload_mapping_industry():
+    """重新加载mapping_industry文件内容到内存字典"""
+    global mapping_industry
+    mapping_industry = {}
+    if os.path.exists(mapping_industry_path):
+        with open(mapping_industry_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('fund_code'):
+                    continue
+                parts = line.split(',', 1) 
+                if len(parts) == 2:
+                    code_raw, industrys = parts
+                    code = code_raw.strip().zfill(6)
+                    mapping_industry[code] = industrys.strip()
 
 
 
@@ -184,7 +213,14 @@ def get_latest_date_by_mapping(filepath):
         except Exception as e:
             print(f"无法读取文件 {filepath}: {e}")
 
-
+def get_fund_industry_by_mapping(code):
+    """通过把mapping_industry加载成字典找到对应的基金行业"""
+    code_str = str(code)
+    if code_str in mapping_industry.keys():
+        print(f"尝试找到基金行业 {mapping_industry[code_str]}")
+        return mapping_industry[code_str]
+    else:
+        return None
 
 class ProjectCard(QFrame):
     """根据文件路径加载的项目卡片"""
@@ -195,6 +231,7 @@ class ProjectCard(QFrame):
         self.parent_widget = parent
         self.latest_date = get_latest_date_by_mapping(self.file_path)
         self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名
+        self.industry=get_fund_industry_by_mapping(self.filename)
         self.fund_tittle: str = get_name_by_mapping(self.filename)  # 获取基金名称
         self.search_data = {
             'filename': self.filename.lower(),
@@ -226,7 +263,11 @@ class ProjectCard(QFrame):
         self.file_label = QLabel(f"基金代码:{self.filename}  {self.latest_date} ") 
         self.file_label.setFont(QFont('微软雅黑', 10))
         self.file_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        row_layout.addWidget(self.file_label, 1)
+        row_layout.addWidget(self.file_label)
+        row_layout.addStretch(1)
+        self.industry_label = QLabel(f"行业: {self.industry if self.industry else '未知'}")
+        self.industry_label.setFont(QFont('微软雅黑', 10))
+        row_layout.addWidget(self.industry_label)
         layout.addLayout(row_layout)
 
     def show_fund_info(self):
@@ -248,12 +289,12 @@ class ProjectCard(QFrame):
                 return
             if valider is True:
                 code_list = hold_df['股票代码'].tolist()
-                real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list)
-                industries_result = get_stock_industry_for_codes(code_list)
+                # real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list)
+                real_time_fluctuations = get_universal_pct_change(code_list)
                 self.assuming_return = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date,real_time_fluctuations=real_time_fluctuations).get_assuming_return()  # 获取基金持仓并显示
                 if self.assuming_return == "--" or self.assuming_return is None:
-                    return  {"success": False, "assuming_return_value": self.assuming_return,"industrys": industries_result}
-                return  {"success": True, "assuming_return_value": self.assuming_return,"industrys": industries_result}
+                    return  {"success": False, "assuming_return_value": self.assuming_return,}
+                return  {"success": True, "assuming_return_value": self.assuming_return}
             else:
                 return  {"success": False}
         try:
@@ -263,7 +304,8 @@ class ProjectCard(QFrame):
             return
         if valider is True:
             code_list = hold_df['股票代码'].tolist()
-            real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list)
+            # real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list), 这是akshare写法,容易被风控
+            real_time_fluctuations = get_universal_pct_change(code_list)
             self.Holding_dialogue = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date,real_time_fluctuations=real_time_fluctuations)  # 获取基金持仓并显示
             result = self.Holding_dialogue.exec_()
             if result == QDialog.Accepted:
@@ -278,11 +320,11 @@ class ProjectCard(QFrame):
         try:
             if result["success"] is True:
                 self.assuming_return = result["assuming_return_value"]
-                self.industrys = result["industrys"]
-                self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益{self.assuming_return:+.2f}%) 行业：{self.industrys} )")
+                self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益{self.assuming_return:+.2f}%)")
+            elif result['industrys'] is not None:
+                self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益：-- )  ")
             else:
-                print("无法获取预期收益，保持原有显示")
-                self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益：-- )  (行业：{result['industrys']})")
+                self.file_label.setText(f"基金代码：{self.filename}  {self.latest_date}  (预期收益：-- )")
         except Exception as e:
             print(f"更新预期收益UI时出错: {e}")
             return

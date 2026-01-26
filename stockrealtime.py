@@ -128,7 +128,7 @@ def get_stock_data_for_codes(stock_codes, period="5d", interval="5m"):
     """
     if stock_codes:
         results = {}
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             future_to_code = {executor.submit(get_stock_data, code, period, interval): code for code in stock_codes}
             for future in as_completed(future_to_code):
                 code = future_to_code[future]
@@ -197,17 +197,21 @@ def get_date_column(dataframe):
             return col
     return None
 
-def get_stock_industry_for_codes(stock_codes):
+def get_stock_industry_for_codes(stock_codes,proxy_port=None):
     """
     获取多个股票所属行业
     :param stock_codes: 股票代码列表
-    :return: 股票所属行业字符串
+    :return: 多个股票所属行业字符串
     """
     if stock_codes is None or len(stock_codes) == 0:
         return None
     industry_result = ""
     try:
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        if proxy_port:
+            proxy_url = f"http://127.0.0.1:{proxy_port}"
+            os.environ['http_proxy'] = proxy_url
+            os.environ['https_proxy'] = proxy_url
+        with ThreadPoolExecutor(max_workers=1) as executor:
             future_to_code = {executor.submit(ak.stock_individual_info_em, symbol=code): code for code in stock_codes}
             industry_list = []
             for future in as_completed(future_to_code):
@@ -230,10 +234,4 @@ def get_stock_industry_for_codes(stock_codes):
 
 
 if __name__ == "__main__":
-    # print(get_stock_industry_for_codes(["600118","600879","002149","002565"]))
-    current_market_df = ak.stock_zh_a_spot_em()
-
-    # 筛选特定股票 (例如：600519)
-    # 核心字段：振幅, 涨跌幅, 最高, 最低, 现价
-    target_stock = current_market_df[current_market_df["代码"] == "600519"]
-    print(target_stock[["名称", "最新价", "涨跌幅", "振幅", "最高", "最低"]])
+    pass
