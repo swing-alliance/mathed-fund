@@ -12,6 +12,7 @@ from automation import auto_submit
 from pannel_plan import ControlPanel
 from PyQt5.QtGui import QIcon
 from sys_center import SysCentral
+from qdialogue import IndustryFetchDialog
 from config.get_config import get_config
 from signal_handler import history_signal_emitter
 import shutil
@@ -112,6 +113,8 @@ class MainWindow(QMainWindow):
         updateindex_action.triggered.connect(lambda: self.start_file_update(index_path, cache_path))
         updateQdii_action = QAction("更新Qdii或另类数据", self)
         updateQdii_action.triggered.connect(lambda: self.start_file_update(Qdii_path, cache_path))
+        updateEquity_industry_action = QAction("更新Equity行业数据", self)
+        updateEquity_industry_action.triggered.connect(lambda: self.updating_industry())
         reload_every_mapping_action = QAction("重载映射", self)
         reload_every_mapping_action.triggered.connect(self.reload_mapping)
 
@@ -164,6 +167,7 @@ class MainWindow(QMainWindow):
         equity_action.setFont(QFont('微软雅黑', 11))
         updateBalanced_action.setFont(QFont('微软雅黑', 11))
         updateEquity_action.setFont(QFont('微软雅黑', 11))
+        updateEquity_industry_action.setFont(QFont('微软雅黑', 11))
         updateindex_action.setFont(QFont('微软雅黑', 11))
         reload_every_mapping_action.setFont(QFont('微软雅黑', 11))
         planpage_action.setFont(QFont('微软雅黑', 11))
@@ -201,6 +205,7 @@ class MainWindow(QMainWindow):
         data_menu.addAction(updateEquity_action)
         data_menu.addAction(updateindex_action)
         data_menu.addAction(updateQdii_action)
+        data_menu.addAction(updateEquity_industry_action)
         data_menu.addAction(reload_every_mapping_action)
         calculate_menu.addAction(batch_redirect_action)
         calculate_menu.addAction(group_resort_action)
@@ -606,6 +611,20 @@ class MainWindow(QMainWindow):
         if isinstance(central_widget, ControlPanel):
             central_widget.show_assuming_return(
     )
+
+
+
+
+
+    def updating_industry(self):
+        """更新行业"""
+        codes = [code.split(".")[0] for code in os.listdir(Equity_path)]
+        dialog = IndustryFetchDialog(codes, "mapping_fund_industry.csv", self)
+        dialog.exec_()
+    
+
+
+
 
 
 class FileUpdateWorker(QThread):

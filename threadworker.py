@@ -99,7 +99,7 @@ class AssumingManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.threadpool = QThreadPool.globalInstance()
-        self.threadpool.setMaxThreadCount(5)
+        self.threadpool.setMaxThreadCount(8)
         self.completed = 0
         self.total = 0
         self.all_finished.connect(self._show_done_message)

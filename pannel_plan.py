@@ -23,7 +23,7 @@ from conclusion import generate_market_conclusion
 from qdialogue import MultiRankChartWidget
 from log.logsharp import save_to_log
 import socket
-from config.get_config import get_config
+from config.get_config import get_config,get_proxy_config
 from log.analysislog100 import analysis_log_batch
 import time
 TO_WORKER = "to_worker"
@@ -854,14 +854,13 @@ def is_daytime():
     return False
 
 
-def check_proxy_alive(host="127.0.0.1", port=10809):
-    """
-    极速探测代理端口是否开放
-    """
+def check_proxy_alive(host="127.0.0.1"):
+    """极速探测代理端口是否开放"""
+    proxy_port = get_proxy_config()
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(0.5)  # 只给 0.5 秒探测时间，不阻塞主线程
     try:
-        s.connect((host, port))
+        s.connect((host, proxy_port))
         s.close()
         return True
     except (socket.timeout, ConnectionRefusedError, Exception):

@@ -20,6 +20,9 @@ from replaceakshare.yfinanceworker import get_universal_pct_change
 # from replaceakshare.baostockworker import get_today_change_percent_group
 from log.analysislog100 import analysis_log_single
 import csv
+from akandyfworker import SingleFundIndustryWorker
+from web.testproxy import check_port_listening
+from config.get_config import get_proxy_config
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
 Track_Json_Path = "track"
@@ -217,7 +220,6 @@ def get_fund_industry_by_mapping(code):
     """通过把mapping_industry加载成字典找到对应的基金行业"""
     code_str = str(code)
     if code_str in mapping_industry.keys():
-        print(f"尝试找到基金行业 {mapping_industry[code_str]}")
         return mapping_industry[code_str]
     else:
         return None
@@ -265,7 +267,7 @@ class ProjectCard(QFrame):
         self.file_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         row_layout.addWidget(self.file_label)
         row_layout.addStretch(1)
-        self.industry_label = QLabel(f"行业: {self.industry if self.industry else '未知'}")
+        self.industry_label = QLabel()#f"{self.industry if self.industry else '未知'}")
         self.industry_label.setFont(QFont('微软雅黑', 10))
         row_layout.addWidget(self.industry_label)
         layout.addLayout(row_layout)
@@ -305,7 +307,11 @@ class ProjectCard(QFrame):
         if valider is True:
             code_list = hold_df['股票代码'].tolist()
             # real_time_fluctuations = from_stock_data_for_codes_get_real_time_fluctuation(code_list), 这是akshare写法,容易被风控
-            real_time_fluctuations = get_universal_pct_change(code_list)
+            proxy_port=get_proxy_config()
+            if check_port_listening(port=proxy_port) is True:
+                real_time_fluctuations = get_universal_pct_change(code_list)
+            else:
+                real_time_fluctuations = {}
             self.Holding_dialogue = FundHoldingDialog(hold_df,fund_name=self.fund_tittle,report_date=self.latest_date,real_time_fluctuations=real_time_fluctuations)  # 获取基金持仓并显示
             result = self.Holding_dialogue.exec_()
             if result == QDialog.Accepted:
@@ -431,6 +437,8 @@ class ProjectCard(QFrame):
 
             info_action = QAction("转到详细信息", self)
             info_action.triggered.connect(self.show_fund_info)
+            industry_action = QAction("找出行业", self)
+            industry_action.triggered.connect(self.show_fund_industry)
             holding_action = QAction("转到持仓", self)
             holding_action.triggered.connect(self.show_fund_holding)
             visualize_action = QAction("转到图", self)
@@ -460,10 +468,12 @@ class ProjectCard(QFrame):
             add_to_group_action.setFont(QFont('微软雅黑', 11))
             discard_action.setFont(QFont('微软雅黑', 11))
             info_action.setFont(QFont('微软雅黑', 11))
+            industry_action.setFont(QFont('微软雅黑', 11))
             visualize_action.setFont(QFont('微软雅黑', 11))
             export_log_analysis_action.setFont(QFont('微软雅黑', 11))
             export_single_ai_prompt_action.setFont(QFont('微软雅黑', 11))
             
+            menu.addAction(industry_action)
             menu.addAction(info_action)
             menu.addAction(holding_action)
             menu.addAction(visualize_action)
@@ -587,7 +597,22 @@ class ProjectCard(QFrame):
             except Exception as e:
                 print(f"打开分组对话框失败: {e}")
 
-           
+    def show_fund_industry(self):
+        """异步得到最新的行业信息"""
+        try:
+            self.industry_label.setText("正在查询...") # 先给用户一个反馈
+            self.worker = SingleFundIndustryWorker(fund_code=self.filename)
+            self.worker.finished_signal.connect(self.handle_industry_result)
+            self.worker.start()
+        except Exception as e:
+            print(f"查询行业信息时出错: {e}")
+            self.industry_label.setText("查询失败")
+            return
+
+    def handle_industry_result(self, result):
+        """主线程槽函数：负责更新 UI"""
+        if result and len(result) > 1:
+            self.industry_label.setText(result[1])
 
     def return_decision(self,df=None,config=None):
         if df:

@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QDialogButtonBox, QLineEdit, QLabel, QMessageBox, QPushButton, 
                              QHBoxLayout, QSpinBox,QApplication, QDoubleSpinBox, QCheckBox, QComboBox,QHeaderView,QTableWidget,QTableWidgetItem
-                             ,QScrollArea,QGroupBox,QFormLayout,QListWidget,QListWidgetItem,QDesktopWidget,QSizePolicy,QWidget)
+                             ,QScrollArea,QGroupBox,QFormLayout,QListWidget,QListWidgetItem,QDesktopWidget,QWidget,QTextEdit,QProgressBar)
 from PyQt5.QtCore import Qt
 import re
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -13,6 +13,7 @@ import matplotlib.dates as mdates
 from datetime import datetime, date
 from config.get_config import write_config
 import os
+from akandyfworker import FundIndustryWorker
 import mplcursors
 import glob
 import time
@@ -907,6 +908,87 @@ class ConfigDialog(QDialog):
 
 
 
+
+class IndustryFetchDialog(QDialog):
+    """更新基金持仓行业信息的对话框"""
+    def __init__(self, codes, mapping_path, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("行业信息采集进度")
+        self.setFixedSize(500, 400)
+        self.codes = codes
+        self.mapping_path = mapping_path
+        
+        # 1. 构建 UI 界面
+        self.init_ui()
+        
+        # 2. 初始化线程
+        self.worker = FundIndustryWorker(self.codes, self.mapping_path)
+        
+        # 3. 连接信号
+        self.worker.progress_changed.connect(self.on_progress)
+        self.worker.work_finished.connect(self.on_finished)
+        
+        # 4. 启动执行
+        self.worker.start()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        
+        self.label = QLabel(f"正在准备处理 {len(self.codes)} 个基金数据...")
+        layout.addWidget(self.label)
+        
+        # 进度条
+        self.pbar = QProgressBar()
+        self.pbar.setMaximum(len(self.codes))
+        self.pbar.setValue(0)
+        layout.addWidget(self.pbar)
+        
+        # 日志显示框
+        self.log_view = QTextEdit()
+        self.log_view.setReadOnly(True)
+        layout.addWidget(self.log_view)
+        
+        # 停止按钮
+        self.btn_stop = QPushButton("停止采集")
+        self.btn_stop.clicked.connect(self.on_stop_clicked)
+        layout.addWidget(self.btn_stop)
+
+    def on_progress(self, count, fund_code):
+        """当线程处理完一个基金时触发"""
+        self.pbar.setValue(count)
+        self.label.setText(f"正在处理: {fund_code} ({count}/{len(self.codes)})")
+        self.log_view.append(f"✅ 已完成: {fund_code}")
+        
+        # 自动滚动到底部
+        self.log_view.verticalScrollBar().setValue(
+            self.log_view.verticalScrollBar().maximum()
+        )
+
+    def on_stop_clicked(self):
+        """点击停止按钮"""
+        reply = QMessageBox.question(self, '提示', "确定要中断采集并保存当前进度吗？",
+                                   QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.btn_stop.setEnabled(False)
+            self.btn_stop.setText("正在保存进度并退出...")
+            self.worker.stop()
+
+    def on_finished(self, status_msg):
+        """当线程完全结束（完成或中断）时触发"""
+        self.btn_stop.setText("关闭")
+        self.btn_stop.setEnabled(True)
+        self.btn_stop.clicked.disconnect()
+        self.btn_stop.clicked.connect(self.accept) # 点击关闭窗口
+        
+        QMessageBox.information(self, "任务结束", status_msg)
+
+    def closeEvent(self, event):
+        """拦截窗口关闭按钮，确保线程安全停止"""
+        if self.worker.isRunning():
+            self.on_stop_clicked()
+            event.ignore()
+        else:
+            event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
