@@ -1,26 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
-import os
-import akshare
-import py_mini_racer
-
-# 获取路径
-akshare_path = os.path.dirname(akshare.__file__)
-pmr_path = os.path.dirname(py_mini_racer.__file__)
+#按照实际所在位置修改！！！，不然会非常麻烦
+py_mini_path = r"C:\Users\zhou\Desktop\copym2\venv\Lib\site-packages\py_mini_racer"
+calendar_path = r"C:\Users\zhou\Desktop\copym2\venv\Lib\site-packages\akshare\file_fold"
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[
-        # 不要用 *.pyd，直接把整个目录放进去，PyInstaller 会自动处理里面的二进制文件
-        (pmr_path, 'py_mini_racer'),
+        # 添加 mini_racer.dll（注意目标路径用 '.' 表示 exe 根目录）
+        (os.path.join(py_mini_path, 'mini_racer.dll'), '.'),
     ],
     datas=[
-        # Akshare 资源
-        (os.path.join(akshare_path, 'file_fold'), 'akshare/file_fold'),
-        # 静态资源
-        (r'C:\Users\zhou\Desktop\copym2\static', 'static'),
+        # 添加 calendar.json，目标路径必须是 akshare\file_fold
+        (os.path.join(calendar_path, 'calendar.json'), 'akshare\\file_fold'),
     ],
-    hiddenimports=['py_mini_racer', 'pandas._libs.tslibs.np_datetime'],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -41,7 +35,13 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False, 
-    console=False, 
-    icon=[r'C:\Users\zhou\Desktop\copym2\static\infinite.png'],
+    upx=False,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,               # 保持带控制台
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
 )
