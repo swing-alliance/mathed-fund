@@ -1,19 +1,34 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import akshare
+import py_mini_racer
 
+# 获取路径
+akshare_path = os.path.dirname(akshare.__file__)
+pmr_path = os.path.dirname(py_mini_racer.__file__)
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
+    binaries=[
+        # 不要用 *.pyd，直接把整个目录放进去，PyInstaller 会自动处理里面的二进制文件
+        (pmr_path, 'py_mini_racer'),
+    ],
+    datas=[
+        # Akshare 资源
+        (os.path.join(akshare_path, 'file_fold'), 'akshare/file_fold'),
+        # 静态资源
+        (r'C:\Users\zhou\Desktop\copym2\static', 'static'),
+    ],
+    hiddenimports=['py_mini_racer', 'pandas._libs.tslibs.np_datetime'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['argostranslate', 'PyQt5.QtWebEngine', 'PyQt5.QtWebEngineWidgets', 'matplotlib', 'pandas'],
+    excludes=[],
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -26,13 +41,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    upx=False, 
+    console=False, 
+    icon=[r'C:\Users\zhou\Desktop\copym2\static\infinite.png'],
 )
