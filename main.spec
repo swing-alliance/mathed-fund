@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-#按照实际所在位置修改！！！，不然会非常麻烦
+#按照实际所在位置修改这两个路径！！！，不然会非常麻烦
 py_mini_path = r"C:\Users\zhou\Desktop\copym2\venv\Lib\site-packages\py_mini_racer"
 calendar_path = r"C:\Users\zhou\Desktop\copym2\venv\Lib\site-packages\akshare\file_fold"
 
