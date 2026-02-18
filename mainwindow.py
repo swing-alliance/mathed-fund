@@ -233,12 +233,16 @@ class MainWindow(QMainWindow):
 
 
     def pull_data(self):
-        """拉取数据到found"""
+        """拉取数据到equity_path"""
+        from utils.pull import fetch_and_save_to_folder
         dialog = pulldata_dialog(self)  # QDialog 输入基金代码
         if dialog.exec_() == QDialog.Accepted:  # 用户点击确定
             codes = dialog.codes  # 获取输入数组
             if codes:
-                fetch_and_save_fund_csv(codes)
+                yes=fetch_and_save_to_folder(codes, Equity_path)
+                if not yes:
+                    QMessageBox.warning(self, "错误", f"拉取出现错误，未找到文件夹{Equity_path}。")
+                    return
                 QMessageBox.information(self, "成功", f"已拉取代码: {', '.join(codes)}")
             else:
                 QMessageBox.warning(self, "取消", "未输入任何代码")

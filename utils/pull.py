@@ -19,7 +19,6 @@ def fetch_and_save_fund_csv(codes, folder="found"):
     saved_files = []  # 保存成功的文件路径
     for code in codes:
         try:
-            # 拉取单位净值走势
             df_new = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
             df_new['净值日期'] = pd.to_datetime(df_new['净值日期'])
             df_new = df_new.sort_values("净值日期").reset_index(drop=True)
@@ -40,6 +39,26 @@ def fetch_and_save_fund_csv(codes, folder="found"):
         except Exception as e:
             print(f"[失败] {code} 拉取失败: {e}")
     return saved_files
+
+def fetch_and_save_to_folder(codes, folder_path):
+    """拉取数据并保存到指定文件夹"""
+    if not os.path.exists(folder_path):
+        return False
+    for code in codes:
+        try:
+            df_new = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
+            df_new['净值日期'] = pd.to_datetime(df_new['净值日期'])
+            df_new = df_new.sort_values("净值日期").reset_index(drop=True)
+            csv_file_path = os.path.join(folder_path, f"{code}.csv")
+            if os.path.exists(csv_file_path):
+                df_old = pd.read_csv(csv_file_path, parse_dates=['净值日期'])
+                df_combined = pd.concat([df_old, df_new])
+            else:
+                df_combined = df_new
+            df_combined.to_csv(csv_file_path, index=False, encoding="utf-8-sig")
+            return True
+        except Exception as e:
+            return False
 
 
 

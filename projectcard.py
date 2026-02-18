@@ -115,9 +115,11 @@ def get_name_by_mapping(code):
                 save_new_mapping(code_str, full_name)
                 return full_name
             else:
-                raise ValueError(f"无法通过外部查询获得基金代码 {code_str} 对应的基金名称")
+                print("试图从akshare获取基金名称失败",e)
+                return None
         except Exception as e:
-            raise ValueError(f"基金代码 {code_str} 没有找到对应的基金名称: {e}")
+            print("试图从akshare获取基金名称失败",e)
+            return None
 
 def get_fund_name(filename):
     """通过网络爬取akshare获得基金名称"""
@@ -234,7 +236,7 @@ class ProjectCard(QFrame):
         self.latest_date = get_latest_date_by_mapping(self.file_path)
         self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名
         self.industry=get_fund_industry_by_mapping(self.filename)
-        self.fund_tittle: str = get_name_by_mapping(self.filename)  # 获取基金名称
+        self.fund_tittle: str = get_name_by_mapping(self.filename) if get_name_by_mapping(self.filename) else self.filename # 获取基金名称
         self.search_data = {
             'filename': self.filename.lower(),
             'fund_title': self.fund_tittle.lower() # 假设 fund_tittle 就是你要搜索的标题
@@ -274,6 +276,7 @@ class ProjectCard(QFrame):
 
     def show_fund_info(self):
         """在线显示基金信息对话框"""
+        print("正在查询基金信息...",self.filename)
         self.info_dialogue = FundInfoDialog(get_fund_info(self.filename))  # 获取基金信息并显示
         result = self.info_dialogue.exec_()
         if result == QDialog.Accepted:
