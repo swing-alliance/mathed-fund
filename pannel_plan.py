@@ -354,6 +354,78 @@ class ControlPanel(QWidget):
         self.worker.start()
         dialog.exec()
 
+    def resort_self_by_largest_sharpe_120days(self):
+        """重新排序项目卡片按照120天夏普比率从大到小"""
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="120天夏普比率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="120天夏普比率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组120天夏普比率排序")
+            else:
+                self.index_label.setText("当前计划120天夏普比率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
+
+    def resort_self_by_largest_sharpe_22days(self):
+        """重新排序项目卡片按照22天夏普比率从大到小"""
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="22天夏普比率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="22天夏普比率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组22天夏普比率排序")
+            else:
+                self.index_label.setText("当前计划22天夏普比率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
+
+
+
+
+    def resort_self_by_largest_sharpe_22days(self):
+        """重新排序项目卡片按照22天夏普比率从大到小"""
+        from threadworker import LoadingDialog, SortWorker
+        dialog = LoadingDialog(self,job="22天夏普比率")
+        cards_to_sort = list(self.loaded_cards.values())
+        self.worker = SortWorker(cards_to_sort,job="22天夏普比率")
+        def on_finished(sorted_cards_list):
+            dialog.accept() # 关闭弹窗
+            for card in self.loaded_cards.values():
+                self.scroll_layout.removeWidget(card)
+            self.loaded_cards = {f"{card.filename}.csv": card for card in sorted_cards_list}
+            for card in self.loaded_cards.values():
+                self.scroll_layout.addWidget(card)
+            if "组" in self.index_label.text():
+                self.index_label.setText("当前组22天夏普比率排序")
+            else:
+                self.index_label.setText("当前计划22天夏普比率排序")
+        self.worker.finished_signal.connect(on_finished)
+        dialog.finished.connect(self.worker.stop) # 对话框关闭则终止计算
+        self.worker.start()
+        dialog.exec()
+
+
+
+
     def resort_self_by_largest_sharpe_60days(self):
         """重新排序项目卡片按照60天夏普比率从大到小,重点关注,有log功能记录"""
         from threadworker import LoadingDialog, SortWorker

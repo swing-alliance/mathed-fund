@@ -124,6 +124,10 @@ class MainWindow(QMainWindow):
         group_resort_action.triggered.connect(self.group_resort)
         group_resort_60days_sharpe_action = QAction("当前60天夏普比排序最大(log 6-18)", self)
         group_resort_60days_sharpe_action.triggered.connect(self.group_sort_by_largest_sharpe_60days)
+        group_resort_22days_sharpe_action = QAction("当前22天夏普比排序最大", self)
+        group_resort_22days_sharpe_action.triggered.connect(self.group_sort_by_largest_sharpe_22days)
+        group_resort_120days_sharpe_action = QAction("当前120天夏普比排序最大", self)
+        group_resort_120days_sharpe_action.triggered.connect(self.group_sort_by_largest_sharpe_120days)
         group_resort_yearly_return_action = QAction("当前年化收益排序最大", self)
         group_resort_yearly_return_action.triggered.connect(self.group_sort_by_max_yearly_return)
         group_resort_80days_yearly_return_action = QAction("当前80天年化收益排序最大", self)
@@ -157,6 +161,8 @@ class MainWindow(QMainWindow):
         add_group_action.setFont(QFont('微软雅黑', 11))
         del_group_action.setFont(QFont('微软雅黑', 11))
         advanced_pull_action.setFont(QFont('微软雅黑', 11))
+        group_resort_22days_sharpe_action.setFont(QFont('微软雅黑', 11))
+        group_resort_120days_sharpe_action.setFont(QFont('微软雅黑', 11))
         pull_action.setFont(QFont('微软雅黑', 11))
         load_action.setFont(QFont('微软雅黑', 11))
         load_last_group_action.setFont(QFont('微软雅黑', 11))
@@ -209,9 +215,12 @@ class MainWindow(QMainWindow):
         data_menu.addAction(reload_every_mapping_action)
         calculate_menu.addAction(batch_redirect_action)
         calculate_menu.addAction(group_resort_action)
+        calculate_menu.addAction(group_resort_120days_sharpe_action)
         calculate_menu.addAction(group_resort_60days_sharpe_action)
+        calculate_menu.addAction(group_resort_22days_sharpe_action)
         calculate_menu.addAction(group_resort_yearly_return_action)
         calculate_menu.addAction(group_resort_votality_action)
+        
         
         calculate_menu.addAction(group_resort_80days_yearly_return_action)
         calculate_menu.addAction(group_resort_30days_yearly_return_action)
@@ -241,7 +250,7 @@ class MainWindow(QMainWindow):
             if codes:
                 yes=fetch_and_save_to_folder(codes, Equity_path)
                 if not yes:
-                    QMessageBox.warning(self, "错误", f"拉取出现错误，未找到文件夹{Equity_path}。")
+                    QMessageBox.warning(self, "错误", f"拉取出现未知错误")
                     return
                 QMessageBox.information(self, "成功", f"已拉取代码: {', '.join(codes)}")
             else:
@@ -462,7 +471,18 @@ class MainWindow(QMainWindow):
         """分组重排"""
         central_widget = self.centralWidget()
         if isinstance(central_widget, ControlPanel):
-            central_widget.resort_self()#pannel_plan中定义的夏普比算法
+            central_widget.resort_self()#pannel_plan中定义的365天夏普比算法
+    def group_sort_by_largest_sharpe_22days(self):
+        """分组重排, 按22天夏普比排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_largest_sharpe_22days()
+
+    def group_sort_by_largest_sharpe_120days(self):
+        """分组重排, 按120天夏普比排序"""
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            central_widget.resort_self_by_largest_sharpe_120days()
     
     def group_sort_by_largest_sharpe_60days(self):
         """分组重排, 按60天夏普比排序"""

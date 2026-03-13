@@ -28,6 +28,10 @@ class SortWorker(QThread):
                 return # 终止任务
             if self.job=='60天夏普比率':
                 score = card.return_decision().max_sharp_ratio_for_days(period_days=60)
+            elif self.job=='22天夏普比率':
+                score = card.return_decision().max_sharp_ratio_for_days(period_days=22)
+            elif self.job=='120天夏普比率':
+                score = card.return_decision().max_sharp_ratio_for_days(period_days=120)
             elif self.job=='365天夏普比率':
                 score = card.return_decision().max_sharp_ratio_for_days(period_days=365)
             elif self.job =="365天年化收益率":
