@@ -1,0 +1,29 @@
+{
+    "501018": [
+        {
+            "buy_price": 10000,
+            "confirmed_date": "2025-06-16",
+            "single_value": 1.2772
+        },
+        {
+            "buy_price": 10000,
+            "confirmed_date": "2025-06-16",
+            "single_value": 1.2772
+        },
+        {
+            "buy_price": 10000,
+            "confirmed_date": "2025-06-16",
+            "single_value": 1.2772
+        },
+        {
+            "sell_nums": 23487,
+            "confirmed_date": "2026-04-21",
+            "single_value": 1.7383
+        },
+        {
+            "sell_nums": 1.8819292201733333,
+            "confirmed_date": "2026-04-21",
+            "single_value": 1.7383
+        }
+    ]
+}

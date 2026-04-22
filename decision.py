@@ -11,7 +11,7 @@ import os
 import json
 
 transaction_confirmed_path=os.path.join(os.getcwd(),'track',"transaction_confirmed.json")
-transaction_onsubmit_path=os.path.join(os.getcwd(),'track',"transaction_onsubmit.json")
+transaction_onsubmit_path=os.path.join(os.getcwd(),'track',"transaction_onsubmit.json") 
 
 def get_correct_rate(fund_code:str = '005698',obeserve_start_date:str='2025-06-24',observe_end_date:str='2025-09-06',expected_steps=20):
     """获取基金趋势并计算正确率,基于真实数据的校验回测。"""

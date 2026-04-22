@@ -1,0 +1,29 @@
+{
+    "501018": [
+        {
+            "buy_date": "2025-06-15",
+            "buy_price": 10000,
+            "status": "checked"
+        },
+        {
+            "buy_date": "2025-06-15",
+            "buy_price": 10000,
+            "status": "checked"
+        },
+        {
+            "buy_date": "2025-06-15",
+            "buy_price": 10000,
+            "status": "checked"
+        },
+        {
+            "sell_date": "2025-06-20",
+            "sell_nums": 23487,
+            "status": "checked"
+        },
+        {
+            "sell_date": "2025-06-20",
+            "sell_nums": 1.8819292201733333,
+            "status": "checked"
+        }
+    ]
+}
