@@ -946,11 +946,12 @@ def max_sharp_ratio_for_days(df,period_days=60):
         try:
             period_year_rate = yearly_return_since_start(code=None,df=df,expected_interval_days=period_days)
             period_volatility,_,_,_= get_annualized_volatility_for_period(code=None,df=df,period_days=period_days)
+            
             if period_volatility is not None:
-                return period_year_rate/period_volatility if period_volatility is not None else -0.001
+                return period_year_rate/period_volatility if period_volatility is not None else -999
         except:
             print("计算夏普比率失败")
-            return None
+            return -999
 
 def get_dataframe_by_path(path):
     """
