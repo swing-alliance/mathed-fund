@@ -37,6 +37,20 @@ class virtual_account:
                 total_dynamic_value.append(dynamic_value)
         return sum(total_dynamic_value)+self.get_balance()
     
+    def get_repo_info(self,trackers):
+        """获取当前持仓的基金信息，包括代码、数量"""
+        fund_info_list = []
+        for tracker in trackers:
+            repo_num=tracker.get_repository()
+            if repo_num <= 0:
+                continue
+            info = {
+                "code": tracker.code,
+                "market_nums": repo_num
+            }
+            fund_info_list.append(info)
+        return fund_info_list
+    
     
 if __name__ == "__main__":
     pass

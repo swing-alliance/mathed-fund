@@ -11,8 +11,9 @@ transaction_onsubmit_path=os.path.join(os.getcwd(),'virtual_track',"virtual_tran
 
 
 class virtual_tracker:
-    """虚拟化追踪完整的交易过程"""
+    """虚拟化追踪完整的交易过程,用户通过对每只基金的追踪器进行操作来完成交易的提交和确认，追踪器会根据当前日期和数据自动处理交易逻辑，并与虚拟账户进行交互更新资金状态"""
     def __init__(self, code=None,df=None,date=None,virtual_account=None):
+        """初始化追踪器，设置基本信息和数据,一个追踪器只能追踪一个标的的所有交易,到这里的df应该已经是根据当前日期修剪过的了"""
         self.virtual_account=virtual_account
         self.code = code
         self.df = split_dataframe(df,start_time=df['净值日期'].min(),end_time="2026-03-15") if df is not None else None
@@ -147,9 +148,10 @@ class virtual_tracker:
                                             json.dump(confirmed_data, f, ensure_ascii=False, indent=4)
                                         self.virtual_account.increase_cash(sell_nums*single_value if single_value else None)
                                         transaction["status"] = "checked"
+                                        return True
                                 except Exception as e:
                                     print(f"最后买入确认失败: {e}")
-                                    return
+                                    return False
                             else:
                                 continue
                 with open(self.transaction_onsubmit_path, 'w', encoding='utf-8') as f:
@@ -209,7 +211,7 @@ class virtual_tracker:
             return
         
     def get_today_market_value(self):
-        """获取目前的市值"""
+        """获取目前的基金市值"""
         try:
             repository = self.get_repository(purpose="get_market_value")
             if repository <= 0:
@@ -227,7 +229,7 @@ class virtual_tracker:
             return 0.0
     
         
-   
+
         
     def get_next_trading_day(self, on_submit_date, n=None):
         """返回 on_submit_date 后的第 n 个交易日"""

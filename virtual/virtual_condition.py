@@ -1,20 +1,20 @@
-from virtual_calculate import max_sharp_ratio_for_days
+from virtual_calculate import max_sharp_ratio_for_days,yearly_return_since_start,get_annualized_volatility_for_period
 from virtual_df_split import split_dataframe
 from datetime import datetime
 
 class VirtualCondition:
     def __init__(self, dataframes: dict, current_date):
+        """虚拟条件类，基于数据帧和当前日期计算满足条件的标的"""
         self.dataframes = dataframes
+        self.codes = list(dataframes.keys())
         if isinstance(current_date, str):
             self.current_date = datetime.strptime(current_date, "%Y-%m-%d")
         else:
             self.current_date = current_date
-        
         for name, df in self.dataframes.items():
             if df is not None and not df.empty:# 增加保护：确保 df 不为空再 iloc
                 start_dt = df.iloc[0]['净值日期']
                 end_dt = self.current_date.strftime("%Y-%m-%d")
-                
                 self.dataframes[name] = split_dataframe(df, start_time=start_dt, end_time=end_dt)
             else:
                 print(f"警告：{name} 数据为空，跳过裁剪")
@@ -36,7 +36,6 @@ class VirtualCondition:
         if not sharpe_codes:
             print("今日没有符合条件的标的")
             return []
-            
         sorted_sharpe = sorted(sharpe_codes.items(), key=lambda item: item[1], reverse=True)
         top_code = sorted_sharpe[0][0]
         return [top_code]
