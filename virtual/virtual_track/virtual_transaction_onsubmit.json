@@ -9,7 +9,7 @@
         {
             "sell_date": "2024-10-17",
             "sell_nums": 36941.26339120798,
-            "status": "Failed"
+            "status": "checked"
         }
     ],
     "000950": [
@@ -22,7 +22,7 @@
         {
             "sell_date": "2024-11-08",
             "sell_nums": 8892.534674293282,
-            "status": "Failed"
+            "status": "checked"
         }
     ],
     "012363": [
@@ -35,7 +35,7 @@
         {
             "sell_date": "2024-11-30",
             "sell_nums": 8792.739557247683,
-            "status": "Failed"
+            "status": "checked"
         }
     ],
     "013477": [
@@ -44,136 +44,6 @@
             "buy_price": 10220.680461344708,
             "nums": 9619.463963618547,
             "status": "checked"
-        },
-        {
-            "sell_date": "2024-12-22",
-            "sell_nums": 9619.463963618547,
-            "status": "Failed"
-        }
-    ],
-    "007853": [
-        {
-            "buy_date": "2024-12-23",
-            "buy_price": 9620.425910014908,
-            "nums": 8259.294222196864,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-01-13",
-            "sell_nums": 8259.294222196864,
-            "status": "Failed"
-        }
-    ],
-    "012650": [
-        {
-            "buy_date": "2025-01-14",
-            "buy_price": 8529.373143262701,
-            "nums": 9835.531761142414,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-02-04",
-            "sell_nums": 9835.531761142414,
-            "status": "Failed"
-        }
-    ],
-    "007713": [
-        {
-            "buy_date": "2025-02-05",
-            "buy_price": 8625.761354521897,
-            "nums": 7154.152238966491,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-04-11",
-            "sell_nums": 7154.152238966491,
-            "status": "Failed"
-        }
-    ],
-    "000218": [
-        {
-            "buy_date": "2025-04-12",
-            "buy_price": 8773.852305868504,
-            "nums": 3175.3654612096934,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-05-25",
-            "sell_nums": 3175.3654612096934,
-            "status": "Failed"
-        }
-    ],
-    "010321": [
-        {
-            "buy_date": "2025-05-26",
-            "buy_price": 8930.397823106141,
-            "nums": 6309.8974232361625,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-06-16",
-            "sell_nums": 6309.8974232361625,
-            "status": "Failed"
-        }
-    ],
-    "006881": [
-        {
-            "buy_date": "2025-06-17",
-            "buy_price": 10326.778122868303,
-            "nums": 4436.4729659613795,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-07-30",
-            "sell_nums": 4436.4729659613795,
-            "status": "Failed"
-        }
-    ],
-    "011891": [
-        {
-            "buy_date": "2025-07-31",
-            "buy_price": 12778.816731155157,
-            "nums": 7575.3255860781055,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-09-12",
-            "sell_nums": 7575.3255860781055,
-            "status": "Failed"
-        }
-    ],
-    "012617": [
-        {
-            "buy_date": "2025-09-13",
-            "buy_price": 15399.879383938181,
-            "nums": 11244.070811870752,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-10-26",
-            "sell_nums": 11244.070811870752,
-            "status": "Failed"
-        }
-    ],
-    "011815": [
-        {
-            "buy_date": "2025-10-27",
-            "buy_price": 17031.394058740625,
-            "nums": 12257.210549651403,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2025-12-31",
-            "sell_nums": 12257.210549651403,
-            "status": "Failed"
-        }
-    ],
-    "005660": [
-        {
-            "buy_date": "2026-01-01",
-            "buy_price": 18094.0942133954,
-            "nums": null,
-            "status": "unchecked"
         }
     ]
 }

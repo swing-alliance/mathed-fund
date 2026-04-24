@@ -3,6 +3,7 @@ import json
 import os
 from datetime import date,timedelta,datetime
 import pandas as pd
+import time
 from virtual_df_split import get_dataframe_by_path,split_dataframe
 
 
@@ -16,6 +17,7 @@ class virtual_tracker:
         """初始化追踪器，设置基本信息和数据,一个追踪器只能追踪一个标的的所有交易,到这里的df应该已经是根据当前日期修剪过的了"""
         self.virtual_account=virtual_account
         self.code = code
+
         self.df = split_dataframe(df,start_time=df['净值日期'].min(),end_time="2026-03-15") if df is not None else None
         self.transaction_confirmed_path = transaction_confirmed_path
         self.transaction_onsubmit_path = transaction_onsubmit_path
@@ -77,13 +79,14 @@ class virtual_tracker:
                     transactions[self.code].append(transaction_record)
                 with open(self.transaction_onsubmit_path, 'w', encoding='utf-8') as f:
                     json.dump(transactions, f, ensure_ascii=False, indent=4)
-                print(f"卖出记录已添加：{transactions[self.code][-1]}")
+                print(f"卖出记录已添加：{transaction_record}")
             except Exception as e:
                 print(f"卖出失败: {e}")
                 return
 
     def transaction_confirming(self, n=1):
         """交易确认，确认之前的交易"""
+        time.sleep(1)
         try:
             with open(self.transaction_onsubmit_path, 'r', encoding='utf-8') as f:
                 onsubmit_data = json.load(f)
@@ -129,7 +132,7 @@ class virtual_tracker:
                                             next_trading_day, single_value = confirm_result
                                             total_nums=self.get_repository()
                                             if total_nums<sell_nums:
-                                                print("仓库数量不足,不执行卖出操作")
+                                                print("仓库数量不足,不执行卖出操作",total_nums,sell_nums)
                                                 transaction["status"] = "Failed"
                                                 continue
                                         record = {
@@ -147,17 +150,17 @@ class virtual_tracker:
                                         with open(self.transaction_confirmed_path, 'w', encoding='utf-8') as f:
                                             json.dump(confirmed_data, f, ensure_ascii=False, indent=4)
                                         self.virtual_account.increase_cash(sell_nums*single_value if single_value else None)
+                                        print("卖出成功了,钱回到了账户")
                                         transaction["status"] = "checked"
-                                        return True
+                                        
                                 except Exception as e:
                                     print(f"最后买入确认失败: {e}")
-                                    return False
                             else:
                                 continue
                 with open(self.transaction_onsubmit_path, 'w', encoding='utf-8') as f:
                     json.dump(onsubmit_data, f, ensure_ascii=False, indent=4)
                 
-            print("交易确认成功！")
+            # print("交易确认成功！")
         except Exception as e:
             print(f"买入确认失败: {e}")
             return

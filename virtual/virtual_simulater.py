@@ -96,12 +96,13 @@ class virtual_simulater:
         return special_dfs
 
     def virtual_system_confirm(self):
+        "开始一天的确认"
+        print("开始一天的确认")
         if self.transaction_orders:
-            # 只保留那些确认返回 False（即还未成交）的订单
-            self.transaction_orders = [
-                order for order in self.transaction_orders 
-                if not order.transaction_confirming()
-            ]
+
+            for order in self.transaction_orders:
+                order.transaction_confirming(n=1)
+
     def cheak_cash(self):
         if self.virtual_account.get_balance()>0:
             return True
