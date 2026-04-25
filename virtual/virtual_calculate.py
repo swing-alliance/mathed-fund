@@ -961,64 +961,7 @@ def get_dataframe_by_path(path):
     return pd.read_csv(path)
 
 
-def is_consider_lowpoint(df,end_date):
-        """
-        判断是否处于低点买入的考虑范围，基于严格的日期、回撤和波动率条件,新版本全部走配置文件。
-        """
-        if self.config:
-            try:
-                PERIOD_DAYS=self.config["considerlower"]['PERIOD_DAYS']#拿多少天作为计算范围
-                MINIMUM_DAYS_BETWEEN_PEAKS=self.config["considerlower"]['MINIMUM_DAYS_BETWEEN_PEAKS']#最低点必须在最高点之后至少 N 天
-                YEARLY_RETURN_RATIO_THRESHOLD=self.config["considerlower"]['YEARLY_RETURN_RATIO_THRESHOLD']#年化收益率阈值,保证最基本的收益趋势向上
-                DRAWDOWN_PERCENTAGE_THRESHOLD=self.config["considerlower"]['DRAWDOWN_PERCENTAGE_THRESHOLD']#回撤阈值,(最高-最低)/最高
-                VOLATILITY_THRESHOLD=self.config["considerlower"]['VOLATILITY_THRESHOLD']#年化波动率阈值
-                LOWER_AVG_REFER_DAYS=self.config["considerlower"]['LOWER_AVG_REFER_DAYS']#低于多少天的平均值
-                LOWER_AVG_REFER_RATIO=self.config["considerlower"]['LOWER_AVG_REFER_RATIO']#低于多少天的平均值百分比
-                ISLOOSE=self.config["considerlower"]['ISLOOSE']#是否宽松抓取,递归前推7天存在即返回,可能存在早已净值反弹,找到高位的错误
-            except:
-                print("配置文件错误,{exception}")
-                return False
-            # 1. 获取过去40天的极值和日期
-            # 假设 these are already calculated and stored in self.*
-            if isrecursion:
-                """递归时收敛套娃"""
-                ISLOOSE=False
-            if ISLOOSE:
-                for i in range(1,7):
-                    try:
-                        self.df = self.df.iloc[:-i]
-                        if self.df.empty:
-                            return False
-                    except Exception as e:
-                        return False
-                    is_consider_low=decison_maker(fund_code=None,path="whatever",df=self.df,config=self.config).is_consider_lowpoint(isrecursion=True)
-                    return is_consider_low
-                return False
-            self.lowest_point_in_period_value, self.lowest_point_date = get_lowest_point_after_high(self.df, period_days=PERIOD_DAYS)
-            self.highest_point_in_period_value, self.highest_point_date = get_highest_point_by_period(self.df, period_days=PERIOD_DAYS)
-            if self.lowest_point_in_period_value is not None and self.highest_point_in_period_value is not None:
-                if self.df.empty:
-                    return False
-                current_annualized_volatility = self.get_max_annualized_volatility() # 计算了最大年化波动率
-                time_difference = self.lowest_point_date - self.highest_point_date
-                is_low_after_high = time_difference >= timedelta(days=MINIMUM_DAYS_BETWEEN_PEAKS)
 
-                if not is_low_after_high:
-                    return False
-                if self.highest_point_in_period_value <= 0:
-                    return False
-                drawdown = (self.highest_point_in_period_value - self.lowest_point_in_period_value) / self.highest_point_in_period_value
-                has_sufficient_drawdown = drawdown >= DRAWDOWN_PERCENTAGE_THRESHOLD
-                if not has_sufficient_drawdown:
-                    return False
-                has_high_volatility = current_annualized_volatility >= VOLATILITY_THRESHOLD
-                if not has_high_volatility:
-                    return False
-                if '000593' in self.path:
-                    print(f"Debug Info for 000593: is_low_after_high={is_low_after_high}, has_sufficient_drawdown={has_sufficient_drawdown}, has_high_volatility={has_high_volatility},高点日期={self.highest_point_date},低点日期={self.lowest_point_date},高点值={self.highest_point_in_period_value},低点值={self.lowest_point_in_period_value},回撤={drawdown},年化波动率={current_annualized_volatility}")
-                if is_low_after_high and has_sufficient_drawdown and has_high_volatility and get_lowerthan_averge(self.df, period_days=LOWER_AVG_REFER_DAYS, threshold_ratio=LOWER_AVG_REFER_RATIO) and self.year_rate_since_start_this() > YEARLY_RETURN_RATIO_THRESHOLD:
-                    return True
-        return False
 
 
 

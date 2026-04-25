@@ -32,7 +32,7 @@ class virtual_simulater:
         self.virtual_account=virtual_account(initial_cash=initial_cash)
         self.end_date=datetime.strptime(end_date, "%Y-%m-%d")
         self.current_date = datetime.strptime(start_date, "%Y-%m-%d")
-        self.transaction_orders=[]
+        self.transaction_orders = deque(maxlen=50)
         self.df_names=[path.split("\\")[-1].split(".")[0] for path in paths]
         self.row_dfs={}
         self.dataframes={}
@@ -97,9 +97,8 @@ class virtual_simulater:
 
     def virtual_system_confirm(self):
         "开始一天的确认"
-        print("开始一天的确认")
+        
         if self.transaction_orders:
-
             for order in self.transaction_orders:
                 order.transaction_confirming(n=1)
 
@@ -144,39 +143,126 @@ class virtual_simulater:
         return self.transaction_trakers[code].get_repository(purpose="sell")
     
  
-    def start(self, callback=None):
+    # def start(self, callback=None):
+    #     """执行只单调追高的回测"""
+    #     try:
+    #         reset_tracker()
+    #         day_counter = 0
+    #         current_holding_code = None 
+    #         recommend_code=None
+    #         while self.time_flow():
+                
+    #             # --- 1. 策略逻辑 (保持原有频率) ---
+    #             if day_counter % 22 == 0:
+    #                 print("执行策略逻辑，评估换仓机会...")
+    #                 dfs = self.get_specific_dataframe(self.current_date)
+    #                 cond_inst = VirtualCondition(dataframes=dfs, current_date=self.current_date)
+    #                 to_buy_list = cond_inst.sharp_ratio_condition(days=22)
+    #                 new_code = to_buy_list[0] if to_buy_list else None
+    #                 recommend_code=new_code
+
+
+    #                 if new_code != current_holding_code:
+    #                     if current_holding_code:
+    #                         self.virtual_sell(code=current_holding_code, date=self.current_date, ratio=1)
+    #                     current_holding_code = new_code
+    #             if recommend_code and self.cheak_cash():
+                        
+    #                     self.virtual_buy(code=recommend_code, date=self.current_date, ratio=1)
+
+    #             # --- 2. 删除了循环内的 transaction_confirming ---
+    #             # 直接进入数据回传阶段
+    #             self.virtual_system_confirm()
+                
+    #             # --- 3. UI 数据回传与性能优化 ---
+    #             if callback:
+    #                 # 只有当资产发生变化或者每隔几天才回传，能极大减轻 UI 负担
+    #                 date_str = self.current_date.strftime('%Y-%m-%d')
+    #                 balance = float(self.get_account_balance()) 
+    #                 callback(date_str, balance)
+    #                 day_counter += 1
+    #         print(f"最终账户余额: {self.virtual_account.get_repo_info(trackers=self.transaction_trakers.values())}, 现金余额: {self.get_account_cash()}")
+    #         print(f"回测核心运行完毕。")
+                
+    #     except Exception as e:
+    #         import traceback
+    #         traceback.print_exc()
+
+    # def start(self,callback):
+    #     """执行关于波动和地点的回测"""
+    #     try:
+    #         reset_tracker()
+    #         day_counter = 0
+    #         current_holding_codes =[] 
+    #         while self.time_flow():
+    #             # --- 1. 策略逻辑 (保持原有频率) ---
+    #             if day_counter % 22 == 0:
+    #                 print("执行策略逻辑，评估换仓机会...")
+    #                 dfs = self.get_specific_dataframe(self.current_date)
+                    
+    #                 cond_inst = VirtualCondition(dataframes=dfs, current_date=self.current_date)
+    #                 suggest_buy_list = cond_inst.volatility_lowpoint_ratio_condition(days=365)
+    #                 print(suggest_buy_list)
+    #                 to_buy_nums=0
+    #                 to_buy_list=[]
+    #                 to_sell_list=[]
+    #                 if suggest_buy_list:
+    #                     for item in suggest_buy_list:
+    #                         if item not in current_holding_codes:
+    #                             to_buy_nums+=1
+    #                             to_buy_list.append(item)
+    #                 print("打算買入",to_buy_list)
+    #                 while len(to_buy_list)+len(current_holding_codes)>4:
+    #                     if current_holding_codes:
+    #                         item=current_holding_codes.pop()
+    #                         to_sell_list.append(item)
+    #                     if to_buy_list:
+    #                         to_buy_list.pop()
+    #                 print("打算賣出？",to_sell_list)
+    #                 for code in to_sell_list:
+    #                     print("執行賣出",to_sell_list)
+    #                     self.virtual_sell(code=code, date=self.current_date, ratio=1)
+    #                 if to_buy_list and self.cheak_cash()<2000:
+    #                     for code in to_buy_list:
+    #                         self.virtual_buy(code=code,date=self.current_date,ratio=1/len(to_buy_list))
+    #                         if code not in current_holding_codes:
+    #                             current_holding_codes.append(code)
+    #             self.virtual_system_confirm()
+    #             if callback:
+    #                 date_str = self.current_date.strftime('%Y-%m-%d')
+    #                 balance = float(self.get_account_balance()) 
+    #                 callback(date_str, balance)
+    #                 day_counter += 1
+    #         print(f"最终账户余额: {self.virtual_account.get_repo_info(trackers=self.transaction_trakers.values())}, 现金余额: {self.get_account_cash()}")
+    #         print(f"回测核心运行完毕。")
+                
+    #     except Exception as e:
+    #         import traceback
+    #         traceback.print_exc()
+    
+
+    def start(self,callback):
+        """执行关于溫度和夏普的回测"""
         try:
             reset_tracker()
             day_counter = 0
-            current_holding_code = None 
-            recommend_code=None
+            current_holding_codes =[] 
             while self.time_flow():
-                
                 # --- 1. 策略逻辑 (保持原有频率) ---
                 if day_counter % 22 == 0:
                     print("执行策略逻辑，评估换仓机会...")
                     dfs = self.get_specific_dataframe(self.current_date)
+                    
                     cond_inst = VirtualCondition(dataframes=dfs, current_date=self.current_date)
-                    to_buy_list = cond_inst.sharp_ratio_condition(days=120)
-                    new_code = to_buy_list[0] if to_buy_list else None
-                    recommend_code=new_code
-
-
-                    if new_code != current_holding_code:
-                        if current_holding_code:
-                            self.virtual_sell(code=current_holding_code, date=self.current_date, ratio=1)
-                        current_holding_code = new_code
-                if recommend_code and self.cheak_cash():
-                        print("买新装备了")
-                        self.virtual_buy(code=recommend_code, date=self.current_date, ratio=1)
-
-                # --- 2. 删除了循环内的 transaction_confirming ---
-                # 直接进入数据回传阶段
+                    suggest_buy_list = cond_inst.temperature_sharpe_condition(days=120)
+                    if not suggest_buy_list:
+                        for item in current_holding_codes:
+                            self.virtual_sell(code=item,date=self.current_date,ratio=1)
+                    if suggest_buy_list and self.cheak_cash()>0:
+                        self.virtual_buy(code=suggest_buy_list[0],date=self.current_date,ratio=1)
+                        current_holding_codes.append(suggest_buy_list[0])
                 self.virtual_system_confirm()
-                
-                # --- 3. UI 数据回传与性能优化 ---
                 if callback:
-                    # 只有当资产发生变化或者每隔几天才回传，能极大减轻 UI 负担
                     date_str = self.current_date.strftime('%Y-%m-%d')
                     balance = float(self.get_account_balance()) 
                     callback(date_str, balance)
@@ -221,8 +307,8 @@ if __name__ == "__main__":
     simulater = virtual_simulater(
         paths=paths, 
         initial_cash=10000, 
-        start_date="2024-9-24", 
-        end_date="2026-1-1"
+        start_date="2023-1-24", 
+        end_date="2024-9-1"
     )
 
     # 3. 创建并配置线程

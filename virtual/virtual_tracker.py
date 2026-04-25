@@ -86,7 +86,6 @@ class virtual_tracker:
 
     def transaction_confirming(self, n=1):
         """交易确认，确认之前的交易"""
-        time.sleep(1)
         try:
             with open(self.transaction_onsubmit_path, 'r', encoding='utf-8') as f:
                 onsubmit_data = json.load(f)

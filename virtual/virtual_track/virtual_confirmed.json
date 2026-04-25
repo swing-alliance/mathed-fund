@@ -1,49 +1,80 @@
 {
-    "000180": [
+    "006603": [
         {
             "buy_price": 10000,
-            "confirmed_date": "2024-09-25",
-            "single_value": 0.2707,
-            "nums": 36941.26339120798
+            "confirmed_date": "2023-01-30",
+            "single_value": 1.3721,
+            "nums": 7288.098535092194
         },
         {
-            "sell_nums": 36941.26339120798,
-            "confirmed_date": "2024-10-17",
-            "single_value": 0.2698
+            "sell_nums": 7288.098535092194,
+            "confirmed_date": "2023-03-10",
+            "single_value": 1.234
         }
     ],
-    "000950": [
+    "012769": [
         {
-            "buy_price": 9966.752862947911,
-            "confirmed_date": "2024-10-18",
-            "single_value": 1.1208,
-            "nums": 8892.534674293282
+            "buy_price": 8993.513592303767,
+            "confirmed_date": "2023-04-24",
+            "single_value": 1.5023,
+            "nums": 5986.496433670883
         },
         {
-            "sell_nums": 8892.534674293282,
-            "confirmed_date": "2024-11-08",
-            "single_value": 1.2247
+            "sell_nums": 5986.496433670883,
+            "confirmed_date": "2023-05-15",
+            "single_value": 1.4333
         }
     ],
-    "012363": [
+    "012752": [
         {
-            "buy_price": 10890.68721560698,
-            "confirmed_date": "2024-11-11",
-            "single_value": 1.2386,
-            "nums": 8792.739557247683
+            "buy_price": 8580.445338380476,
+            "confirmed_date": "2023-06-28",
+            "single_value": 1.8719,
+            "nums": 4583.816089737954
         },
         {
-            "sell_nums": 8792.739557247683,
-            "confirmed_date": "2024-12-02",
-            "single_value": 1.1624
+            "sell_nums": 4583.816089737954,
+            "confirmed_date": "2023-07-20",
+            "single_value": 1.9132
         }
     ],
-    "013477": [
+    "007937": [
         {
-            "buy_price": 10220.680461344708,
-            "confirmed_date": "2024-12-02",
-            "single_value": 1.0625,
-            "nums": 9619.463963618547
+            "buy_price": 8769.756942886654,
+            "confirmed_date": "2023-09-25",
+            "single_value": 2.0518,
+            "nums": 4274.17727989407
+        },
+        {
+            "sell_nums": 4274.17727989407,
+            "confirmed_date": "2023-10-16",
+            "single_value": 2.0145
+        }
+    ],
+    "003718": [
+        {
+            "buy_price": 8610.330130346603,
+            "confirmed_date": "2024-02-26",
+            "single_value": 0.3149,
+            "nums": 27343.061703228337
+        },
+        {
+            "sell_nums": 27343.061703228337,
+            "confirmed_date": "2024-04-09",
+            "single_value": 0.3229
+        }
+    ],
+    "000628": [
+        {
+            "buy_price": 8829.07462397243,
+            "confirmed_date": "2024-05-06",
+            "single_value": 4.1832,
+            "nums": 2110.603036902952
+        },
+        {
+            "sell_nums": 2110.603036902952,
+            "confirmed_date": "2024-06-14",
+            "single_value": 4.1003
         }
     ]
 }
