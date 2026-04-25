@@ -75,7 +75,7 @@ class VirtualCondition:
         for name, df in self.dataframes.items():
             if df is None or len(df) < days:
                 continue
-            if yearly_return_since_start(code=None,df=df,expected_interval_days=30)>=0:
+            if yearly_return_since_start(code=None,df=df,expected_interval_days=40)>=0:
                 up_nums+=1
             else:
                 down_nums+=1

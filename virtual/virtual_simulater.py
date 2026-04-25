@@ -1,5 +1,6 @@
 from virtual_canvas import virtualcanvas
 from virtual_df_split import get_dataframe_by_path,split_dataframe
+from global_virtual_tracker import pause
 from virtual_tracker import virtual_tracker,reset_tracker
 from virtual_condition import VirtualCondition
 from virtual_account import virtual_account
@@ -17,11 +18,7 @@ current_path = Path(__file__).resolve()
 target_dir = current_path.parent.parent / "my_types" / "Equity"
 
 
-def get_pathes():
-    pathes=[]
-    for i in range(1,6):
-        pathes.append(f"A:\\projects\\money2\\my_types\\Qdii\\50{i}018.csv")
-    return pathes
+
 
 
 
@@ -41,12 +38,13 @@ class virtual_simulater:
         for name in self.df_names:
             self.transaction_trakers[name]=virtual_tracker(code=name, df=self.dataframes[name], date=self.current_date, virtual_account=self.virtual_account)
 
+
+
     def time_flow(self):
         """模拟时间流动，每调用一次，日期前进一天，并更新所有 tracker 的日期"""
         if self.current_date<self.end_date:
             self.update_trackers()
             self.current_date += timedelta(days=1)
-            
             return True
         return False
 
@@ -258,9 +256,15 @@ class virtual_simulater:
                     if not suggest_buy_list:
                         for item in current_holding_codes:
                             self.virtual_sell(code=item,date=self.current_date,ratio=1)
+                    if suggest_buy_list and current_holding_codes and suggest_buy_list[0]!=current_holding_codes[0]:
+                        print("温度高，换着卖卖卖",current_holding_codes[0])
+                        self.virtual_sell(code=current_holding_codes[0],date=self.current_date,ratio=1)
+
+                    
                     if suggest_buy_list and self.cheak_cash()>0:
                         self.virtual_buy(code=suggest_buy_list[0],date=self.current_date,ratio=1)
-                        current_holding_codes.append(suggest_buy_list[0])
+                        if current_holding_codes:
+                            current_holding_codes[0]=suggest_buy_list[0]
                 self.virtual_system_confirm()
                 if callback:
                     date_str = self.current_date.strftime('%Y-%m-%d')
@@ -307,8 +311,8 @@ if __name__ == "__main__":
     simulater = virtual_simulater(
         paths=paths, 
         initial_cash=10000, 
-        start_date="2023-1-24", 
-        end_date="2024-9-1"
+        start_date="2024-9-24", 
+        end_date="2026-4-1"
     )
 
     # 3. 创建并配置线程

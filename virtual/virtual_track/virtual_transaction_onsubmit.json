@@ -1,80 +1,50 @@
 {
-    "006603": [
-        {
-            "buy_date": "2023-01-25",
+    "2024-09-25": {
+        "44OQ2QRNY9": {
+            "action": "buy",
+            "code": "000011",
             "buy_price": 10000,
-            "nums": 7288.098535092194,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2023-03-10",
-            "sell_nums": 7288.098535092194,
             "status": "checked"
         }
-    ],
-    "012769": [
-        {
-            "buy_date": "2023-04-23",
-            "buy_price": 8993.513592303767,
-            "nums": 5986.496433670883,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2023-05-15",
-            "sell_nums": 5986.496433670883,
+    },
+    "2024-10-02": {
+        "OVAR316D8D": {
+            "action": "sell",
+            "code": "000011",
+            "sell_ratio": 1,
+            "status": "unchecked"
+        }
+    },
+    "2024-10-10": {
+        "8ZA6LXQBDN": {
+            "action": "sell",
+            "code": "000011",
+            "sell_ratio": 1,
             "status": "checked"
         }
-    ],
-    "012752": [
-        {
-            "buy_date": "2023-06-28",
-            "buy_price": 8580.445338380476,
-            "nums": 4583.816089737954,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2023-07-20",
-            "sell_nums": 4583.816089737954,
+    },
+    "2024-10-11": {
+        "4Z2Q204SSP": {
+            "action": "buy",
+            "code": "000011",
+            "buy_price": 11343.38970999035,
             "status": "checked"
         }
-    ],
-    "007937": [
-        {
-            "buy_date": "2023-09-24",
-            "buy_price": 8769.756942886654,
-            "nums": 4274.17727989407,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2023-10-16",
-            "sell_nums": 4274.17727989407,
+    },
+    "2024-10-18": {
+        "9XHVEAZZ0T": {
+            "action": "sell",
+            "code": "000011",
+            "sell_ratio": 1,
             "status": "checked"
         }
-    ],
-    "003718": [
-        {
-            "buy_date": "2024-02-25",
-            "buy_price": 8610.330130346603,
-            "nums": 27343.061703228337,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2024-04-09",
-            "sell_nums": 27343.061703228337,
-            "status": "checked"
+    },
+    "2024-10-19": {
+        "SZ52C2FI5I": {
+            "action": "buy",
+            "code": "000011",
+            "buy_price": 11505.163186388158,
+            "status": "unchecked"
         }
-    ],
-    "000628": [
-        {
-            "buy_date": "2024-05-01",
-            "buy_price": 8829.07462397243,
-            "nums": 2110.603036902952,
-            "status": "checked"
-        },
-        {
-            "sell_date": "2024-06-14",
-            "sell_nums": 2110.603036902952,
-            "status": "checked"
-        }
-    ]
+    }
 }

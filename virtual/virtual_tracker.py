@@ -163,6 +163,9 @@ class virtual_tracker:
         except Exception as e:
             print(f"买入确认失败: {e}")
             return
+        
+    
+
 
     def get_repository(self,purpose="sell"):
         """获取仓库目前的数量"""
