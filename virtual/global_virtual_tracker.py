@@ -1,3 +1,4 @@
+# 这里是系统核心追踪器的实现，通过追踪器卖和买，通过追踪器实现对冻结资金的控制模拟和基金持仓的浮动价值追踪
 import json
 import os
 from datetime import datetime
@@ -41,8 +42,6 @@ def r_json(path):
         return {}
     except Exception as e:
         raise(e)
-        
-
 
 def w_json(path, data): # 将参数名 json 改为 data
     try:

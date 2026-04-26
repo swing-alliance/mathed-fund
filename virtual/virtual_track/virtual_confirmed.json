@@ -1,46 +1,46 @@
 {
-    "004403": [
+    "001583": [
         {
             "confirm_date": "2025-04-21",
-            "confirm_single_value": 1.36,
-            "operate_nums": 1470.5882352941176,
-            "left_nums": 1470.5882352941176,
+            "confirm_single_value": 1.9773,
+            "operate_nums": 1011.4803014211298,
+            "left_nums": 1011.4803014211298,
             "action": "buy"
         }
     ],
-    "007853": [
+    "010550": [
         {
             "confirm_date": "2025-04-21",
-            "confirm_single_value": 1.1671,
-            "operate_nums": 1713.6492160054836,
-            "left_nums": 1713.6492160054836,
+            "confirm_single_value": 0.3944,
+            "operate_nums": 5070.993914807303,
+            "left_nums": 5070.993914807303,
             "action": "buy"
         }
     ],
-    "009886": [
+    "007413": [
         {
             "confirm_date": "2025-04-21",
-            "confirm_single_value": 0.7379,
-            "operate_nums": 2710.3943623797263,
-            "left_nums": 2710.3943623797263,
+            "confirm_single_value": 1.5206,
+            "operate_nums": 1315.2702880441932,
+            "left_nums": 1315.2702880441932,
             "action": "buy"
         }
     ],
-    "008227": [
+    "501047": [
         {
             "confirm_date": "2025-04-21",
-            "confirm_single_value": 1.2253,
-            "operate_nums": 1632.253325716151,
-            "left_nums": 1632.253325716151,
+            "confirm_single_value": 1.065,
+            "operate_nums": 1877.9342723004695,
+            "left_nums": 1877.9342723004695,
             "action": "buy"
         }
     ],
-    "009009": [
+    "008515": [
         {
             "confirm_date": "2025-04-21",
-            "confirm_single_value": 1.2641,
-            "operate_nums": 1582.1533106558024,
-            "left_nums": 1582.1533106558024,
+            "confirm_single_value": 1.6268,
+            "operate_nums": 1229.4074256208507,
+            "left_nums": 1229.4074256208507,
             "action": "buy"
         }
     ]
