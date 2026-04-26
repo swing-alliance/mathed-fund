@@ -22,6 +22,9 @@ class virtual_account:
                 print("现金不足，无法完成操作")
                 return False
             self.cash = cash
+            return True
+        print("尝试账户扣款数量为零，已经失败")
+        return False
 
     def get_balance(self):
         """获取当前余额"""

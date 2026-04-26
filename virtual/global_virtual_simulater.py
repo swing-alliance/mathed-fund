@@ -1,7 +1,7 @@
 from virtual_canvas import virtualcanvas
 from virtual_df_split import get_dataframe_by_path,split_dataframe
 from global_virtual_tracker import pause,global_virtual_tracker
-from virtual_tracker import reset_tracker
+from global_virtual_tracker import reset_tracker
 from virtual_condition import VirtualCondition
 from virtual_account import virtual_account
 from PyQt5.QtCore import QThread
@@ -127,9 +127,42 @@ class virtual_simulater:
         """模拟卖出操作，考虑当前持仓数量和卖出比例"""
         self.global_vt.global_transaction_submit(code,None,None,self.current_date,ratio,"sell")
 
-
     
- 
+    def user_operate(self):
+        """
+        灵活交互模式：
+        输入格式：[动作] [代码] [比例]
+        例子：
+          b 000061 0.5  -> 买入 000061，比例 0.5
+          s 000061 1    -> 卖出 000061，比例 1.0 (全仓)
+          回车          -> 直接跳过，不进行任何操作
+        """
+        print(f"\n>>>> 暂停中 [日期: {self.current_date}] <<<<")
+        user_input = input("请输入指令 (b/s 代码 比例) 或直接回车跳过: ").strip().lower()
+
+        if not user_input:
+            print("跳过操作。")
+            return
+
+        # 拆分字符串
+        parts = user_input.split()
+        action = parts[0] # 第一个参数：b 或 s
+
+        try:
+            # 逻辑：如果用户没输完，就用默认值
+            code = parts[1] if len(parts) > 1 else "000061"
+            ratio = float(parts[2]) if len(parts) > 2 else 0.1
+
+            if action == 'b':
+                self.virtual_buy(code, ratio)
+            elif action == 's':
+                self.virtual_sell(code, ratio)
+            else:
+                print(f"无效动作 '{action}'，请输入 b (买) 或 s (卖)")
+        except ValueError:
+            print("错误：比例必须是 0 到 1 之间的数字")
+        except Exception as e:
+            print(f"指令执行失败: {e}")
 
     def start(self):
         """执行全局追踪器架构的测试代码"""
@@ -137,10 +170,10 @@ class virtual_simulater:
             reset_tracker()
             time_count=1
             while self.time_flow():
-                self.virtual_buy("000011",1)
-                if time_count%8==0:
-                    self.virtual_sell("000011",1)
-                pause(info=f"当前日期{self.current_date}, 计数器{time_count%4}, 当前df数量{len(self.dataframes)}")
+                if time_count%4==0:
+                    pause(info=f"程序:当前是{str(self.current_date)[:10]}三点前,选择操作")
+                    self.user_operate()
+                pause(info=f"当前日期{str(self.current_date)[:10]}三点后, 计数器{time_count%4}, 当前df数量{len(self.dataframes)}，账户剩余{self.virtual_account.get_balance()},即将度过今天")
                 self.virtual_system_confirm()
                 
                 time_count+=1
@@ -167,8 +200,8 @@ if __name__ == "__main__":
     simulater = virtual_simulater(
         paths=paths, 
         initial_cash=10000, 
-        start_date="2024-9-24", 
-        end_date="2026-4-1"
+        start_date="2025-10-24", 
+        end_date="2026-3-1"
     )
     simulater.start()
 

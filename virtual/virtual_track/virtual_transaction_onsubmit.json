@@ -1,50 +1,10 @@
 {
-    "2024-09-25": {
-        "44OQ2QRNY9": {
+    "2025-10-28": {
+        "3X9FS07GXT": {
             "action": "buy",
-            "code": "000011",
-            "buy_price": 10000,
+            "code": "000061",
+            "buy_price": 10000.0,
             "status": "checked"
-        }
-    },
-    "2024-10-02": {
-        "OVAR316D8D": {
-            "action": "sell",
-            "code": "000011",
-            "sell_ratio": 1,
-            "status": "unchecked"
-        }
-    },
-    "2024-10-10": {
-        "8ZA6LXQBDN": {
-            "action": "sell",
-            "code": "000011",
-            "sell_ratio": 1,
-            "status": "checked"
-        }
-    },
-    "2024-10-11": {
-        "4Z2Q204SSP": {
-            "action": "buy",
-            "code": "000011",
-            "buy_price": 11343.38970999035,
-            "status": "checked"
-        }
-    },
-    "2024-10-18": {
-        "9XHVEAZZ0T": {
-            "action": "sell",
-            "code": "000011",
-            "sell_ratio": 1,
-            "status": "checked"
-        }
-    },
-    "2024-10-19": {
-        "SZ52C2FI5I": {
-            "action": "buy",
-            "code": "000011",
-            "buy_price": 11505.163186388158,
-            "status": "unchecked"
         }
     }
 }

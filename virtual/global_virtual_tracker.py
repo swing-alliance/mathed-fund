@@ -15,13 +15,14 @@ def generate_order_id(length=10):
     # 使用 secrets 模块比 random 更安全
     return ''.join(secrets.choice(characters) for _ in range(length))
 
-
+#所有买入卖出申请随时间都要checked，发现随时间uncheck或者failed属于严重问题
 
 current_path = Path(__file__).resolve()
 target_dir = current_path.parent.parent / "my_types" / "Equity"
 
 transaction_confirmed_path=os.path.join(os.getcwd(),'virtual_track',"virtual_confirmed.json")
 transaction_onsubmit_path=os.path.join(os.getcwd(),'virtual_track',"virtual_transaction_onsubmit.json")
+frozen_cash_path=os.path.join(os.getcwd(),'virtual_track',"virtual_frozen.json")
 
 def r_json(path):
     try:
@@ -39,8 +40,8 @@ def r_json(path):
         print(f"路径 {path} 下的 JSON 格式损坏")
         return {}
     except Exception as e:
-        print(f"json读取失败严重错误: {e}")
-        return {}
+        raise(e)
+        
 
 
 def w_json(path, data): # 将参数名 json 改为 data
@@ -50,7 +51,8 @@ def w_json(path, data): # 将参数名 json 改为 data
         return True # 执行成功返回 True 是个好习惯
     except Exception as e:
         print(f"json写回严重错误: {e}")
-        return False
+        raise(e)
+        
 
 def get_dfs(target_dir):
     try:
@@ -64,20 +66,31 @@ def get_dfs(target_dir):
     except Exception as e:
         print("加载dfs出错",e)
 
-
+# "2025-10-02": {
+#         "HU5B6Q6QY5": {
+#             "action": "buy",
+#             "code": "000061",
+#             "buy_price": 900.0,
+#             "status": "checked"
+#         }
+#     },
 
     
         
 def pause(info):
     # 将变量直接嵌入字符串中
-    input(f"\n程序已暂停, 暂停信息: {info}")
+    input(f"\n程序: {info}")
 
 
 
 class global_virtual_tracker():
+    """用于仓库追踪和冻结追踪的整个控制"""
     def __init__(self,dfs,date,account:virtual_account):
         self.dfs=dfs
+        self.portfolio_tracker=global_Portfolio_tracker()
         self.account=account
+        self.freeze_tracker=global_frozen_cash_tracker(self.account)
+        
         if isinstance(date, str):
             self.date = datetime.strptime(date, "%Y-%m-%d")
         else:
@@ -104,8 +117,9 @@ class global_virtual_tracker():
                 "status":"unchecked"
                 }
                 transactions[buy_date][order_id]=(transaction_record)
+                self.freeze_tracker.create_freeze_cash(order_id,submit_buy_price,t=0)
                 w_json(transaction_onsubmit_path,transactions)
-                print(f"买入记录已添加：{transaction_record}")
+                print(f"买入申请记录已添加：{transaction_record}")
             except Exception as e:
                 print(f"提交买入失败: {e}")
                 return
@@ -123,8 +137,21 @@ class global_virtual_tracker():
                         "status":"unchecked"
                     }
                     transactions[sell_date][order_id]=(transaction_record)
+                try:
+                    confirm_date,confirm_single_value=self.find_to_confirm_dayinfo(code=code,submit_date=sell_date)
+                    confirm_date = str(confirm_date)[:10]
+                    left_nums=self.portfolio_tracker.get_a_portfolio_nums(code=code)
+                    cut_nums=left_nums*sell_ratio
+                    freeze_cash=cut_nums*confirm_single_value
+                
+                    if freeze_cash==0:
+                        print("检查大脑或逻辑,试图卖出冻结为零")
+                    self.portfolio_tracker.create_p(code,confirm_date,confirm_single_value,cut_nums,"sell")
+                    self.freeze_tracker.create_return_freeze_cash(order_id,freeze_cash,t=2)
+                except Exception as e:
+                    raise RuntimeError(f"卖出提交的行情原子化错误: {e}")
                 w_json(transaction_onsubmit_path,transactions)
-                print(f"卖出记录已添加：{transaction_record}")
+                print(f"卖出申请记录已添加：{transaction_record},账户资金已经冻结")
             except Exception as e:
                 print(f"提交卖出失败: {e}")
                 return
@@ -171,81 +198,288 @@ class global_virtual_tracker():
     def global_transaction_confirming(self):
         """系统调用用于一天的确认进程"""
         try:
-            confirmmed_data=r_json(transaction_confirmed_path)
             all_data=r_json(transaction_onsubmit_path)
             unchecked_list=self.get_unchecked_submits()
             for item in unchecked_list:
                 submit_date=item[0]
-                sumbit_id=item[1]
-                detail=all_data[submit_date][sumbit_id]
+                submit_id=item[1]
+                detail=all_data[submit_date][submit_id]
                 code=detail["code"]
-                if detail["action"]=="buy":
-                    avaliable_cash=self.account.get_balance()
-                    if avaliable_cash<detail["buy_price"]:
-                        print("哥们买不起")
-                        all_data[submit_date][sumbit_id]["status"]="failed"
-                    df=self.get_df(code)
-                    if df is None or df.empty:
-                        all_data[submit_date][sumbit_id]["status"]="failed"
-                        raise ValueError("系统调用用于一天买入的确认时代码相对的df不存在，严重错误")
-                    result = df[df['净值日期'] == submit_date]
-                    if not result.empty:
-                        single_value=result.iloc[0]['累计净值']
-                        nums=detail["buy_price"]/single_value
-                        self.account.decrease_cash(detail["buy_price"])
-                        confirmmed_data[code]={"nums":nums}
-                        all_data[submit_date][sumbit_id]["status"]="checked"
-                        print("买入成功，账户已经转换为筹码")
-                        continue
-                    print(f"订单{sumbit_id},仍然unchecked")
+                if detail["action"]=="buy":#主要追踪器执行买入确认
+                    buy_price=detail["buy_price"]
+                    if self.account.get_balance()<detail["buy_price"]:
+                        print("大脑决策严重问题，账户没有现金却提交买入")
+                        all_data[submit_date][submit_id]["status"]="failed"
+
+                    if self.freeze_tracker.check_frozen(submit_id) and self.find_to_confirm_dayinfo(code=code,submit_date=submit_date):#这里会自己解冻一天
+                        try:
+                            print("开始尝试原子化确认买入")
+                            confirm_date,confirm_single_value=self.find_to_confirm_dayinfo(code=code,submit_date=submit_date)
+                            confirm_date = str(confirm_date)[:10]
+                            buy_amount=buy_price/confirm_single_value
+                            self.freeze_tracker.de_frozen(submit_id)
+                            self.portfolio_tracker.create_p(code,confirm_date,confirm_single_value,nums=buy_amount,action="buy")
+                            all_data[submit_date][submit_id]["status"]="checked"
+                            print("买入原子化确认成功")
+                            continue
+                        except Exception as e:
+                            raise RuntimeError(f"买入确认原子化失败{e}")
+                    print(f"订单{submit_id},仍然unchecked")
+                    all_data[submit_date][submit_id]["status"]="unchecked"
                     continue
-                if detail["action"]=="sell":
-                    sell_code=detail["code"]
-                    
-                    sell_ratio=detail["sell_ratio"]
-                    if sell_code not in confirmmed_data:
-                        all_data[submit_date][sumbit_id]["status"]="failed"
-                        print("卖出确认时发现未知记录,错误")
-                        
-                    df=self.get_df(code)
-                    
-                    if df is None or df.empty:
-                        all_data[submit_date][sumbit_id]["status"]="failed"
-                        raise ValueError("系统调用用于一天卖出的确认时代码相对的df不存在，严重错误")
-                    result = df[df['净值日期'] == submit_date]
-                    if not result.empty:
-                        single_value=result.iloc[0]['累计净值']
-                        nums=confirmmed_data[code]["nums"]
-                        left_nums=nums*(1-sell_ratio)
-                        confirmmed_data[code]["nums"]=left_nums
-                        all_data[submit_date][sumbit_id]["status"]="checked"
-                        return_value=(nums-left_nums)*single_value
-                        self.account.increase_cash(return_value)
-                        print("卖出成功，筹码变现回账户")
-                        continue
-                    print(f"订单{sumbit_id},仍然unchecked")
+                if detail["action"]=="sell":#主要追踪器执行卖出确认
+                    if self.freeze_tracker.check_frozen(submit_id) and self.find_to_confirm_dayinfo(code=code,submit_date=submit_date):#这里会自己解冻一天,如果已经冻上了就减去一天
+                        try:
+                            print("开始尝试原子化确认卖出")
+                            
+                            self.freeze_tracker.de_frozen(submit_id)
+                            to_account_cash=self.freeze_tracker.get_amount_info(submit_id)
+                            self.account.increase_cash(to_account_cash)
+                            all_data[submit_date][submit_id]["status"]="checked"
+                            print("卖出原子化确认成功")
+                            continue
+                        except Exception as e:
+                            raise RuntimeError(f"卖出确认原子化失败: {e}")
                     continue
             w_json(transaction_onsubmit_path,all_data)
-            w_json(transaction_confirmed_path,confirmmed_data)
+           
             print("一天的确认完成了")
         except Exception as e:
             print("系统调用用于一天的确认失败",e)
 
 
+    def find_to_confirm_dayinfo(self, code, submit_date):
+        try:
+            df = self.get_df(code)
+            if df is None or df.empty:
+                raise ValueError("代码对应的df不存在")
+            # 确保日期格式一致（建议统一转为 pd.to_datetime）
+            result = df[df['净值日期'] >= submit_date]  
+            if result.empty:
+                raise ValueError(f"行情数据尚未覆盖到日期: {submit_date}")
+            single_value = result.iloc[0]['累计净值']
+            confirm_date = result.iloc[0]["净值日期"]
+            return confirm_date, single_value
+            
+        except Exception as e:
+            # 这里一定要 raise，外层才能抓到具体的错误信息
+            raise RuntimeError(f"行情查询失败: {e}")
+
+class global_Portfolio_tracker():
+    """直接仓位管理，最基本的code:{action:buy/sell,confirm_date:date,confirm_value=value,operate_nums,left_nums}"""
+    def __init__(self):
+        self.c_p_path=transaction_confirmed_path
+
+    def create_p(self,code,confirm_date,confirm_single_value,nums,action):
+        """创建仓库和仓库管理的关键方法"""
+        try:
+            p_info=r_json(self.c_p_path)
+            if action == "buy":
+                left_nums=self.get_a_portfolio_nums(code)
+                left_nums+=nums
+                if code not in p_info:
+                    p_info[code]=[]
+                single_record={
+                    "confirm_date":confirm_date,
+                    "confirm_single_value":confirm_single_value,
+                    "operate_nums":nums,
+                    "left_nums":left_nums,
+                    "action":"buy"
+                }
+                p_info[code].append(single_record)
+                w_json(self.c_p_path,p_info)
+                return True
+            if action =="sell":
+                left_nums=self.get_a_portfolio_nums(code)
+                left_nums-=nums
+                if left_nums<0:
+                    raise ValueError("严重错误，卖出后为负数")
+                if code not in p_info:
+                    raise ValueError("严重错误，代码没有任何相关交易却尝试确认卖出")
+                single_record={
+                    "confirm_date":confirm_date,
+                    "confirm_single_value":confirm_single_value,
+                    "operate_nums":-nums,
+                    "left_nums":left_nums,
+                    "action":"sell"
+                }
+                p_info[code].append(single_record)
+                w_json(self.c_p_path,p_info)
+                return True
+        except Exception as e:
+            print("创建持仓时严重错误",e)
+            raise (e)
+        
+
+    def get_a_portfolio_nums(self,code):
+        """获取目前代码最终剩余数量"""
+        try:
+            p_info=r_json(self.c_p_path)
+            if code not in p_info:
+                return 0
+            last_item=p_info[code][-1]
+            return last_item["left_nums"]
+        except Exception as e:
+            print(f"获取目前代码{code}最终剩余数量严重错误",e)
+
+    
+    
+    def get_all_portfolios(self):
+        try:
+            all_p_info=[]
+            p_info=r_json(self.c_p_path)
+            if not p_info:
+                return 0
+            
+        except Exception as e:
+            print("获取所有动态持仓失败",e)
+    
+
+
+class global_frozen_cash_tracker():
+    def __init__(self,account:virtual_account):
+        """格式freeze_info[submit_id] = {
+                    "amount": amount,
+                    "action": "buy",
+                    "status": "frozen",
+                    "t": t}冻结追踪是持仓仓库和现金账户的媒介"""
+        self.account=account
+        self.freezen_amount=0
+
+    def create_freeze_cash(self, submit_id, amount, t=0):
+        """面向账户冻结, 发生在买入提交"""
+        try:
+            # 1. 尝试扣款
+            if not self.account.decrease_cash(amount):#已经执行扣款
+                print(f"扣款失败：余额不足。ID: {submit_id}")
+                return False
+            try:
+                freeze_info = r_json(frozen_cash_path)
+                freeze_info[submit_id] = {
+                    "amount": amount,
+                    "action": "buy",
+                    "status": "frozen",
+                    "t": t
+                }
+                w_json(frozen_cash_path, freeze_info)
+                return True 
+            except Exception as file_error:
+                print(f"致命错误：记录冻结信息失败，执行资金回滚。{file_error}")
+                self.account.increase_cash(amount) # 假设你有增加余额的方法
+                return False
+        except Exception as e:
+            print(f"账户冻结流程发生未知错误: {e}")
+            return False
+        
+    def create_return_freeze_cash(self,submit_id,amount,t=0):
+        "面向持仓，创建持仓回款冻结，发生在卖出提交"
+        try:
+            freeze_info = r_json(frozen_cash_path)
+            freeze_info[submit_id] = {
+                "amount": amount,
+                "action": "sell",
+                "status": "frozen",
+                "t": t
+            }
+            w_json(frozen_cash_path, freeze_info)
+            return True 
+        except Exception as file_error:
+            raise(f"致命错误：持仓回款冻结流程失败。{file_error}")
 
 
 
+    def check_frozen(self,submit_id):
+        "检查封印的是否解冻"
+        try:
+            freeze_info=r_json(frozen_cash_path)
+            if freeze_info[submit_id]["t"]==0:
+                w_json(frozen_cash_path, freeze_info)
+                return True
+            else:
+                freeze_info[submit_id]["t"]-=1
+                w_json(frozen_cash_path, freeze_info)
+                return False
+        except Exception as e:
+            print("检查封印的是否解冻时严重错误",e)
+            return False
+        
+    def de_frozen(self,submit_id):
+        """解冻逻辑"""
+        try:
+            freeze_info=r_json(frozen_cash_path)
+            if freeze_info[submit_id]["status"]=="frozen" and freeze_info[submit_id]["t"]==0:
+                if freeze_info[submit_id]["action"]=="buy":
+                    freeze_info[submit_id]["status"]="unfreeze"
+                    w_json(frozen_cash_path, freeze_info)
+                    return True
+                if freeze_info[submit_id]["action"]=="sell" and freeze_info[submit_id]["t"]==0:
+                    freeze_info[submit_id]["status"]="unfreeze"
+                    w_json(frozen_cash_path, freeze_info)
+                    return True
+            return False
+        except Exception as e:
+            raise RuntimeError(f"解冻时严重错误{e}")
+    
+    def get_amount_info(self, submit_id):
+        """
+        根据平铺结构的 JSON 获取金额
+        数据结构示例: {"56ICDK5KZV": {"amount": 9866.14, "action": "sell", ...}}
+        """
+        try:
+            # 1. 读取 JSON (确保 frozen_cash_path 路径正确)
+            freeze_info = r_json(frozen_cash_path)
+            
+            # 2. 直接通过 submit_id 访问
+            if submit_id in freeze_info:
+                order_detail = freeze_info[submit_id]
+                
+                # 校验是否为卖出回款
+                if order_detail.get("action") == "sell":
+                    return float(order_detail["amount"])
+                else:
+                    # 如果是买入单，不应该在这里获取回款金额
+                    raise ValueError(f"订单 {submit_id} 的动作为 {order_detail.get('action')}，非卖出回款")
+            
+            # 3. 如果没找到
+            raise ValueError(f"未找到订单 ID: {submit_id}")
+
+        except Exception as e:
+            # 这里的 raise 语法现在是正确的
+            raise RuntimeError(f"获取金额失败: {e}")
 
 
-
+def reset_tracker():
+    """重置追踪器，清空所有记录"""
+    try:
+        with open(transaction_confirmed_path, 'w', encoding='utf-8') as f:
+            json.dump({}, f, ensure_ascii=False, indent=4)
+        with open(transaction_onsubmit_path, 'w', encoding='utf-8') as f:
+            json.dump({}, f, ensure_ascii=False, indent=4)
+        with open(frozen_cash_path, 'w', encoding='utf-8') as f:
+            json.dump({}, f, ensure_ascii=False, indent=4)
+        print("追踪器已重置，所有记录已清空。")
+    except Exception as e:
+        print(f"重置追踪器失败: {e}")
+        return
 
 
 
 if __name__=="__main__":
-    vc=virtual_account(1000)
+    reset_tracker()
+    vc=virtual_account(10000)
     vt=global_virtual_tracker(dfs=get_dfs(target_dir),date=None,account=vc)
-    # vt.global_transaction_submit(code=000011,buy_price=1000,buy_date="2024-09-14",sell_date=None,sell_nums=None,action="buy")
-    # vt.global_transaction_submit(code=123545,buy_price=10500,buy_date="2024-09-25",sell_date=None,sell_nums=None,action="buy")
-    vt.global_transaction_submit(code=1345,buy_price=None,buy_date=None,sell_date="2024-09-28",sell_ratio=1,action="sell")
+    vt.global_transaction_submit(code="000011",buy_price=1000,buy_date="2024-09-14",sell_date=None,sell_ratio=None,action="buy")
+    # vt.global_transaction_submit(code=123545,buy_price=10500,buy_date="2024-09-25",sell_date=None,sell_ratio=None,action="buy")
+    #vt.global_transaction_submit(code=1345,buy_price=None,buy_date=None,sell_date="2024-09-28",sell_ratio=1,action="sell")
+    pause(f"{vt.account.get_balance()}")
+    vt.global_transaction_confirming()
+    pause(f"{vt.account.get_balance()}")
+    vt.global_transaction_submit(code="000011",buy_price=1000,buy_date="2024-09-15",sell_date=None,sell_ratio=None,action="buy")
+    pause(f"{vt.account.get_balance()}")
+    vt.global_transaction_confirming()
+    pause(f"{vt.account.get_balance()}")
+    vt.global_transaction_submit(code="000011",buy_price=1000,buy_date="2024-09-17",sell_date=None,sell_ratio=None,action="buy")
+    pause(f"{vt.account.get_balance()}")
+
     # vt.global_transaction_confirming()
     

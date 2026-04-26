@@ -1,5 +1,11 @@
 {
-    "000011": {
-        "nums": 0.0
-    }
+    "000061": [
+        {
+            "confirm_date": "2025-10-28",
+            "confirm_single_value": 1.84,
+            "operate_nums": 5434.782608695652,
+            "left_nums": 5434.782608695652,
+            "action": "buy"
+        }
+    ]
 }
