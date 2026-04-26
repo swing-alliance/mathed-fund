@@ -1,9 +1,33 @@
 {
-    "2025-10-28": {
-        "3X9FS07GXT": {
+    "2025-04-20": {
+        "5FES0MCWDB": {
             "action": "buy",
-            "code": "000061",
-            "buy_price": 10000.0,
+            "code": "004403",
+            "buy_price": 2000.0,
+            "status": "checked"
+        },
+        "I6V1BPVRP1": {
+            "action": "buy",
+            "code": "007853",
+            "buy_price": 2000.0,
+            "status": "checked"
+        },
+        "MMCZYTJ5LW": {
+            "action": "buy",
+            "code": "009886",
+            "buy_price": 2000.0,
+            "status": "checked"
+        },
+        "PPJI0P2NX3": {
+            "action": "buy",
+            "code": "008227",
+            "buy_price": 2000.0,
+            "status": "checked"
+        },
+        "E6GO7CFCNP": {
+            "action": "buy",
+            "code": "009009",
+            "buy_price": 2000.0,
             "status": "checked"
         }
     }

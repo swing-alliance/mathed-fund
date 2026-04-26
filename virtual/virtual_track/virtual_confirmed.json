@@ -1,10 +1,46 @@
 {
-    "000061": [
+    "004403": [
         {
-            "confirm_date": "2025-10-28",
-            "confirm_single_value": 1.84,
-            "operate_nums": 5434.782608695652,
-            "left_nums": 5434.782608695652,
+            "confirm_date": "2025-04-21",
+            "confirm_single_value": 1.36,
+            "operate_nums": 1470.5882352941176,
+            "left_nums": 1470.5882352941176,
+            "action": "buy"
+        }
+    ],
+    "007853": [
+        {
+            "confirm_date": "2025-04-21",
+            "confirm_single_value": 1.1671,
+            "operate_nums": 1713.6492160054836,
+            "left_nums": 1713.6492160054836,
+            "action": "buy"
+        }
+    ],
+    "009886": [
+        {
+            "confirm_date": "2025-04-21",
+            "confirm_single_value": 0.7379,
+            "operate_nums": 2710.3943623797263,
+            "left_nums": 2710.3943623797263,
+            "action": "buy"
+        }
+    ],
+    "008227": [
+        {
+            "confirm_date": "2025-04-21",
+            "confirm_single_value": 1.2253,
+            "operate_nums": 1632.253325716151,
+            "left_nums": 1632.253325716151,
+            "action": "buy"
+        }
+    ],
+    "009009": [
+        {
+            "confirm_date": "2025-04-21",
+            "confirm_single_value": 1.2641,
+            "operate_nums": 1582.1533106558024,
+            "left_nums": 1582.1533106558024,
             "action": "buy"
         }
     ]

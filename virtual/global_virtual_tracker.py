@@ -97,8 +97,8 @@ class global_virtual_tracker():
             self.date = date
     
     
-    def global_transaction_submit(self,code,buy_date:str, buy_price, sell_date, sell_ratio,action):
-        """提交"""
+    def global_transaction_submit(self,code,buy_date:str, buy_price, sell_date, sell_ratio,action,t):
+        """提交按照code,buy_price, sell_date, sell_ratio,action,t,其中t代表此交易会冻结多久"""
         order_id = generate_order_id()
         if action == "buy":
             try:
@@ -121,8 +121,7 @@ class global_virtual_tracker():
                 w_json(transaction_onsubmit_path,transactions)
                 print(f"买入申请记录已添加：{transaction_record}")
             except Exception as e:
-                print(f"提交买入失败: {e}")
-                return
+                raise RuntimeError(f"提交买入失败: {e}")
         if action == "sell":
             try:
                 sell_date =str(sell_date)[:10]  
@@ -147,14 +146,14 @@ class global_virtual_tracker():
                     if freeze_cash==0:
                         print("检查大脑或逻辑,试图卖出冻结为零")
                     self.portfolio_tracker.create_p(code,confirm_date,confirm_single_value,cut_nums,"sell")
-                    self.freeze_tracker.create_return_freeze_cash(order_id,freeze_cash,t=2)
+                    self.freeze_tracker.create_return_freeze_cash(order_id,freeze_cash,t=t)
                 except Exception as e:
                     raise RuntimeError(f"卖出提交的行情原子化错误: {e}")
                 w_json(transaction_onsubmit_path,transactions)
                 print(f"卖出申请记录已添加：{transaction_record},账户资金已经冻结")
             except Exception as e:
-                print(f"提交卖出失败: {e}")
-                return
+                raise RuntimeError(f"提交卖出失败: {e}")
+                
 
     def get_unchecked_submits(self):
         """获取所有未检查的记录"""
@@ -207,10 +206,7 @@ class global_virtual_tracker():
                 code=detail["code"]
                 if detail["action"]=="buy":#主要追踪器执行买入确认
                     buy_price=detail["buy_price"]
-                    if self.account.get_balance()<detail["buy_price"]:
-                        print("大脑决策严重问题，账户没有现金却提交买入")
-                        all_data[submit_date][submit_id]["status"]="failed"
-
+                    
                     if self.freeze_tracker.check_frozen(submit_id) and self.find_to_confirm_dayinfo(code=code,submit_date=submit_date):#这里会自己解冻一天
                         try:
                             print("开始尝试原子化确认买入")
@@ -320,19 +316,22 @@ class global_Portfolio_tracker():
             last_item=p_info[code][-1]
             return last_item["left_nums"]
         except Exception as e:
-            print(f"获取目前代码{code}最终剩余数量严重错误",e)
+            raise RuntimeError(f"获取目前代码{code}最终剩余数量严重错误",e)
 
     
     
-    def get_all_portfolios(self):
+    def get_all_holding_p(self):
+        """获取所有目前持仓不为0的代码返回"""
         try:
-            all_p_info=[]
+            list=[]
             p_info=r_json(self.c_p_path)
-            if not p_info:
-                return 0
-            
+            for code,data in p_info:
+                last_data=data[-1]
+                if last_data["left_nums"]>0:
+                    list.append(code)
+            return code
         except Exception as e:
-            print("获取所有动态持仓失败",e)
+            raise RuntimeError(f"获取所有目前持仓不为0的代码返回",e)
     
 
 

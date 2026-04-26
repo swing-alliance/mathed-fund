@@ -7,6 +7,7 @@ from virtual_account import virtual_account
 from PyQt5.QtCore import QThread
 from datetime import datetime, timedelta
 from collections import deque
+from global_virtual_brain import global_brain
 from thread_support import SimulationThread
 from pathlib import Path
 import time
@@ -86,83 +87,68 @@ class virtual_simulater:
             raise e
 
 
-    # def get_specific_dataframe(self,end_date):
-    #     """获取特定日期的 DataFrame，用于计算指标等"""
-    #     special_dfs = {}
-    #     for name, df in self.row_dfs.items():
-    #         try:
-    #             if df.empty:
-    #                 continue
-                    
-    #             # 修正：从原始 df 中提取起始日期，而不是从还没创建的 special_dfs 中提
-    #             start_time_val = df.iloc[0]['净值日期']
-                
-    #             special_dfs[name] = split_dataframe(
-    #                 df.copy(), 
-    #                 start_time=start_time_val, 
-    #                 end_time=end_date
-    #             )
-    #         except (KeyError, IndexError) as e:
-    #             print(f"无法获取 {name} 的特定数据: {e}")
-    #             continue
-    #     return special_dfs
-
     def virtual_system_confirm(self):
         "开始一天的确认"
         self.global_vt.global_transaction_confirming()
 
 
 
-    def virtual_buy(self,code,ratio):
-        """模拟买入操作，考虑当前余额和持仓比例"""
-        cash=self.virtual_account.get_balance()
-        if cash<=0:
-            print("余额不足，无法执行买入操作")
-            return
-        buy_amount=cash*ratio
-        self.global_vt.global_transaction_submit(code,self.current_date, buy_amount, None, None,"buy")
+    def virtual_buy(self,code,ratio,t):
+        """模拟买入操作，考虑当前余额和持仓比例,t设置为0"""
+        try:
+            cash=self.virtual_account.get_balance()
+            if cash<=0:
+                print("余额不足，无法执行买入操作")
+                return
+            buy_amount=cash*ratio
+            self.global_vt.global_transaction_submit(code,self.current_date, buy_amount, None, None,"buy",t)
+        except Exception as e:
+            raise RuntimeError(f"买入时发生了意外{e}")
 
 
-    def virtual_sell(self,code,ratio):
-        """模拟卖出操作，考虑当前持仓数量和卖出比例"""
-        self.global_vt.global_transaction_submit(code,None,None,self.current_date,ratio,"sell")
+    def virtual_sell(self,code,ratio,t):
+        """模拟卖出操作，考虑当前持仓数量和卖出比例,卖出的冻结时间"""
+        try:
+            self.global_vt.global_transaction_submit(code,None,None,self.current_date,ratio,"sell",t)
+        except Exception as e:
+            raise RuntimeError(f"卖出时发生了意外{e}")
 
     
     def user_operate(self):
         """
         灵活交互模式：
-        输入格式：[动作] [代码] [比例]
+        输入格式：[动作] [代码] [比例] [t]
         例子：
-          b 000061 0.5  -> 买入 000061，比例 0.5
-          s 000061 1    -> 卖出 000061，比例 1.0 (全仓)
-          回车          -> 直接跳过，不进行任何操作
+        b 000061 0.5 0  -> 买入 000061，比例 0.5，t=0
+        s 000061 1 1    -> 卖出 000061，全仓，t=1
+        回车            -> 直接跳过
         """
-        print(f"\n>>>> 暂停中 [日期: {self.current_date}] <<<<")
-        user_input = input("请输入指令 (b/s 代码 比例) 或直接回车跳过: ").strip().lower()
+        print(f"\n>>>> 暂停中 [当前日期: {self.current_date}] <<<<")
+        user_input = input("请输入指令 (动作 代码 比例 t) 或直接回车跳过: ").strip().lower()
 
         if not user_input:
-            print("跳过操作。")
+            print(">>> 跳过操作。")
             return
 
-        # 拆分字符串
         parts = user_input.split()
-        action = parts[0] # 第一个参数：b 或 s
-
+        action = parts[0]
+        if action not in ['b', 's']:
+            print(f"❌ 错误：无效动作 '{action}'，请输入 b (买) 或 s (卖)")
+            return
         try:
-            # 逻辑：如果用户没输完，就用默认值
             code = parts[1] if len(parts) > 1 else "000061"
             ratio = float(parts[2]) if len(parts) > 2 else 0.1
-
+            t = int(parts[3]) if len(parts) > 3 else 0
             if action == 'b':
-                self.virtual_buy(code, ratio)
+                print(f"执行：买入 {code}, 比例 {ratio}, t={t}")
+                self.virtual_buy(code, ratio, t)
             elif action == 's':
-                self.virtual_sell(code, ratio)
-            else:
-                print(f"无效动作 '{action}'，请输入 b (买) 或 s (卖)")
+                print(f"执行：卖出 {code}, 比例 {ratio}, t={t}")
+                self.virtual_sell(code, ratio, t)
         except ValueError:
-            print("错误：比例必须是 0 到 1 之间的数字")
+            print("❌ 错误：比例应为数字，t 应为整数。例如: b 000061 0.5 0")
         except Exception as e:
-            print(f"指令执行失败: {e}")
+            print(f"❌ 指令执行失败: {e}")
 
     def start(self):
         """执行全局追踪器架构的测试代码"""
@@ -177,13 +163,28 @@ class virtual_simulater:
                 self.virtual_system_confirm()
                 
                 time_count+=1
-
-                
         except Exception as e:
             import traceback
             traceback.print_exc()
 
 
+
+
+
+    def start_auto_brain(self):
+        """执行全局追踪器架构的测试代码"""
+        try:
+            reset_tracker()
+            brain=global_brain(dfs=self.dataframes,vt=self.global_vt,date=self.current_date)
+            while self.time_flow():
+                if brain.isawake():
+                    brain.think()
+                #这里是三点的分水岭
+                time.sleep(4)#慢四秒
+                self.virtual_system_confirm()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
 
 
     def end(self):
@@ -200,8 +201,8 @@ if __name__ == "__main__":
     simulater = virtual_simulater(
         paths=paths, 
         initial_cash=10000, 
-        start_date="2025-10-24", 
+        start_date="2025-4-20", 
         end_date="2026-3-1"
     )
-    simulater.start()
+    simulater.start_auto_brain()
 
