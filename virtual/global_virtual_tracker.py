@@ -83,7 +83,7 @@ def pause(info):
 
 
 class global_virtual_tracker():
-    """用于仓库追踪和冻结追踪的整个控制"""
+    """用于仓库追踪和冻结追踪的整个控制,回测系统的基础设施"""
     def __init__(self,dfs,date,account:virtual_account):
         self.dfs=dfs
         self.portfolio_tracker=global_Portfolio_tracker()
@@ -244,6 +244,7 @@ class global_virtual_tracker():
 
 
     def find_to_confirm_dayinfo(self, code, submit_date):
+        """行情查询方法，向后"""
         try:
             df = self.get_df(code)
             if df is None or df.empty:
@@ -258,7 +259,7 @@ class global_virtual_tracker():
             
         except Exception as e:
             # 这里一定要 raise，外层才能抓到具体的错误信息
-            raise RuntimeError(f"行情查询失败: {e}")
+            raise RuntimeError(f"向后行情查询失败,尝试下次再卖: {e}")
 
 class global_Portfolio_tracker():
     """直接仓位管理，最基本的code:{action:buy/sell,confirm_date:date,confirm_value=value,operate_nums,left_nums}"""
@@ -324,13 +325,32 @@ class global_Portfolio_tracker():
         try:
             list=[]
             p_info=r_json(self.c_p_path)
-            for code,data in p_info:
+            for code,data in p_info.items():
                 last_data=data[-1]
                 if last_data["left_nums"]>0:
                     list.append(code)
-            return code
+            return list
         except Exception as e:
             raise RuntimeError(f"获取所有目前持仓不为0的代码返回",e)
+        
+    # def find_to_confirm_dayinfo(self, code, submit_date):
+    #     """行情查询方法,向前"""
+    #     try:
+    #         df = self.get_df(code)
+    #         if df is None or df.empty:
+    #             raise ValueError("代码对应的df不存在")
+    #         # 确保日期格式一致（建议统一转为 pd.to_datetime）
+    #         result = df[df['净值日期'] <= submit_date]  
+    #         if result.empty:
+    #             raise ValueError(f"行情数据尚未覆盖到日期: {submit_date}")
+    #         single_value = result.iloc[-1]['累计净值']
+    #         confirm_date = result.iloc[-1]["净值日期"]
+    #         return confirm_date, single_value
+    #     except Exception as e:
+    #         # 这里一定要 raise，外层才能抓到具体的错误信息
+    #         raise RuntimeError(f"行情查询失败,尝试下次再卖: {e}")
+    
+    # def get_one_holind_p_value(self,code,submit_date):
     
 
 
@@ -420,30 +440,51 @@ class global_frozen_cash_tracker():
     
     def get_amount_info(self, submit_id):
         """
-        根据平铺结构的 JSON 获取金额
+        根据平铺结构的 JSON 获取金额,仅仅在卖出确认时调用
         数据结构示例: {"56ICDK5KZV": {"amount": 9866.14, "action": "sell", ...}}
         """
         try:
-            # 1. 读取 JSON (确保 frozen_cash_path 路径正确)
             freeze_info = r_json(frozen_cash_path)
-            
-            # 2. 直接通过 submit_id 访问
             if submit_id in freeze_info:
                 order_detail = freeze_info[submit_id]
-                
                 # 校验是否为卖出回款
                 if order_detail.get("action") == "sell":
                     return float(order_detail["amount"])
                 else:
-                    # 如果是买入单，不应该在这里获取回款金额
                     raise ValueError(f"订单 {submit_id} 的动作为 {order_detail.get('action')}，非卖出回款")
-            
-            # 3. 如果没找到
             raise ValueError(f"未找到订单 ID: {submit_id}")
-
         except Exception as e:
-            # 这里的 raise 语法现在是正确的
             raise RuntimeError(f"获取金额失败: {e}")
+        
+    def get_goout_frozen(self):
+        """获取所有从账户飞到持仓冻结的,只读"""
+        try:
+            freeze_info = r_json(frozen_cash_path)
+            total_amount = sum(item['amount'] for item in freeze_info.values() 
+                   if item.get('status') == 'freeze' and item.get('action') == 'buy')
+            return total_amount
+        except Exception as e:
+            raise(f"获取获取所有从账户飞到持仓冻结的严重失败,{e}")
+
+    def get_goin_frozen(self):
+        """获取所有从持仓飞回账户冻结的,只读"""
+        try:
+            freeze_info = r_json(frozen_cash_path)
+            total_amount = sum(item['amount'] for item in freeze_info.values() 
+                   if item.get('status') == 'freeze' and item.get('action') == 'sell')
+            return total_amount
+        except Exception as e:
+            raise(f"获取所有从持仓飞回账户冻结的严重失败,{e}")
+    
+    def get_all_frozen(self):
+        """获取所有冻结的,只读"""
+        try:
+            freeze_info = r_json(frozen_cash_path)
+            total_amount = sum(item['amount'] for item in freeze_info.values() 
+                   if item.get('status') == 'freeze')
+            return total_amount
+        except Exception as e:
+            raise(f"获获取所有冻结的严重失败,{e}")
 
 
 def reset_tracker():

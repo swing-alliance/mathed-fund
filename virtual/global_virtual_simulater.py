@@ -1,3 +1,4 @@
+#这是系统的入口，事件循环的起点
 from virtual_canvas import virtualcanvas
 from virtual_df_split import get_dataframe_by_path,split_dataframe
 from global_virtual_tracker import pause,global_virtual_tracker
@@ -15,12 +16,13 @@ import pandas as pd
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 import sys
 import os
-
+from global_date_manager import date_mannager
 current_path = Path(__file__).resolve()
 target_dir = current_path.parent.parent / "my_types" / "Equity"
 
 
 
+    
 
 
 
@@ -29,9 +31,10 @@ class virtual_simulater:
     def __init__(self,paths,initial_cash=10000,start_date=None,end_date=None):
         self.paths=paths
         self.virtual_account=virtual_account(initial_cash=initial_cash)
+        self.start_date=datetime.strptime(start_date, "%Y-%m-%d")
         self.end_date=datetime.strptime(end_date, "%Y-%m-%d")
-        self.current_date = datetime.strptime(start_date, "%Y-%m-%d")
-        self.transaction_orders = deque(maxlen=50)
+        self.date_mannager=date_mannager(start_date)
+        self.current_date = self.date_mannager.get_date()
         self.df_names=[path.split("\\")[-1].split(".")[0] for path in paths]
         self.row_dfs={}
         self.dataframes={}
@@ -45,10 +48,10 @@ class virtual_simulater:
 
     def time_flow(self):
         """模拟时间流动，每调用一次，日期前进一天，并更新所有 tracker 的日期"""
-        if self.current_date<self.end_date:
-            self.current_date += timedelta(days=1)
+        if self.date_mannager.get_date()<self.end_date:
+            self.date_mannager.daypass()
+            self.current_date = self.date_mannager.get_date()
             self.update_tracker()
-            
             return True
         return False
 
@@ -56,7 +59,7 @@ class virtual_simulater:
         """时间流逝后，需要更新tracker 的日期，并让它们处理新的日期逻辑"""
         self.get_trimmed_dataframes()
         self.global_vt.dfs=self.dataframes
-        self.global_vt.date=self.current_date
+        self.global_vt.date=self.date_mannager.get_date()
 
     def get_row_dfs(self):
         for name, path in zip(self.df_names, paths):
@@ -75,7 +78,7 @@ class virtual_simulater:
                     row_df['净值日期'] = pd.to_datetime(row_df['净值日期'])
                 
                 # 过滤数据
-                df_clipped = row_df[row_df['净值日期'] <= self.current_date].copy()
+                df_clipped = row_df[row_df['净值日期'] <= self.date_mannager.get_date()].copy()#这会把当天的数据裁剪进去，卖出时可以直接使用其净值冻结
                 self.dataframes[name] = df_clipped
                 
         except Exception as e:
@@ -151,15 +154,15 @@ class virtual_simulater:
             print(f"❌ 指令执行失败: {e}")
 
     def start(self):
-        """执行全局追踪器架构的测试代码"""
+        """执行全局追踪器架构的测试代码,手动版入口"""
         try:
             reset_tracker()
             time_count=1
             while self.time_flow():
-                if time_count%4==0:
-                    pause(info=f"程序:当前是{str(self.current_date)[:10]}三点前,选择操作")
+                if time_count%2==0:
+                    pause(info=f"程序:当前是{str(self.date_mannager.get_date())[:10]}三点前,选择操作")
                     self.user_operate()
-                pause(info=f"当前日期{str(self.current_date)[:10]}三点后, 计数器{time_count%4}, 当前df数量{len(self.dataframes)}，账户剩余{self.virtual_account.get_balance()},即将度过今天")
+                pause(info=f"当前日期{str(self.date_mannager.get_date())[:10]}三点后, 计数器{time_count%4}, 当前df数量{len(self.dataframes)}，账户剩余{self.virtual_account.get_balance()},即将度过今天")
                 self.virtual_system_confirm()
                 
                 time_count+=1
@@ -172,15 +175,18 @@ class virtual_simulater:
 
 
     def start_auto_brain(self):
-        """执行全局追踪器架构的测试代码"""
+        """执行全局追踪器架构的测试代码,自动化回测入口"""
         try:
             reset_tracker()
-            brain=global_brain(dfs=self.dataframes,vt=self.global_vt,date=self.current_date)
+            brain=global_brain(dfs=self.dataframes,vt=self.global_vt,account=self.virtual_account,date_mannager=self.date_mannager)
+            brain.fund_mannager.date = self.current_date
             while self.time_flow():
+                brain.date=self.current_date
                 if brain.isawake():
                     brain.think()
+                print("系统检查账户余额",self.virtual_account.get_balance())
                 #这里是三点的分水岭
-                time.sleep(4)#慢四秒
+                time.sleep(1)#慢1秒
                 self.virtual_system_confirm()
         except Exception as e:
             import traceback
@@ -201,7 +207,7 @@ if __name__ == "__main__":
     simulater = virtual_simulater(
         paths=paths, 
         initial_cash=10000, 
-        start_date="2025-4-20", 
+        start_date="2025-6-1", 
         end_date="2026-3-1"
     )
     simulater.start_auto_brain()

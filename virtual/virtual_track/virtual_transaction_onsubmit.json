@@ -1,33 +1,77 @@
 {
-    "2025-04-20": {
-        "5BO32UXZ9C": {
+    "2025-06-03": {
+        "20V3ZQ1SXQ": {
             "action": "buy",
-            "code": "001583",
-            "buy_price": 2000.0,
+            "code": "018957",
+            "buy_price": 9000,
             "status": "checked"
         },
-        "IIIF643SDS": {
+        "OEPZHRP22R": {
             "action": "buy",
-            "code": "010550",
-            "buy_price": 2000.0,
+            "code": "013166",
+            "buy_price": 200.0,
             "status": "checked"
         },
-        "V120ROCPIR": {
+        "JRDQZ2OOA1": {
             "action": "buy",
-            "code": "007413",
-            "buy_price": 2000.0,
+            "code": "013478",
+            "buy_price": 200.0,
             "status": "checked"
         },
-        "GMAKUBMD1A": {
+        "BATT9VM3NG": {
             "action": "buy",
-            "code": "501047",
-            "buy_price": 2000.0,
+            "code": "001070",
+            "buy_price": 200.0,
             "status": "checked"
         },
-        "3ENQ4M9S7U": {
+        "0XMHTZ8Y35": {
             "action": "buy",
-            "code": "008515",
-            "buy_price": 2000.0,
+            "code": "005967",
+            "buy_price": 200.0,
+            "status": "checked"
+        },
+        "AOTOSK39D6": {
+            "action": "buy",
+            "code": "011134",
+            "buy_price": 200.0,
+            "status": "checked"
+        }
+    },
+    "2025-06-30": {
+        "RRXX1WDOCM": {
+            "action": "sell",
+            "code": "018957",
+            "sell_ratio": 1,
+            "status": "checked"
+        },
+        "N9EZ6ANHD8": {
+            "action": "sell",
+            "code": "013166",
+            "sell_ratio": 1,
+            "status": "checked"
+        },
+        "3BTW7RBFSC": {
+            "action": "sell",
+            "code": "013478",
+            "sell_ratio": 1,
+            "status": "checked"
+        },
+        "07HOP75UDA": {
+            "action": "sell",
+            "code": "001070",
+            "sell_ratio": 1,
+            "status": "checked"
+        },
+        "5YWCTLZSYV": {
+            "action": "sell",
+            "code": "005967",
+            "sell_ratio": 1,
+            "status": "checked"
+        },
+        "RETHPFDPYI": {
+            "action": "sell",
+            "code": "011134",
+            "sell_ratio": 1,
             "status": "checked"
         }
     }
