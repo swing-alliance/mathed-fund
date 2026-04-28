@@ -1,4 +1,6 @@
-# 这里是系统核心追踪器的实现，通过追踪器卖和买，通过追踪器实现对冻结资金的控制模拟和基金持仓的浮动价值追踪
+"""
+这里是系统核心追踪器的实现，通过追踪器卖和买，通过追踪器实现对冻结资金的控制模拟和基金持仓的浮动价值追踪
+"""
 import json
 import os
 from datetime import datetime
@@ -83,7 +85,7 @@ def pause(info):
 
 
 class global_virtual_tracker():
-    """用于仓库追踪和冻结追踪的整个控制,回测系统的基础设施"""
+    """用于仓库追踪和冻结追踪的整个控制"""
     def __init__(self,dfs,date,account:virtual_account):
         self.dfs=dfs
         self.portfolio_tracker=global_Portfolio_tracker()
@@ -496,7 +498,7 @@ def reset_tracker():
             json.dump({}, f, ensure_ascii=False, indent=4)
         with open(frozen_cash_path, 'w', encoding='utf-8') as f:
             json.dump({}, f, ensure_ascii=False, indent=4)
-        print("追踪器已重置，所有记录已清空。")
+        print("追踪器已重置，所有记录已清空")
     except Exception as e:
         print(f"重置追踪器失败: {e}")
         return

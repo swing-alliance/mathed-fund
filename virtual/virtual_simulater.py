@@ -24,6 +24,7 @@ target_dir = current_path.parent.parent / "my_types" / "Equity"
 
 
 class virtual_simulater:
+    """已经弃用"""
     def __init__(self,paths,initial_cash=10000,start_date=None,end_date=None):
         self.paths=paths
         self.virtual_account=virtual_account(initial_cash=initial_cash)

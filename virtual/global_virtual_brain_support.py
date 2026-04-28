@@ -1,5 +1,6 @@
 #定义用于帮助大脑的辅助方法
 from global_virtual_tracker import r_json,w_json
+from virtual_calculate import yearly_return_since_start,get_annualized_volatility_for_period
 import csv
 import pandas as pd
 import os
@@ -34,6 +35,25 @@ class fund_mannager():
 
     def search_name(self,fund_code):
         return self.fund_name_map.get(fund_code,fund_code)
+    
+    def get_selltime_t(self,fund_code):
+        """动态获取卖出时冻结时间的t"""
+        if fund_code is not None:
+            name=self.search_name((fund_code))
+            clean_name = name.replace('（', '(').replace('）', ')')
+            if "qdii" in clean_name:
+                # 针对 QDII 的逻辑，比如设置更高的数据延迟容忍度
+                print(f"检测到 QDII 基金，计算年化时需注意 T+2 净值更新。")
+                return 10
+            if "美国" in clean_name or "标普" in clean_name or "纳斯达克" in clean_name or "全球" in clean_name or "德国" in clean_name or "日本" in clean_name:
+                # 针对海外/美股基金的特殊逻辑
+                print(f"该基金外国市场。")
+                return 10
+            else:
+                return 1
+        else:
+            print("基金管理器的获取t时出现严重错误")
+            return 0
     
     def is_trade_day(self):
         """检查是否为交易日"""

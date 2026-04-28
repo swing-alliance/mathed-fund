@@ -91,10 +91,10 @@ def yearly_return_since_start(code: str, df: pd.DataFrame = pd.DataFrame(), expe
             df = ak.fund_open_fund_info_em(symbol=code, indicator="累计净值走势")
         except Exception as e:
             print(f"❌ 获取基金 {code} 数据失败: {e}")
-            return None
+            return -1000
     if df.empty:
         print(f"❌ 基金 {code} 没有获取到数据。")
-        return None
+        return -1000
     try:
         df.rename(columns={'累计净值': '累计净值', '净值日期': '净值日期'}, inplace=True)
         df['净值日期'] = pd.to_datetime(df['净值日期'])
@@ -130,7 +130,7 @@ def yearly_return_since_start(code: str, df: pd.DataFrame = pd.DataFrame(), expe
 
     if years <= 0:
         print(f"⚠️ 基金 {code} 的数据时间段不足（总天数: {total_days}），无法计算年化收益率。")
-        return 0.0 # 视为 0 收益或返回 None
+        return 0.0 # 视为 0 收益
     annualized_return = (end_value / start_value) ** (1 / years) - 1
     return annualized_return
 
