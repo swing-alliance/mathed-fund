@@ -20,6 +20,7 @@ class global_brain():
         self.vt=vt
         self.account=account
         self.fund_mannager=fund_mannager(self.dfs,self.d_m)
+        self.time_tick=0
 
 
     def check_trade_day(self):
@@ -51,7 +52,7 @@ class global_brain():
             t=self.fund_mannager.get_selltime_t(code)
             self.vt.global_transaction_submit(code,None,None,self.d_m.get_date(),sell_ratio,"sell",t=t)
         except Exception as e:
-            raise("自动大脑构建卖出失败，检查大脑设计",e)
+            raise RuntimeError("自动大脑构建卖出失败，检查大脑设计",e)
         
     def brain_peek_all_value(self):
         """大脑生成此刻的所有价值快照,包括浮动仓库，冻结的，账户上的"""
@@ -64,13 +65,13 @@ class global_brain():
             if all_holding_p:
                 for code in all_holding_p:
                     num=self.vt.portfolio_tracker.get_a_portfolio_nums(code)
-                    value=self.fund_mannager.check_fund_value(code=code)
+                    value=self.fund_mannager.check_fund_value_former(code=code)
                     p_v=num*value
                     holding_p_value+=p_v
             total_v=holding_p_value+cash+frozen_cash
-            return total_v
+            return round(total_v, 8)
         except Exception as e:
-            raise("自动大脑构建全部价值快照失败，检查大脑设计",e)
+            raise RuntimeError("自动大脑构建全部价值快照失败，检查大脑设计",e)
         
     def brain_peek_p_value(self):
         """大脑生成此刻的仓库浮动价值快照"""
@@ -80,54 +81,87 @@ class global_brain():
             if all_holding_p:
                 for code in all_holding_p:
                     num=self.vt.portfolio_tracker.get_a_portfolio_nums(code)
-                    value=self.fund_mannager.check_fund_value(code=code)
+                    value=self.fund_mannager.check_fund_value_former(code=code)
                     total_v=num*value
                     holding_p_value+=total_v
-            return holding_p_value
+            return round(holding_p_value, 8)
         except Exception as e:
-            raise(f"自动大脑构建浮动仓库价值快照失败，检查大脑设计{e}")
+            raise RuntimeError(f"自动大脑构建浮动仓库价值快照失败，检查大脑设计{e}")
+        
+    def brain_peek_holding_ps(self):
+        return self.vt.portfolio_tracker.get_all_holding_p()
+
         
     def brain_peek_account_value(self):
         """大脑生成当前账户现金的快照"""
         try:
             holding_cash_value=self.account.get_balance()
-            return holding_cash_value
+            return round(holding_cash_value, 8)
         except Exception as e:
-            raise(f"自动大脑生成当前账户现金的快照失败，检查大脑设计{e}")
+            raise RuntimeError(f"自动大脑生成当前账户现金的快照失败，检查大脑设计{e}")
         
     def brain_peek_frozen_value(self):
         """大脑生成当前冻结资金的快照"""
         try:
             frozen_cash=self.vt.freeze_tracker.get_all_frozen()
-            return frozen_cash
+            return round(frozen_cash,8)
         except Exception as e:
-            raise(f"自动大脑生成当前冻结资金的快照失败，检查大脑设计{e}")
+            raise RuntimeError(f"自动大脑生成当前冻结资金的快照失败，检查大脑设计{e}")
         
 
+    def brief_think(self):
+        """外层系统事件循环调用"""
+        if self.isawake() and self.check_trade_day():
+            self.time_tick+=1
+            self.think()
+        return
     
 
     def think(self):
         print(f"{str(self.d_m.get_date())[:10]}三点前","大脑思考日期")
-        
-        if not self.check_trade_day() and self.isawake():
-            return
         print("大脑说仓库价值",self.brain_peek_p_value())
-        if self.brain_peek_p_value()<=1000:
-            all_df_name=[]
-            # holding_portfolio=self.vt.portfolio_tracker.get_all_holding_p()
-            self.brain_buy("018957",9000)
-            account_cash=self.vt.account.get_balance()
-            for name,df in self.dfs.items():
+        if self.brain_peek_p_value()<=1000 and self.brain_peek_account_value()>1000:
+            all_df_code_t={}
+            for code,df in self.dfs.items():
                 if not df.empty:
-                    all_df_name.append(name)
-            every_count=account_cash/5
-            for i in range(5):
-                name=random.choice(all_df_name)
-                self.brain_buy(name,every_count)
-        if self.brain_peek_all_value()>=13000:
+                    t=self.fund_mannager.get_selltime_t(code)
+                    all_df_code_t[code]=t
+                continue
+            if self.time_tick%22==0:
+                isbear=self.fund_mannager.check_bear(120)
+                if isbear:
+                    print("是熊市")
+                    to_buy=None
+                    sugguest_to_buy_dict=self.fund_mannager.get_sorted_sharpe_return_dict(120)
+                    if code in sugguest_to_buy_dict.keys():
+                        print("what the fuck")
+                    for code in sugguest_to_buy_dict.keys():
+                        t=all_df_code_t[code]
+                        if t>4:
+                            to_buy=code
+                    holding_ps=self.brain_peek_holding_ps()
+                    if holding_ps:
+                        holding_ps=self.brain_peek_holding_ps()
+                        for p in holding_ps:
+                            if all_df_code_t[p]>4:
+                                continue
+                            self.brain_sell(p,1)
+                    self.brain_buy(to_buy,self.brain_peek_account_value())
+                elif not isbear:
+                    print("不是熊市")
+                    to_buy=None
+                    sugguest_to_buy_dict=self.fund_mannager.get_sorted_sharpe_return_dict(120)
+                    to_buy= next(iter(sugguest_to_buy_dict))
+                    holding_ps=self.brain_peek_holding_ps()
+                    if to_buy not in holding_ps:
+                        for p in holding_ps:
+                            self.brain_sell(p,1)
+                    self.brain_buy(to_buy,self.brain_peek_account_value())
+                
+        if self.brain_peek_all_value()>=20000:
             all_holding_p=self.vt.portfolio_tracker.get_all_holding_p()
             for p in all_holding_p:
-                self.brain_sell(p,1,3)
+                self.brain_sell(p,1)
             print("大脑休眠")
             self.go_bed()
 

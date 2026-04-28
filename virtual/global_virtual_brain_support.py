@@ -1,6 +1,6 @@
 #定义用于帮助大脑的辅助方法
 from global_virtual_tracker import r_json,w_json
-from virtual_calculate import yearly_return_since_start,get_annualized_volatility_for_period
+from virtual_calculate import yearly_return_since_start,get_annualized_volatility_for_period,max_sharp_ratio_for_days
 import csv
 import pandas as pd
 import os
@@ -27,7 +27,7 @@ def get_fund_dict(csv_path):
     return fund_name_map
 
 class fund_mannager():
-    def __init__(self,dfs,date_mannager:date_mannager):
+    def __init__(self,dfs:dict,date_mannager:date_mannager):
         self.fund_name_map=get_fund_dict(mappint_name_dir)
         self.dfs=dfs
         self.d_m=date_mannager
@@ -43,14 +43,11 @@ class fund_mannager():
             clean_name = name.replace('（', '(').replace('）', ')')
             if "qdii" in clean_name:
                 # 针对 QDII 的逻辑，比如设置更高的数据延迟容忍度
-                print(f"检测到 QDII 基金，计算年化时需注意 T+2 净值更新。")
                 return 10
             if "美国" in clean_name or "标普" in clean_name or "纳斯达克" in clean_name or "全球" in clean_name or "德国" in clean_name or "日本" in clean_name:
-                # 针对海外/美股基金的特殊逻辑
-                print(f"该基金外国市场。")
                 return 10
             else:
-                return 1
+                return 2
         else:
             print("基金管理器的获取t时出现严重错误")
             return 0
@@ -66,8 +63,8 @@ class fund_mannager():
         print(f"{target_date} 不是交易日")
         return False
     
-    def check_fund_value(self, code):
-        """查询今天fund最新价值，如果今天没数据，自动找之前最近的一天"""
+    def check_fund_value_former(self, code):
+        """查询今天fund最新价值，如果今天没数据，自动向后找之前最近的一天"""
         df = self.dfs[code]
         search_date = pd.to_datetime(self.d_m.get_date())
         if not pd.api.types.is_datetime64_any_dtype(df['净值日期']):
@@ -80,6 +77,60 @@ class fund_mannager():
         else:
             print(f"代码 {code} 在 {search_date} 之前没有任何行情数据")
             return None
+        
+
+    def get_sorted_yearly_return_dict(self,interval_days:int):
+        """返回按照年化收益排名的代码名字字典，数据结构为("代码":"收益率"),计算量沉重"""
+        try:
+            return_dict={}
+            for code,df in self.dfs.items():
+                if not df.empty:
+                    interval_days_yearly_return=yearly_return_since_start(code=None,df=df,expected_interval_days=interval_days)
+                if interval_days_yearly_return:
+                    return_dict[code]=interval_days_yearly_return
+                continue
+            sorted_dict = sorted(return_dict.items(), key=lambda x: x[1], reverse=True)
+            sorted_dict=dict(sorted_dict)
+            return sorted_dict
+        except Exception as e:
+            raise RuntimeError(f"返回按照年化收益排名的代码名字字典错误,{e}")
+        
+    
+    def get_sorted_sharpe_return_dict(self,interval_days:int):
+        """返回按照夏普排名的代码名字字典，数据结构为("代码":"夏普率"),计算量沉重"""
+        try:
+            return_dict={}
+            for code,df in self.dfs.items():
+                if code == "004371":
+                    print(df)
+                if not df.empty:
+                    interval_days_sharpe_return=max_sharp_ratio_for_days(df,interval_days)
+                if interval_days_sharpe_return:
+                    return_dict[code]=interval_days_sharpe_return
+                continue
+            sorted_dict = sorted(return_dict.items(), key=lambda x: x[1], reverse=True)
+            sorted_dict=dict(sorted_dict)
+            return sorted_dict
+        except Exception as e:
+            raise RuntimeError(f"返回按照夏普排名的代码名字字典错误，{e}")
+        
+
+    def check_bear(self,interval_days:int):
+        """检查是否为熊市,计算量繁重"""
+        sorted_yearly_return_dict=self.get_sorted_yearly_return_dict(interval_days)
+        total_count=0
+        bad_count=0
+        for value in sorted_yearly_return_dict.values():
+            total_count+=1
+            if value<0:
+                bad_count+=1
+        bad_ratio=bad_count/total_count
+        if bad_ratio>0.55:
+            return True
+        return False
+    
+
+
 
 
 

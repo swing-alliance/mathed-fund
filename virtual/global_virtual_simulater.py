@@ -181,9 +181,7 @@ class virtual_simulater:
             brain=global_brain(dfs=self.dataframes,vt=self.global_vt,account=self.virtual_account,date_mannager=self.date_mannager)
             brain.fund_mannager.date = self.current_date
             while self.time_flow():
-                brain.date=self.current_date
-                if brain.isawake():
-                    brain.think()
+                brain.brief_think()
                 print("系统检查账户余额",self.virtual_account.get_balance())
                 #这里是三点的分水岭
                 time.sleep(1)#慢1秒
@@ -207,7 +205,7 @@ if __name__ == "__main__":
     simulater = virtual_simulater(
         paths=paths, 
         initial_cash=10000, 
-        start_date="2025-6-1", 
+        start_date="2024-3-1", 
         end_date="2026-3-1"
     )
     simulater.start_auto_brain()

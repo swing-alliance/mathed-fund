@@ -261,7 +261,7 @@ class global_virtual_tracker():
             
         except Exception as e:
             # 这里一定要 raise，外层才能抓到具体的错误信息
-            raise RuntimeError(f"向后行情查询失败,尝试下次再卖: {e}")
+            raise RuntimeError(f"向后行情查询失败,尝试下次再卖: {e},关于{code}的报错")
 
 class global_Portfolio_tracker():
     """直接仓位管理，最基本的code:{action:buy/sell,confirm_date:date,confirm_value=value,operate_nums,left_nums}"""
