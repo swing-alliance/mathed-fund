@@ -4,7 +4,7 @@
 卖单只能在交易日才能发出，如果提交的当天没有净值，将无法创建卖单,所以需要做交易日检查
 所有资金要么在浮动仓库随净值波动，要么在冻结中，要么在账户下的现金中
 """
-import random
+from global_time_ticker import time_ticker
 from datetime import datetime
 from global_virtual_tracker import global_virtual_tracker
 from global_virtual_brain_support import fund_mannager
@@ -16,16 +16,23 @@ class global_brain():
     def __init__(self,dfs:dict,vt:global_virtual_tracker,account:virtual_account,date_mannager:date_mannager):
         self.awake=True 
         self.d_m=date_mannager
+        self.time_ticker=time_ticker(self.d_m)
         self.dfs=dfs
         self.vt=vt
         self.account=account
         self.fund_mannager=fund_mannager(self.dfs,self.d_m)
-        self.time_tick=0
+        self.rang_called_times=0
 
 
     def check_trade_day(self):
         return self.fund_mannager.is_trade_day()
 
+
+    def rang_wake_up(self):
+        if self.time_ticker.is_ranging():
+            self.awake=True
+            return True
+        return False
 
         
     def isawake(self):
@@ -89,6 +96,7 @@ class global_brain():
             raise RuntimeError(f"自动大脑构建浮动仓库价值快照失败，检查大脑设计{e}")
         
     def brain_peek_holding_ps(self):
+        """查找所有持仓不为0的基金代码"""
         return self.vt.portfolio_tracker.get_all_holding_p()
 
         
@@ -111,59 +119,74 @@ class global_brain():
 
     def brief_think(self):
         """外层系统事件循环调用"""
-        if self.isawake() and self.check_trade_day():
-            self.time_tick+=1
-            self.think()
-        return
+        if self.rang_called_times==0 and self.check_trade_day():
+            """"执行初试化思考"""
+            self.rang_called_times+=1
+            self.time_ticker.set_alarm_clock_duty(4,"think_selling_all")
+            self.init_deep_think()
+            return
+        if self.rang_wake_up() and not self.check_trade_day():
+            """如果闹钟响了但是不是交易日，任务延期"""
+            self.time_ticker.postphone_a_duty()
+            return
+        if self.rang_wake_up() and self.check_trade_day():
+            try:
+                if self.time_ticker.get_today_duty()=="think_selling_all":
+                    result=self.time_ticker.check_and_execute(self)
+                    print("卖出决定下一次任务",result)
+                    if result is not None:
+                        self.time_ticker.set_alarm_clock_duty(result,"init_deep_think")
+                        return
+                    else:
+                        self.time_ticker.set_alarm_clock_duty(22,"think_selling_all")
+                        return
+                elif self.time_ticker.get_today_duty()=="init_deep_think":
+                    result=self.time_ticker.check_and_execute(self)
+                    self.time_ticker.set_alarm_clock_duty(22,"think_selling_all")
+                    return
+                print("what the fuck?")
+                return
+
+            except Exception as e:
+                raise RuntimeError(f"闹钟执行任务挫败{e}")
+
     
 
-    def think(self):
-        print(f"{str(self.d_m.get_date())[:10]}三点前","大脑思考日期")
-        print("大脑说仓库价值",self.brain_peek_p_value())
-        if self.brain_peek_p_value()<=1000 and self.brain_peek_account_value()>1000:
-            all_df_code_t={}
-            for code,df in self.dfs.items():
-                if not df.empty:
-                    t=self.fund_mannager.get_selltime_t(code)
-                    all_df_code_t[code]=t
-                continue
-            if self.time_tick%22==0:
-                isbear=self.fund_mannager.check_bear(120)
-                if isbear:
-                    print("是熊市")
-                    to_buy=None
-                    sugguest_to_buy_dict=self.fund_mannager.get_sorted_sharpe_return_dict(120)
-                    if code in sugguest_to_buy_dict.keys():
-                        print("what the fuck")
-                    for code in sugguest_to_buy_dict.keys():
-                        t=all_df_code_t[code]
-                        if t>4:
-                            to_buy=code
-                    holding_ps=self.brain_peek_holding_ps()
-                    if holding_ps:
-                        holding_ps=self.brain_peek_holding_ps()
-                        for p in holding_ps:
-                            if all_df_code_t[p]>4:
-                                continue
-                            self.brain_sell(p,1)
-                    self.brain_buy(to_buy,self.brain_peek_account_value())
-                elif not isbear:
-                    print("不是熊市")
-                    to_buy=None
-                    sugguest_to_buy_dict=self.fund_mannager.get_sorted_sharpe_return_dict(120)
-                    to_buy= next(iter(sugguest_to_buy_dict))
-                    holding_ps=self.brain_peek_holding_ps()
-                    if to_buy not in holding_ps:
-                        for p in holding_ps:
-                            self.brain_sell(p,1)
-                    self.brain_buy(to_buy,self.brain_peek_account_value())
-                
-        if self.brain_peek_all_value()>=20000:
-            all_holding_p=self.vt.portfolio_tracker.get_all_holding_p()
-            for p in all_holding_p:
-                self.brain_sell(p,1)
-            print("大脑休眠")
-            self.go_bed()
+    def think_selling_all(self):
+        isbear=self.fund_mannager.check_bear(120)
+        if not isbear:
+            return None
+        else:
+            best_code=next(iter(self.fund_mannager.get_sorted_sharpe_return_dict(60)))
+            holding_ps=self.brain_peek_holding_ps()
+            if best_code in holding_ps:
+                return None
+            self.brain_sell(holding_ps[0],1)
+            sell_t=self.fund_mannager.get_selltime_t(holding_ps[0])
+            return sell_t+2
+
+
+    def init_deep_think(self):
+        """初始化思考"""
+        isbear=self.fund_mannager.check_bear(120)
+        if isbear:
+            best_code_dict=self.fund_mannager.get_sorted_sharpe_return_dict(60)
+            for code in best_code_dict.keys():
+                t=self.fund_mannager.get_selltime_t(code)
+                if t>4:
+                    self.brain_buy(code,self.brain_peek_account_value())
+                    break
+            return 22
+        else:
+            best_code=next(iter(self.fund_mannager.get_sorted_sharpe_return_dict(60)))
+            self.brain_buy(best_code,self.brain_peek_account_value())
+            return 22
+
+            
+
+            
+        
+        
 
 
                 

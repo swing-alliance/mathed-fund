@@ -1,1 +1,27 @@
-{}
+{
+    "000043": [
+        {
+            "confirm_date": "2024-03-04",
+            "confirm_single_value": 4.19,
+            "operate_nums": 2386.634844868735,
+            "left_nums": 2386.634844868735,
+            "action": "buy"
+        },
+        {
+            "confirm_date": "2024-03-08",
+            "confirm_single_value": 4.163,
+            "operate_nums": -2386.634844868735,
+            "left_nums": 0.0,
+            "action": "sell"
+        }
+    ],
+    "004243": [
+        {
+            "confirm_date": "2024-03-20",
+            "confirm_single_value": 2.5021,
+            "operate_nums": 3970.8887970864475,
+            "left_nums": 3970.8887970864475,
+            "action": "buy"
+        }
+    ]
+}

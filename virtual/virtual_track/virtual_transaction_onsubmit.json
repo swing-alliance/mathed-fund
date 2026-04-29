@@ -1,1 +1,26 @@
-{}
+{
+    "2024-03-04": {
+        "J58RNMFHSC": {
+            "action": "buy",
+            "code": "000043",
+            "buy_price": 10000,
+            "status": "checked"
+        }
+    },
+    "2024-03-08": {
+        "9TH5EP53U8": {
+            "action": "sell",
+            "code": "000043",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2024-03-20": {
+        "LB7ZFQRTWQ": {
+            "action": "buy",
+            "code": "004243",
+            "buy_price": 9935.56085919,
+            "status": "checked"
+        }
+    }
+}

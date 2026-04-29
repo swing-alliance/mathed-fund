@@ -479,14 +479,23 @@ class global_frozen_cash_tracker():
             raise(f"获取所有从持仓飞回账户冻结的严重失败,{e}")
     
     def get_all_frozen(self):
-        """获取所有冻结的,只读"""
+        """获取所有冻结的金额之和，只读"""
         try:
             freeze_info = r_json(frozen_cash_path)
-            total_amount = sum(item['amount'] for item in freeze_info.values() 
-                   if item.get('status') == 'freeze')
+            if not freeze_info:
+                return 0
+            total_amount = sum(
+                item['amount'] for item in freeze_info.values() 
+                if isinstance(item, dict) and item.get('status') == 'frozen'
+            )
             return total_amount
+            
+        except FileNotFoundError:
+            # 如果文件还没创建，通常意味着没有冻结资金
+            return 0
         except Exception as e:
-            raise(f"获获取所有冻结的严重失败,{e}")
+            # 修正：raise 必须接异常实例
+            raise RuntimeError(f"获取所有冻结的严重失败: {e}")
 
 
 def reset_tracker():
@@ -506,21 +515,10 @@ def reset_tracker():
 
 
 if __name__=="__main__":
-    reset_tracker()
+    # reset_tracker()
     vc=virtual_account(10000)
     vt=global_virtual_tracker(dfs=get_dfs(target_dir),date=None,account=vc)
-    vt.global_transaction_submit(code="000011",buy_price=1000,buy_date="2024-09-14",sell_date=None,sell_ratio=None,action="buy")
-    # vt.global_transaction_submit(code=123545,buy_price=10500,buy_date="2024-09-25",sell_date=None,sell_ratio=None,action="buy")
-    #vt.global_transaction_submit(code=1345,buy_price=None,buy_date=None,sell_date="2024-09-28",sell_ratio=1,action="sell")
-    pause(f"{vt.account.get_balance()}")
-    vt.global_transaction_confirming()
-    pause(f"{vt.account.get_balance()}")
-    vt.global_transaction_submit(code="000011",buy_price=1000,buy_date="2024-09-15",sell_date=None,sell_ratio=None,action="buy")
-    pause(f"{vt.account.get_balance()}")
-    vt.global_transaction_confirming()
-    pause(f"{vt.account.get_balance()}")
-    vt.global_transaction_submit(code="000011",buy_price=1000,buy_date="2024-09-17",sell_date=None,sell_ratio=None,action="buy")
-    pause(f"{vt.account.get_balance()}")
-
+    frozen=vt.freeze_tracker.get_all_frozen()
+    print(frozen)
     # vt.global_transaction_confirming()
     

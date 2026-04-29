@@ -101,12 +101,10 @@ class fund_mannager():
         try:
             return_dict={}
             for code,df in self.dfs.items():
-                if code == "004371":
-                    print(df)
                 if not df.empty:
                     interval_days_sharpe_return=max_sharp_ratio_for_days(df,interval_days)
-                if interval_days_sharpe_return:
-                    return_dict[code]=interval_days_sharpe_return
+                    if interval_days_sharpe_return:
+                        return_dict[code]=interval_days_sharpe_return
                 continue
             sorted_dict = sorted(return_dict.items(), key=lambda x: x[1], reverse=True)
             sorted_dict=dict(sorted_dict)

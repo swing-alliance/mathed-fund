@@ -179,10 +179,13 @@ class virtual_simulater:
         try:
             reset_tracker()
             brain=global_brain(dfs=self.dataframes,vt=self.global_vt,account=self.virtual_account,date_mannager=self.date_mannager)
+            brain.brain_peek_frozen_value()
+
+            
             brain.fund_mannager.date = self.current_date
             while self.time_flow():
                 brain.brief_think()
-                print("系统检查账户余额",self.virtual_account.get_balance())
+                print("系统检查所有价值",brain.brain_peek_all_value(),"账户价值",brain.brain_peek_account_value(),"冻结价值",brain.brain_peek_frozen_value())
                 #这里是三点的分水岭
                 time.sleep(1)#慢1秒
                 self.virtual_system_confirm()
