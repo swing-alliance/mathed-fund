@@ -144,9 +144,28 @@ class decison_maker:
                 LOWER_AVG_REFER_DAYS=self.config["considerlower"]['LOWER_AVG_REFER_DAYS']#低于多少天的平均值
                 LOWER_AVG_REFER_RATIO=self.config["considerlower"]['LOWER_AVG_REFER_RATIO']#低于多少天的平均值百分比
                 ISLOOSE=self.config["considerlower"]['ISLOOSE']#是否宽松抓取,递归前推7天存在即返回,可能存在早已净值反弹,找到高位的错误
-            except:
-                print("配置文件错误,{exception}")
+                AUTO_CONFIG=self.config["considerlower"]["AUTO_CONFIG"]
+            except Exception as e:
+                print(f"配置文件错误,由decison.py发起{e}")
                 return False
+            if AUTO_CONFIG =="true" or AUTO_CONFIG =="True":
+                """走自动的关于配置的判断"""
+                if not self.year_rate_since_start_this(250)>0:
+                    """长期趋势不过关，直接pass"""
+                    return False
+                now_date = self.df['净值日期'].max()
+                highest_point_in_period_value, highest_point_date = get_highest_point_by_period(self.df, period_days=60)
+                if highest_point_date==now_date:
+                    return False
+                lowest_point_after_high, _ = get_lowest_point_after_high(self.df, period_days=60)
+                lowest_point_before_high,_=get_lowest_point_before_high(self.df,period_days=90)
+                if lowest_point_before_high and lowest_point_after_high:
+                    history_drawdown_p=1-lowest_point_before_high/highest_point_in_period_value
+                    now_draw_p=1-lowest_point_after_high/highest_point_in_period_value
+                    if now_draw_p>=history_drawdown_p*0.8 and now_draw_p > 0.05:
+                        return True
+                return False
+                
             # 1. 获取过去40天的极值和日期
             # 假设 these are already calculated and stored in self.*
             if isrecursion:

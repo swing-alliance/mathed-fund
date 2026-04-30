@@ -1,18 +1,222 @@
 {
-    "J58RNMFHSC": {
+    "9ZPOPALHJT": {
         "amount": 10000,
         "action": "buy",
         "status": "unfreeze",
         "t": 0
     },
-    "9TH5EP53U8": {
-        "amount": 9935.560859188545,
+    "JEGS7IBB1M": {
+        "amount": 9801.06100795756,
         "action": "sell",
         "status": "unfreeze",
         "t": 0
     },
-    "LB7ZFQRTWQ": {
-        "amount": 9935.56085919,
+    "3V0XHTQIWJ": {
+        "amount": 9801.06100796,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "ODYYGZFJ7X": {
+        "amount": 8859.292390698536,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "00O6NCBLDI": {
+        "amount": 8859.2923907,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "RFV3VYS92I": {
+        "amount": 8209.266564171478,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "LRFJPAWGMW": {
+        "amount": 8209.26656417,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "PIZDGCNJQC": {
+        "amount": 8003.826683970954,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "SKOCB0O898": {
+        "amount": 8003.82668397,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "NBBQ6FOQYU": {
+        "amount": 8178.68515577837,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "K0A1CRXOKI": {
+        "amount": 8178.68515578,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "GM7MQ83CS5": {
+        "amount": 9250.652999046417,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "96YR5KLW7K": {
+        "amount": 9250.65299905,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "GAKFTZJFZT": {
+        "amount": 8872.414762859713,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "6OIC8CL3PL": {
+        "amount": 8872.41476286,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "HALI80S8CC": {
+        "amount": 9176.687824902892,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "X5UG9SQ6LF": {
+        "amount": 9176.6878249,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "23NCA8KN3P": {
+        "amount": 8952.933546207374,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "8X7CYZPN9K": {
+        "amount": 8952.93354621,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "1JEJZ4UHT0": {
+        "amount": 8955.351460880505,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "AWRJWAI4J4": {
+        "amount": 8955.35146088,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "78Y72NR35P": {
+        "amount": 9952.940173851932,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "06M3FQA79O": {
+        "amount": 9952.94017385,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "DYHRFZOXRX": {
+        "amount": 11440.322799328931,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "ZQDQXEACRN": {
+        "amount": 11440.32279933,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "LFQS0FHO8C": {
+        "amount": 11882.489359469013,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "GKSJ8YT72P": {
+        "amount": 11882.48935947,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "53N487LGMT": {
+        "amount": 11291.264069799614,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "JODK1GJOP9": {
+        "amount": 11291.2640698,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "KQFE9UK8IT": {
+        "amount": 11507.532352785951,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "G11R2GJF0T": {
+        "amount": 11507.53235279,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "URBOBNS5NH": {
+        "amount": 11221.858699685488,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "269MZV3S16": {
+        "amount": 11221.85869969,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "ZCYRIR2U2E": {
+        "amount": 10722.054281487572,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "6JEEU8Q26B": {
+        "amount": 10722.05428149,
+        "action": "buy",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "BPRJAYMMC6": {
+        "amount": 9862.636745407757,
+        "action": "sell",
+        "status": "unfreeze",
+        "t": 0
+    },
+    "R2LSAD1K4B": {
+        "amount": 9862.63674541,
         "action": "buy",
         "status": "unfreeze",
         "t": 0

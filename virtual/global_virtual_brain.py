@@ -122,7 +122,7 @@ class global_brain():
         if self.rang_called_times==0 and self.check_trade_day():
             """"执行初试化思考"""
             self.rang_called_times+=1
-            self.time_ticker.set_alarm_clock_duty(4,"think_selling_all")
+            self.time_ticker.set_alarm_clock_duty(22,"think_selling_all")
             self.init_deep_think()
             return
         if self.rang_wake_up() and not self.check_trade_day():
@@ -142,20 +142,28 @@ class global_brain():
                         return
                 elif self.time_ticker.get_today_duty()=="init_deep_think":
                     result=self.time_ticker.check_and_execute(self)
-                    self.time_ticker.set_alarm_clock_duty(22,"think_selling_all")
+                    self.time_ticker.set_alarm_clock_duty(result,"think_selling_all")
                     return
                 print("what the fuck?")
                 return
 
             except Exception as e:
-                raise RuntimeError(f"闹钟执行任务挫败{e}")
+                self.time_ticker.postphone_a_duty()
+                print("闹钟执行任务挫败,尝试延期")
+                # raise RuntimeError(f"闹钟执行任务挫败{e}")
 
     
 
     def think_selling_all(self):
         isbear=self.fund_mannager.check_bear(120)
         if not isbear:
-            return None
+            best_code=next(iter(self.fund_mannager.get_sorted_sharpe_return_dict(60)))
+            holding_ps=self.brain_peek_holding_ps()
+            if best_code in holding_ps:
+                return None
+            self.brain_sell(holding_ps[0],1)
+            sell_t=self.fund_mannager.get_selltime_t(holding_ps[0])
+            return sell_t+1
         else:
             best_code=next(iter(self.fund_mannager.get_sorted_sharpe_return_dict(60)))
             holding_ps=self.brain_peek_holding_ps()
@@ -163,12 +171,12 @@ class global_brain():
                 return None
             self.brain_sell(holding_ps[0],1)
             sell_t=self.fund_mannager.get_selltime_t(holding_ps[0])
-            return sell_t+2
+            return sell_t+1
 
 
     def init_deep_think(self):
         """初始化思考"""
-        isbear=self.fund_mannager.check_bear(120)
+        isbear=self.fund_mannager.check_bear(30)
         if isbear:
             best_code_dict=self.fund_mannager.get_sorted_sharpe_return_dict(60)
             for code in best_code_dict.keys():

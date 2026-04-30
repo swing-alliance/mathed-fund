@@ -64,3 +64,9 @@ class time_ticker():
         today_tasks = [item[1] for item in self.ranging_list if item[0] == current_time]
         today_task=today_tasks[0]
         return today_task
+    
+    def pending_duty(self):
+        current_time = self.d_m.get_date()
+        # 筛选出日期匹配的任务名
+        pending_tasks = [item[1] for item in self.ranging_list if item[0] >= current_time]
+        return  pending_tasks

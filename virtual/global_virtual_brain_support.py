@@ -47,7 +47,7 @@ class fund_mannager():
             if "美国" in clean_name or "标普" in clean_name or "纳斯达克" in clean_name or "全球" in clean_name or "德国" in clean_name or "日本" in clean_name:
                 return 10
             else:
-                return 2
+                return 1
         else:
             print("基金管理器的获取t时出现严重错误")
             return 0

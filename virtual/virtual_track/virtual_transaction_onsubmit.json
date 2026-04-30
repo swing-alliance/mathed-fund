@@ -1,25 +1,297 @@
 {
-    "2024-03-04": {
-        "J58RNMFHSC": {
+    "2024-09-02": {
+        "9ZPOPALHJT": {
             "action": "buy",
-            "code": "000043",
+            "code": "000370",
             "buy_price": 10000,
             "status": "checked"
         }
     },
-    "2024-03-08": {
-        "9TH5EP53U8": {
+    "2024-09-24": {
+        "JEGS7IBB1M": {
             "action": "sell",
-            "code": "000043",
+            "code": "000370",
             "sell_ratio": 1,
             "status": "checked"
         }
     },
-    "2024-03-20": {
-        "LB7ZFQRTWQ": {
+    "2024-10-08": {
+        "3V0XHTQIWJ": {
             "action": "buy",
-            "code": "004243",
-            "buy_price": 9935.56085919,
+            "code": "001552",
+            "buy_price": 9801.06100796,
+            "status": "checked"
+        }
+    },
+    "2024-10-30": {
+        "ODYYGZFJ7X": {
+            "action": "sell",
+            "code": "001552",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2024-11-01": {
+        "00O6NCBLDI": {
+            "action": "buy",
+            "code": "000989",
+            "buy_price": 8859.2923907,
+            "status": "checked"
+        }
+    },
+    "2024-11-25": {
+        "RFV3VYS92I": {
+            "action": "sell",
+            "code": "000989",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2024-12-06": {
+        "LRFJPAWGMW": {
+            "action": "buy",
+            "code": "009975",
+            "buy_price": 8209.26656417,
+            "status": "checked"
+        }
+    },
+    "2024-12-30": {
+        "PIZDGCNJQC": {
+            "action": "sell",
+            "code": "009975",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-01-10": {
+        "SKOCB0O898": {
+            "action": "buy",
+            "code": "017436",
+            "buy_price": 8003.82668397,
+            "status": "checked"
+        }
+    },
+    "2025-02-05": {
+        "NBBQ6FOQYU": {
+            "action": "sell",
+            "code": "017436",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-02-17": {
+        "K0A1CRXOKI": {
+            "action": "buy",
+            "code": "018124",
+            "buy_price": 8178.68515578,
+            "status": "checked"
+        }
+    },
+    "2025-03-11": {
+        "GM7MQ83CS5": {
+            "action": "sell",
+            "code": "018124",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-03-13": {
+        "96YR5KLW7K": {
+            "action": "buy",
+            "code": "020191",
+            "buy_price": 9250.65299905,
+            "status": "checked"
+        }
+    },
+    "2025-04-07": {
+        "GAKFTZJFZT": {
+            "action": "sell",
+            "code": "020191",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-04-09": {
+        "6OIC8CL3PL": {
+            "action": "buy",
+            "code": "017826",
+            "buy_price": 8872.41476286,
+            "status": "checked"
+        }
+    },
+    "2025-05-06": {
+        "HALI80S8CC": {
+            "action": "sell",
+            "code": "017826",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-05-19": {
+        "X5UG9SQ6LF": {
+            "action": "buy",
+            "code": "014283",
+            "buy_price": 9176.6878249,
+            "status": "checked"
+        }
+    },
+    "2025-06-10": {
+        "23NCA8KN3P": {
+            "action": "sell",
+            "code": "014283",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-06-12": {
+        "8X7CYZPN9K": {
+            "action": "buy",
+            "code": "019958",
+            "buy_price": 8952.93354621,
+            "status": "checked"
+        }
+    },
+    "2025-07-04": {
+        "1JEJZ4UHT0": {
+            "action": "sell",
+            "code": "019958",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-07-07": {
+        "AWRJWAI4J4": {
+            "action": "buy",
+            "code": "009970",
+            "buy_price": 8955.35146088,
+            "status": "checked"
+        }
+    },
+    "2025-07-29": {
+        "78Y72NR35P": {
+            "action": "sell",
+            "code": "009970",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-07-31": {
+        "06M3FQA79O": {
+            "action": "buy",
+            "code": "022365",
+            "buy_price": 9952.94017385,
+            "status": "checked"
+        }
+    },
+    "2025-08-22": {
+        "DYHRFZOXRX": {
+            "action": "sell",
+            "code": "022365",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-08-25": {
+        "ZQDQXEACRN": {
+            "action": "buy",
+            "code": "024775",
+            "buy_price": 11440.32279933,
+            "status": "checked"
+        }
+    },
+    "2025-09-16": {
+        "LFQS0FHO8C": {
+            "action": "sell",
+            "code": "024775",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-09-18": {
+        "GKSJ8YT72P": {
+            "action": "buy",
+            "code": "024647",
+            "buy_price": 11882.48935947,
+            "status": "checked"
+        }
+    },
+    "2025-10-10": {
+        "53N487LGMT": {
+            "action": "sell",
+            "code": "024647",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-10-13": {
+        "JODK1GJOP9": {
+            "action": "buy",
+            "code": "017073",
+            "buy_price": 11291.2640698,
+            "status": "checked"
+        }
+    },
+    "2025-11-04": {
+        "KQFE9UK8IT": {
+            "action": "sell",
+            "code": "017073",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-11-06": {
+        "G11R2GJF0T": {
+            "action": "buy",
+            "code": "017730",
+            "buy_price": 11507.53235279,
+            "status": "checked"
+        }
+    },
+    "2025-11-28": {
+        "URBOBNS5NH": {
+            "action": "sell",
+            "code": "017730",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2025-12-09": {
+        "269MZV3S16": {
+            "action": "buy",
+            "code": "018155",
+            "buy_price": 11221.85869969,
+            "status": "checked"
+        }
+    },
+    "2025-12-31": {
+        "ZCYRIR2U2E": {
+            "action": "sell",
+            "code": "018155",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2026-01-12": {
+        "6JEEU8Q26B": {
+            "action": "buy",
+            "code": "015790",
+            "buy_price": 10722.05428149,
+            "status": "checked"
+        }
+    },
+    "2026-02-03": {
+        "BPRJAYMMC6": {
+            "action": "sell",
+            "code": "015790",
+            "sell_ratio": 1,
+            "status": "checked"
+        }
+    },
+    "2026-02-05": {
+        "R2LSAD1K4B": {
+            "action": "buy",
+            "code": "011060",
+            "buy_price": 9862.63674541,
             "status": "checked"
         }
     }

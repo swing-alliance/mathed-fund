@@ -185,9 +185,9 @@ class virtual_simulater:
             brain.fund_mannager.date = self.current_date
             while self.time_flow():
                 brain.brief_think()
-                print("系统检查所有价值",brain.brain_peek_all_value(),"账户价值",brain.brain_peek_account_value(),"冻结价值",brain.brain_peek_frozen_value())
+                print(f"系统检查{str(self.current_date)[:10]}所有价值",brain.brain_peek_all_value(),"账户价值",brain.brain_peek_account_value(),"冻结价值",brain.brain_peek_frozen_value(),f"任务,{brain.time_ticker.pending_duty()}")
                 #这里是三点的分水岭
-                time.sleep(1)#慢1秒
+                time.sleep(0.1)
                 self.virtual_system_confirm()
         except Exception as e:
             import traceback
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     simulater = virtual_simulater(
         paths=paths, 
         initial_cash=10000, 
-        start_date="2024-3-1", 
+        start_date="2024-9-1", 
         end_date="2026-3-1"
     )
     simulater.start_auto_brain()
