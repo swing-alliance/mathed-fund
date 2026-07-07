@@ -5,6 +5,9 @@ from PyQt5.QtWidgets import (
     QFileDialog, QLabel, QFrame, QMessageBox,
     QSpacerItem, QSizePolicy, QScrollArea,QLineEdit, QComboBox,QDialog,QApplication,QMenu,QAction,QProgressDialog
 )
+import akshare as ak
+import concurrent.futures
+import datetime
 from PyQt5.QtCore import QTimer
 import pyperclip
 from PyQt5.QtCore import pyqtSignal
@@ -744,7 +747,61 @@ class ControlPanel(QWidget):
         card.update_assuming_return_ui(result)
 
 
-
+    def filter_distinguished_cards(self, similarity_threshold=0.3, simpling_num=100):
+        """过滤出持仓具有独特差异性的基金卡片 
+        Args:
+            similarity_threshold (float): 相似度截断阈值 (0~1)，超过该值则剔除
+            simpling_num (int): 限制只处理前多少个最推荐的卡片
+            
+        Returns:
+            list: 过滤后的差异化基金代码列表
+        """
+        all_cards = list(self.loaded_cards.values())
+        target_cards = all_cards[:simpling_num]
+        fund_codes = [card.filename for card in target_cards if hasattr(card, 'filename')]
+        if not fund_codes:
+            return []
+        def _fetch_holdings(fund_code):
+            current_year = str(datetime.datetime.now().year)
+            try:
+                df = ak.fund_portfolio_hold_em(symbol=fund_code, date=current_year)
+                if df.empty:
+                    last_year = str(datetime.datetime.now().year - 1)
+                    df = ak.fund_portfolio_hold_em(symbol=fund_code, date=last_year)
+                
+                if not df.empty:
+                    latest_quarter = df['季度'].iloc[0]
+                    latest_df = df[df['季度'] == latest_quarter].head(10)
+                    return fund_code, latest_df['股票名称'].tolist()
+            except Exception:
+                pass
+            return fund_code, []
+        fund_holdings_dict = {}
+        max_workers = min(10, len(fund_codes))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_fund = {executor.submit(_fetch_holdings, code): code for code in fund_codes}
+            for future in concurrent.futures.as_completed(future_to_fund):
+                code, stocks = future.result()
+                if stocks:
+                    fund_holdings_dict[code] = stocks
+        def _calculate_jaccard(list_a, list_b):
+            set_a, set_b = set(list_a), set(list_b)
+            union = set_a.union(set_b)
+            return len(set_a.intersection(set_b)) / len(union) if union else 0.0
+        selected_fund_codes = []
+        for fund_code in fund_codes:
+            if fund_code not in fund_holdings_dict:
+                continue    
+            current_holdings = fund_holdings_dict[fund_code]
+            should_keep = True
+            for selected_code in selected_fund_codes:
+                sim = _calculate_jaccard(current_holdings, fund_holdings_dict[selected_code])
+                if sim > similarity_threshold:
+                    should_keep = False
+                    break       
+            if should_keep:
+                selected_fund_codes.append(fund_code)
+        return selected_fund_codes
 
 
 

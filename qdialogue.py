@@ -990,6 +990,75 @@ class IndustryFetchDialog(QDialog):
         else:
             event.accept()
 
+
+
+class FilterParamsDialog(QDialog):
+    """仅仅作为参数输入框的弹窗"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+        self.Qfont = QFont("微软雅黑", 10)
+        self.setFont(self.Qfont)
+        self.setWindowTitle("设置筛选参数")
+        self.resize(320, 180)  # 纯输入框，尺寸缩小更精致
+        
+        layout = QVBoxLayout(self)
+        
+        # 1. 表单输入区域
+        form_layout = QFormLayout()
+        
+        # 相似度输入 (0.00 ~ 1.00)
+        self.spin_threshold = QDoubleSpinBox()
+        self.spin_threshold.setRange(0.0, 1.0)
+        self.spin_threshold.setSingleStep(0.05)
+        self.spin_threshold.setValue(0.30)  # 默认值
+        form_layout.addRow(QLabel("相似度阈值 (0-1):"), self.spin_threshold)
+        
+        # 采样数量输入 (1 ~ 1000)
+        self.spin_num = QSpinBox()
+        self.spin_num.setRange(1, 1000)
+        self.spin_num.setValue(100)  # 默认值
+        form_layout.addRow(QLabel("检查卡片数量:"), self.spin_num)
+        
+        layout.addLayout(form_layout)
+        
+        # 2. 底部确定/取消按钮
+        btn_layout = QHBoxLayout()
+        self.btn_confirm = QPushButton("确定")
+        self.btn_confirm.clicked.connect(self.accept)  # 点击确定，槽函数会使 exec_() 返回 QDialog.Accepted
+        btn_layout.addWidget(self.btn_confirm)
+        
+        self.btn_cancel = QPushButton("取消")
+        self.btn_cancel.clicked.connect(self.reject)  # 点击取消，exec_() 返回 QDialog.Rejected
+        btn_layout.addWidget(self.btn_cancel)
+        
+        layout.addLayout(btn_layout)
+
+    def get_values(self):
+        """提供给主窗口调用的公有方法，用于获取当前输入的参数"""
+        return self.spin_threshold.value(), self.spin_num.value()
+    
+
+
+class popup_message_dialog(QDialog):
+    """一个简单的弹窗，用于显示信息（支持文本复制）"""
+    def __init__(self, title, message, parent=None):
+        super().__init__(parent)
+        
+        self.setWindowTitle(title) 
+        self.Qfont = QFont("微软雅黑", 10)
+        self.setFont(self.Qfont)
+        self.setFixedSize(350, 180)
+        layout = QVBoxLayout(self)
+        label = QLabel(message)
+        label.setWordWrap(True)
+        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        
+        layout.addWidget(label)
+        btn_close = QPushButton("关闭")
+        btn_close.clicked.connect(self.accept)
+        layout.addWidget(btn_close)
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     dialog = advance_pulldata_dialog()

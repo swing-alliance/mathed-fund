@@ -2,9 +2,9 @@ import os
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 # ================== 路径配置（按你的实际路径修改） ==================
-py_mini_path = r"A:\projects\money2\venv\Lib\site-packages\py_mini_racer"
-calendar_path = r"A:\projects\money2\venv\Lib\site-packages\akshare\file_fold"
-icon_path = r"C:\Users\zhou\Desktop\fund\static\infinite.png"
+py_mini_path = r"A:\FUND\venv\Lib\site-packages\py_mini_racer"
+calendar_path = r"A:\FUND\venv\Lib\site-packages\akshare\file_fold"
+icon_path = r"A:\FUND\static\infinite.png"
 
 # 自动收集 py_mini_racer 的所有数据文件和动态库
 py_mini_datas = collect_data_files('py_mini_racer')

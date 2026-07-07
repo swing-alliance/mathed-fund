@@ -12,7 +12,8 @@ from automation import auto_submit
 from pannel_plan import ControlPanel
 from PyQt5.QtGui import QIcon
 from sys_center import SysCentral
-from qdialogue import IndustryFetchDialog
+from qdialogue import IndustryFetchDialog,FilterParamsDialog,popup_message_dialog
+
 from config.get_config import get_config
 from signal_handler import history_signal_emitter
 import shutil
@@ -148,6 +149,8 @@ class MainWindow(QMainWindow):
         group_export_batch_analysis_action.triggered.connect(self.export_batch_analysis)
         group_show_assuming_return_action = QAction("显示预测收益", self)
         group_show_assuming_return_action.triggered.connect(self.show_assuming_return)
+        group_filter_distinguished_action = QAction("过滤优质不同基金", self)
+        group_filter_distinguished_action.triggered.connect(self.filter_group_by_distinguished)
 
         config_action = QAction("计算参数配置", self)
         config_action.triggered.connect(self.change_config)
@@ -193,6 +196,7 @@ class MainWindow(QMainWindow):
         ai_prompt_action.setFont(QFont('微软雅黑', 11))
         ai_prompt_top50_action.setFont(QFont('微软雅黑', 11))
         config_action.setFont(QFont('微软雅黑', 11))
+        group_filter_distinguished_action.setFont(QFont('微软雅黑', 11))
 
         
         plan_menu.addAction(planpage_action)
@@ -230,6 +234,7 @@ class MainWindow(QMainWindow):
         calculate_menu.addAction(group_return_market_index_action)
         calculate_menu.addAction(group_export_batch_analysis_action)
         calculate_menu.addAction(group_show_assuming_return_action)
+        calculate_menu.addAction(group_filter_distinguished_action)
     
         AI_menu.addAction(ai_prompt_action)
         AI_menu.addAction(ai_prompt_top50_action)
@@ -323,6 +328,25 @@ class MainWindow(QMainWindow):
     def load_sys_central(self):
         self.attention_now = SysCentral(parent_window=self)
         self.setCentralWidget(self.attention_now)
+
+
+    def filter_group_by_distinguished(self):
+        """过滤优质不同基金"""
+        dialog = FilterParamsDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            threshold, num = dialog.get_values()
+            if threshold is not None:
+                central_widget = self.centralWidget()
+                if isinstance(central_widget, ControlPanel):
+                    cards = central_widget.filter_distinguished_cards(threshold, num)
+                    
+                    if not cards:
+                        # 即时实例化，并立刻调用 .exec_() 弹出
+                        popup_message_dialog(parent=self, title="提示", message="没有符合条件的基金").exec_()
+                    else:
+                        # 即时实例化不同的文字，并立刻调用 .exec_() 弹出
+                        msg_text = f"已筛选出 {len(cards)} 只基金：\n{cards}"
+                        popup_message_dialog(parent=self, title="提示", message=msg_text).exec_()
 
 
     def add_group(self):

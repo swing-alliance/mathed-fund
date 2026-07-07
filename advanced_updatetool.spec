@@ -5,7 +5,7 @@ import glob
 import sys
 
 # ==================== 项目根目录 ====================
-project_root = os.getcwd()                                     # 例如 A:\projects\money2
+project_root = os.getcwd()                                    
 static_dir   = os.path.join(project_root, 'static')
 
 # ==================== 自动找图标（static 里第一个 png） ====================
@@ -18,11 +18,11 @@ for i, item in enumerate(png_files):
 
 
 # ==================== 需要额外打包的资源 ====================
-# 1. akshare 的文件缓存目录
-AKSHARE_SRC = r'A:\projects\money2\venv\Lib\site-packages\akshare\file_fold'
+# 1. akshare 的文件缓存目录(必须)
+AKSHARE_SRC = r'A:\FUND\venv\Lib\site-packages\akshare\file_fold'
 
 # 2. py_mini_racer 的 dll（必须）
-MINI_RACER_DLL = r'A:\projects\money2\venv\Lib\site-packages\py_mini_racer\mini_racer.dll'
+MINI_RACER_DLL = r'A:\FUND\venv\Lib\site-packages\py_mini_racer\mini_racer.dll'
 
 # 3. 如果你想运行时还能读取 static 里的图片、配置文件等（强烈建议加上）
 STATIC_DATA = (static_dir, 'static')
