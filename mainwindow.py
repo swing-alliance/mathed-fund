@@ -7,15 +7,15 @@ from csvqwidget import CsvGraphWidget
 from qdialogue import  pulldata_dialog,GroupConfigDialog,List_group_dialog,ConfigDialog
 from utils.pull import fetch_and_save_fund_csv
 from my_types.nice_utils import update_files
-from projectcard import reload_mapping_latestdate,reload_mapping,reload_mapping_industry
+from projectcard import reload_mapping_latestdate,reload_mapping,reload_mapping_industry,many_add_to_group
 from automation import auto_submit
 from pannel_plan import ControlPanel
 from PyQt5.QtGui import QIcon
 from sys_center import SysCentral
 from qdialogue import IndustryFetchDialog,FilterParamsDialog,popup_message_dialog
-
 from config.get_config import get_config
 from signal_handler import history_signal_emitter
+
 import shutil
 import glob
 import time
@@ -331,22 +331,53 @@ class MainWindow(QMainWindow):
 
 
     def filter_group_by_distinguished(self):
-        """过滤优质不同基金"""
+        """过滤优质不同基金并添加到分组"""
         dialog = FilterParamsDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            threshold, num = dialog.get_values()
-            if threshold is not None:
-                central_widget = self.centralWidget()
-                if isinstance(central_widget, ControlPanel):
-                    cards = central_widget.filter_distinguished_cards(threshold, num)
-                    
-                    if not cards:
-                        # 即时实例化，并立刻调用 .exec_() 弹出
-                        popup_message_dialog(parent=self, title="提示", message="没有符合条件的基金").exec_()
-                    else:
-                        # 即时实例化不同的文字，并立刻调用 .exec_() 弹出
-                        msg_text = f"已筛选出 {len(cards)} 只基金：\n{cards}"
-                        popup_message_dialog(parent=self, title="提示", message=msg_text).exec_()
+        if dialog.exec_() != QDialog.Accepted:
+            return
+
+        threshold, num = dialog.get_values()
+        if threshold is None:
+            return
+
+        central_widget = self.centralWidget()
+        if isinstance(central_widget, ControlPanel):
+            # 此时 cards 是 ProjectCard 对象列表 [ProjectCard, ...]
+            cards = central_widget.filter_distinguished_cards(threshold, num)
+            
+            if not cards:
+                QMessageBox.information(self, "提示", "没有符合条件的基金")
+                return
+                
+            # 1. 从 ProjectCard 实例中提取完整路径列表
+            paths = [card.file_path for card in cards]
+            
+            # 2. 提取展示用名称（优先用基金标题，没有则用文件名）
+            card_names = [getattr(card, 'fund_tittle', card.filename) for card in cards]
+            
+            # 3. 格式化提示文本
+            display_names = "、".join(card_names[:20])
+            if len(card_names) > 5:
+                display_names += f" 等 {len(card_names)} 只"
+                
+            msg_text = f"已筛选出 {len(cards)} 只基金：\n{display_names}\n\n是否将其加入分组？"
+            
+            # 4. 询问是否加入分组
+            reply = QMessageBox.question(
+                self, 
+                "筛选完成", 
+                msg_text, 
+                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                # 5. 传入提取好的路径列表 paths
+                many_add_to_group(
+                    file_paths=paths, 
+                    parent=self, 
+                    default_filename=f"筛选优质基金_{len(paths)}只"
+                )
 
 
     def add_group(self):

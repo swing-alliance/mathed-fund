@@ -322,6 +322,17 @@ class FundHoldingDialog(QDialog):
         self.real_time_fluctuations = real_time_fluctuations or {}
         self.init_ui()
 
+    @staticmethod
+    def _safe_float(val, default=0.0):
+        """安全地将各种数据（字符串、包含%、逗号的数据等）转为 float"""
+        if val is None:
+            return default
+        try:
+            val_str = str(val).replace('%', '').replace(',', '').strip()
+            return float(val_str)
+        except (ValueError, TypeError):
+            return default
+
     def init_ui(self):
         self.setWindowTitle(f"{self.fund_name} 前十大重仓股")
         self.resize(860, 520)  # 稍微加宽一点，容纳新列
@@ -331,6 +342,7 @@ class FundHoldingDialog(QDialog):
         title.setFont(QFont("微软雅黑", 13))
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
+        
         self.table = QTableWidget()
         self.table.setRowCount(len(self.df))
         self.table.setColumnCount(7)  # 原6列 + 1列实时涨跌幅 = 7列
@@ -340,19 +352,29 @@ class FundHoldingDialog(QDialog):
         ])
         
         for idx, row in self.df.iterrows():
-            code = row["股票代码"]
+            code = str(row.get("股票代码", ""))
+            name = str(row.get("股票名称", ""))
+            
+            # 使用 safe_float 安全清洗数据
+            ratio = self._safe_float(row.get("占净值比例"))
+            shares = self._safe_float(row.get("持股数"))
+            market_val = self._safe_float(row.get("持仓市值"))
             
             self.table.setItem(idx, 0, QTableWidgetItem(str(idx + 1)))
             self.table.setItem(idx, 1, QTableWidgetItem(code))
-            self.table.setItem(idx, 2, QTableWidgetItem(row["股票名称"]))
-            self.table.setItem(idx, 3, QTableWidgetItem(f"{row['占净值比例']:.2f}%"))
-            self.table.setItem(idx, 4, QTableWidgetItem(f"{row['持股数']:,.0f}"))
-            self.table.setItem(idx, 5, QTableWidgetItem(f"{row['持仓市值']:,.2f}"))
+            self.table.setItem(idx, 2, QTableWidgetItem(name))
+            self.table.setItem(idx, 3, QTableWidgetItem(f"{ratio:.2f}%"))
+            self.table.setItem(idx, 4, QTableWidgetItem(f"{shares:,.0f}"))
+            self.table.setItem(idx, 5, QTableWidgetItem(f"{market_val:,.2f}"))
+            
+            # 实时涨跌幅处理
             fluctuation = self.real_time_fluctuations.get(code)
             if fluctuation is not None:
-                fluct_str = f"{fluctuation:+.2f}%"
+                fluct_float = self._safe_float(fluctuation)
+                fluct_str = f"{fluct_float:+.2f}%"
             else:
                 fluct_str = "--"  # 无数据时显示 --
+                
             item = QTableWidgetItem(fluct_str)
             self.table.setItem(idx, 6, item)
         
@@ -372,14 +394,18 @@ class FundHoldingDialog(QDialog):
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # 实时涨跌幅列自适应
         layout.addWidget(self.table)
-        total_ratio = self.df["占净值比例"].sum()
+        
+        # 安全计算合计占净值比例
+        total_ratio = sum(self._safe_float(r) for r in self.df["占净值比例"]) if "占净值比例" in self.df.columns else 0.0
+        
         self.assuming_return = self.get_assuming_return()
         if self.assuming_return != "--":
-            footer = QLabel(f"前十大重仓股合计占净值比例{total_ratio:.2f}%  预测实时涨跌幅：{self.assuming_return:.2f}%")
+            assuming_float = self._safe_float(self.assuming_return)
+            footer = QLabel(f"前十大重仓股合计占净值比例：{total_ratio:.2f}%  预测实时涨跌幅：{assuming_float:.2f}%")
             footer.setAlignment(Qt.AlignRight)
             layout.addWidget(footer)
             
-            self.setLayout(layout)
+        self.setLayout(layout)
 
 
     def get_assuming_return(self):

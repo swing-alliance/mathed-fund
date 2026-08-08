@@ -29,6 +29,14 @@ import socket
 from config.get_config import get_config,get_proxy_config
 from log.analysislog100 import analysis_log_batch
 import time
+import datetime
+import concurrent.futures
+import requests
+import pandas as pd
+import os
+import re
+import random
+from io import StringIO
 TO_WORKER = "to_worker"
 FOUND_PATH = "found"
 target_dir = os.path.join(os.getcwd(), 'static')
@@ -747,6 +755,7 @@ class ControlPanel(QWidget):
         card.update_assuming_return_ui(result)
 
 
+
     def filter_distinguished_cards(self, similarity_threshold=0.3, simpling_num=100):
         """过滤出持仓具有独特差异性的基金卡片 
         Args:
@@ -754,36 +763,62 @@ class ControlPanel(QWidget):
             simpling_num (int): 限制只处理前多少个最推荐的卡片
             
         Returns:
-            list: 过滤后的差异化基金代码列表
+            list: 过滤后的差异化基金卡片对象列表 [ProjectCard, ...]
         """
         all_cards = list(self.loaded_cards.values())
         target_cards = all_cards[:simpling_num]
-        fund_codes = [card.filename for card in target_cards if hasattr(card, 'filename')]
+        code_to_card = {card.filename: card for card in target_cards if hasattr(card, 'filename')}
+        fund_codes = list(code_to_card.keys())
+        
         if not fund_codes:
             return []
         def _fetch_holdings(fund_code):
-            current_year = str(datetime.datetime.now().year)
-            try:
-                df = ak.fund_portfolio_hold_em(symbol=fund_code, date=current_year)
-                if df.empty:
-                    last_year = str(datetime.datetime.now().year - 1)
-                    df = ak.fund_portfolio_hold_em(symbol=fund_code, date=last_year)
-                
-                if not df.empty:
-                    latest_quarter = df['季度'].iloc[0]
-                    latest_df = df[df['季度'] == latest_quarter].head(10)
-                    return fund_code, latest_df['股票名称'].tolist()
-            except Exception:
-                pass
+            os.environ.pop('HTTP_PROXY', None)
+            os.environ.pop('HTTPS_PROXY', None)
+            current_year = datetime.datetime.now().year
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": f"http://fundf10.eastmoney.com/ccmx_{fund_code}.html",
+            }
+            for target_year in [current_year, current_year - 1]:
+                url = f"http://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code={fund_code}&topline=10&year={target_year}"
+                try:
+                    time.sleep(random.uniform(0.05, 0.2))
+                    response = requests.get(url, headers=headers, timeout=8)
+                    text = response.text
+                    match = re.search(r'content:"(.*?)",arryear', text)
+                    if not match:
+                        continue
+                    html_content = match.group(1)
+                    if not html_content.strip():
+                        continue
+                    dfs = pd.read_html(StringIO(html_content))
+                    if not dfs:
+                        continue
+                    df = dfs[0]
+                    df.columns = [str(col).strip() for col in df.columns]
+                    name_col = None
+                    for col in df.columns:
+                        if '名称' in col:
+                            name_col = col
+                            break
+                    if name_col:
+                        stock_names = df[name_col].head(10).tolist()
+                        return fund_code, stock_names
+                except Exception:
+                    continue
             return fund_code, []
         fund_holdings_dict = {}
-        max_workers = min(10, len(fund_codes))
+        max_workers = min(4, len(fund_codes))
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_fund = {executor.submit(_fetch_holdings, code): code for code in fund_codes}
             for future in concurrent.futures.as_completed(future_to_fund):
-                code, stocks = future.result()
-                if stocks:
-                    fund_holdings_dict[code] = stocks
+                try:
+                    code, stocks = future.result()
+                    if stocks:
+                        fund_holdings_dict[code] = stocks
+                except Exception:
+                    pass
         def _calculate_jaccard(list_a, list_b):
             set_a, set_b = set(list_a), set(list_b)
             union = set_a.union(set_b)
@@ -801,7 +836,8 @@ class ControlPanel(QWidget):
                     break       
             if should_keep:
                 selected_fund_codes.append(fund_code)
-        return selected_fund_codes
+        selected_cards = [code_to_card[code] for code in selected_fund_codes if code in code_to_card]
+        return selected_cards
 
 
 
@@ -961,7 +997,6 @@ class ControlPanel(QWidget):
         layout.addStretch()
         dialog.setLayout(layout)
         dialog.exec_()
-
 
 
 

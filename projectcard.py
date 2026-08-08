@@ -226,6 +226,62 @@ def get_fund_industry_by_mapping(code):
     else:
         return None
 
+def many_add_to_group(file_paths, parent=None, default_filename=""):
+    """
+    通用批量加入/转到已有分组函数（不绑定 self）
+    
+    :param file_paths: 目标文件路径列表 List[str]
+    :param parent: Qt父级窗口（用于弹窗居中与模态控制），可传 None
+    :param default_filename: 用于对话框显示的标识名称，可传空字符串
+    """
+    if not file_paths:
+        print("未传入任何待处理的文件路径。")
+        return
+    groups_path = os.path.join(os.getcwd(), 'groups')
+    list_group_dialog = List_group_dialog(groups_path, "添加到分组", parent=parent, this_code=default_filename)
+    try:
+        if list_group_dialog.exec_() != QDialog.Accepted:
+            print("对话框被取消或关闭。")
+            return
+        this_group_path = list_group_dialog.get_selected_group_path()
+        group_name = os.path.basename(this_group_path)
+        message_box = MessageBoxYesOrNo(parent, title="确认批量加入分组", message=f"确认将选中的 {len(file_paths)} 项加入到【{group_name}】吗？")
+        if not message_box.exec_():
+            return
+        group_cache_path = None
+        for root, _, files in os.walk(groups_path):
+            if 'group_cache.csv' in files:
+                group_cache_path = os.path.join(root, 'group_cache.csv')
+                break
+        if not group_cache_path:
+            group_cache_path = os.path.join(groups_path, 'group_cache.csv')
+            os.makedirs(groups_path, exist_ok=True)
+            with open(group_cache_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['code', 'path', 'group_name', 'last_updated'])
+        df = pd.read_csv(group_cache_path, header=0, index_col=False)
+        if 'path' not in df.columns:
+            df['path'] = None
+        new_rows = []
+        for path in file_paths:
+            if path in df['path'].values:
+                df.loc[df['path'] == path, 'group_name'] = group_name
+            else:
+                new_rows.append({'path': path, 'group_name': group_name})
+        if new_rows:
+            df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+        df.to_csv(group_cache_path, index=False)
+        print(f"成功将 {len(file_paths)} 个文件添加到分组【{group_name}】")
+        try:
+            list_group_dialog.deleteLater()
+        except Exception as e:
+            if parent:
+                QMessageBox.warning(parent, "错误", f"对话框清理失败: {e}")
+    except Exception as e:
+        print(f"批量添加到分组失败: {e}")
+        if parent:
+            QMessageBox.warning(parent, "错误", f"批量添加到分组失败: {e}")
+            
 class ProjectCard(QFrame):
     """根据文件路径加载的项目卡片"""
     visualize_requested = pyqtSignal(str)  # 发送文件路径，调用信号
@@ -234,7 +290,7 @@ class ProjectCard(QFrame):
         self.file_path = file_path  # 当前基金的文件路径
         self.parent_widget = parent
         self.latest_date = get_latest_date_by_mapping(self.file_path)
-        self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名
+        self.filename = os.path.splitext(os.path.basename(self.file_path))[0]  # 文件名如100001
         self.industry=get_fund_industry_by_mapping(self.filename)
         self.fund_tittle: str = get_name_by_mapping(self.filename) if get_name_by_mapping(self.filename) else self.filename # 获取基金名称
         self.search_data = {
@@ -599,6 +655,9 @@ class ProjectCard(QFrame):
                     print("对话框被拒绝或关闭。")
             except Exception as e:
                 print(f"打开分组对话框失败: {e}")
+
+
+
 
     def show_fund_industry(self):
         """异步得到最新的行业信息"""
