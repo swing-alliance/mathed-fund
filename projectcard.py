@@ -115,21 +115,33 @@ def get_name_by_mapping(code):
                 save_new_mapping(code_str, full_name)
                 return full_name
             else:
-                print("试图从akshare获取基金名称失败",e)
+                print(f"{code_str}试图从akshare获取基金名称失败",e)
                 return None
         except Exception as e:
-            print("试图从akshare获取基金名称失败",e)
+            print(f"{code_str}试图从akshare获取基金名称失败",e)
             return None
 
-def get_fund_name(filename):
-    """通过网络爬取akshare获得基金名称"""
+def get_fund_name(filename: str) -> str:
+    """得到名字"""
+    # 输入校验：6位纯数字
+    if not (len(filename) == 6 and filename.isdigit()):
+        print("[ERROR] 请输入6位数字基金代码，格式示例：000001")
+        return
     try:
-        print('尝试得到基金名称')
-        info = ak.fund_individual_basic_info_xq(symbol=filename)
-        fund_full_name = info[info['item'] == '基金全称']['value'].iloc[0]
-        return fund_full_name
-    except IndexError:
-        raise ValueError(f"无法从akshare查询到基金代码 {filename} 的信息")
+        df: pd.DataFrame = ak.fund_overview_em(symbol=filename)
+        row = df.iloc[0]
+        fund_short_name = row.get("基金简称", "")
+        fund_type = row.get("基金类型", "")
+        # ========== 重点修改 ==========
+        # 不要用row.get("基金代码")，改用入参fund_code（干净6位数字）
+        f_code = filename
+        raw_df_str = df.to_string()  # 完整原始df转字符串
+        df_fund_info = pd.DataFrame([{
+            "基金简称": fund_short_name,
+        }])
+        return df_fund_info["基金简称"].iloc[0]
+    except Exception as err:
+        print(f"[ERROR] 获取基金数据失败：{str(err)}")
     
 def get_fund_info(filename):
         """根据六位基金代码返回基金信息，全局"""
